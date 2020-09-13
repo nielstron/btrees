@@ -1,75 +1,94 @@
 theory BTree                 
-  imports Main
+  imports Main "HOL-Data_Structures.Cmp" "HOL-Data_Structures.Tree234_Set"
 begin
 
 text "General structure:  nat values in the leafs and nat/tree node internal node list (nat always larger than every element in the corresponding subtree)"
 
-datatype btree_node = LNode "nat list" | INode "(nat * btree_node) list"
 
-fun btree_set:: "btree_node \<Rightarrow> nat set" where 
-  "btree_set (LNode xs) = set xs" |
-  "btree_set (INode xs) = (\<Union> (set (map (btree_set \<circ> snd) xs)))"
+class height =
+fixes height :: "'a \<Rightarrow> nat"
 
-fun btree_list:: "(nat * btree_node) list \<Rightarrow> bool" where
- "btree_list [] = True" |
- "btree_list ((key, subt)#xs) = (\<forall>x \<in> btree_set subt. x < key \<and> btree_list xs )"
+datatype btree = Leaf | Node "(btree * nat) list"
 
-fun all_true where "all_true [] = True" | "all_true (x#xs) = (x \<and> (all_true xs))"
+fun inorder :: "btree \<Rightarrow> nat list" where
+"inorder Leaf = []" |
+"inorder (Node kvs) = (fold (\<lambda> (sub, sep) res. res @ inorder sub @ [sep]) kvs [])" 
 
-definition "length_invar k xs = (length xs \<ge> k \<and> length xs \<le> 2*k+1)"
-definition "key_invar xs = (sorted xs)"
+instantiation btree :: height
+begin
 
-fun btree:: "nat \<Rightarrow> btree_node \<Rightarrow> bool"  where
- "btree k (LNode xs) = (length_invar k xs \<and> key_invar xs)"
-| "btree k (INode xs) = (length_invar k xs \<and> key_invar (map fst xs) \<and> btree_list xs \<and> (all_true (map (btree k \<circ> snd) xs)))"
+fun height_btree :: "btree \<Rightarrow> nat" where
+"height Leaf = 0" |
+"height (Node kvs) = Suc (Max (set (map (height \<circ> fst) kvs)))"
 
-fun btree_list_choose where
-"btree_list_choose x [] = None" |
-"btree_list_choose x ((key, subt)#xs) = (if key > x then Some subt else btree_list_choose x xs)"
+instance ..
 
-fun height:: "btree_node \<Rightarrow> nat" where
-"height (LNode xs) = 0" |
-"height (INode xs) = 1 + (Max (set (map height (map snd xs))))"
+end
+
+value "(Node [(Leaf, 1), (Node [(Leaf, 1), (Leaf, 10)], 10), (Leaf, 30), (Leaf, 100)])"
 
 fun children where
-"children (LNode xs) = {}" |
-"children (INode xs) = (set (map snd xs))"
+"children Leaf = {}" |
+"children (Node xs) = (set (map fst xs))"
 
-lemma children_height: "\<forall>subt \<in> children t. height subt < height t"
-proof (induction t)
-  case (INode x2)
-  show "\<forall>subt\<in>children (INode x2). height subt < height (INode x2)"
-  proof
-    fix s
-    assume "s \<in> children (INode x2)"
-    then have "height s \<in> (set (map height (map snd x2)))"
-      by auto
-    then have "height s \<le> Max (set (map height (map snd x2)))" by auto
-    then have "height s < 1 +  Max (set (map height (map snd x2)))" by auto
-    then show "height s < height (INode x2)" by auto
-  qed    
-qed auto
+definition btree_set:: "btree \<Rightarrow> nat set" where 
+  "btree_set = set \<circ> inorder"
 
-lemma btree_choose_set: "btree_list_choose x xs = t \<Longrightarrow> case t of Some s \<Rightarrow> s \<in> set (map snd xs) | None \<Rightarrow> True"
-  apply(induction x xs rule: btree_list_choose.induct)
-   apply(auto split: option.splits)
-  by (metis list.set_map option.inject option.simps(5))  
+fun btree_list:: "(btree * nat) list \<Rightarrow> bool" where
+ "btree_list [] = True" |
+ "btree_list ((sub, sep)#xs) = (\<forall>x \<in> btree_set sub. x < sep \<and> btree_list xs )"
 
-lemma btree_choose_children: "btree_list_choose x xs = Some s \<Longrightarrow> s \<in> children (INode xs)"
-  using btree_choose_set by fastforce
 
-function (sequential) btree_find where
- "btree_find x (LNode xs) = (if x \<in> set xs then Some x else None)" |
- "btree_find x (INode xs) = (
-  case btree_list_choose x xs of
-     None \<Rightarrow> None |
-     Some subt \<Rightarrow> btree_find x subt
-)"
-by pat_completeness auto
-  termination
-    apply (relation "measure (%(a,t). height t)") 
-     apply(simp)
-    using btree_choose_children
-    by (metis case_prod_conv children_height in_measure)
+definition "length_invar k xs = (length xs \<ge> k \<and> length xs \<le> 2*k+1)"
+definition "key_invar xs = (sorted (map snd xs))"
+
+fun k_btree:: "nat \<Rightarrow> btree \<Rightarrow> bool"  where
+ "k_btree k Leaf = True"
+| "k_btree k (Node xs) = (length_invar k xs \<and> key_invar xs \<and> btree_list xs \<and> (fold (\<and>) (map (k_btree k \<circ> fst) xs) True))"
+
+fun k_btree_root where
+"k_btree_root k Leaf = True" |
+"k_btree_root k (Node xs) = (key_invar xs \<and> btree_list xs \<and>  (fold (\<and>) (map (k_btree k \<circ> fst) xs) True))"
+
+datatype list_result = Nomatch | Subtree btree | Match
+
+fun btree_list_choose where
+"btree_list_choose x [] = Nomatch" |
+"btree_list_choose x ((sub, sep)#xs) = (case cmp x sep of LT \<Rightarrow> Subtree sub | EQ \<Rightarrow> Match | GT \<Rightarrow> btree_list_choose x xs)"
+
+(* the following is what Isabelle requires *)
+lemma [simp]: "btree_list_choose y t = Subtree x2 \<Longrightarrow>
+       size x2 < Suc (size_list (\<lambda>x. Suc (size (fst x))) t)"
+  apply (induction t)
+  apply (auto split: list_result.splits)
+  apply (metis (no_types, lifting) dual_order.strict_trans less_Suc_eq less_add_Suc1 list_result.distinct(5) list_result.inject not_add_less2 not_less_eq)
+  done
+
+fun isin where
+ "isin y (Leaf) = False" |
+ "isin y (Node t) = (case btree_list_choose y t of Nomatch \<Rightarrow> False | Match \<Rightarrow> True | Subtree sub \<Rightarrow> isin y sub)"
+
+
+value "btree_set (Node [(Leaf, 0), (Node [(Leaf, 1), (Leaf, 10)], 12), (Leaf, 30), (Leaf, 100)])"
+value "height (Node [(Leaf, 0), (Node [(Leaf, 1), (Leaf, 10)], 12), (Leaf, 30), (Leaf, 100)])"
+(* a bit weird *)
+value "size (Node [(Leaf, 0), (Node [(Leaf, 1), (Leaf, 10)], 12), (Leaf, 30), (Leaf, 100)])"
+
+
+lemma "x \<in> set (map fst t) \<Longrightarrow> btree_set x \<subseteq> btree_set (Node t)"
+  apply(induction x)
+   apply(auto simp add: btree_set_def)
+  sorry
+
+lemma "btree_list_choose y t = Subtree x \<Longrightarrow> x \<in> set (map fst t)"
+  apply(induction y t rule: btree_list_choose.induct)
+   apply(simp_all)
+  by (metis GT list_result.distinct(5) list_result.inject)
+
+lemma "isin y t = True \<Longrightarrow> y \<in> btree_set t"
+  apply(induction y t rule: isin.induct)
+   apply(auto simp add: btree_set_def split: list_result.splits)
+sorry
+
 
 end

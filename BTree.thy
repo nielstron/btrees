@@ -3,29 +3,37 @@ theory BTree
 begin
 
 text "General structure:  nat values in the leafs and nat/tree node internal node list (nat always larger than every element in the corresponding subtree)"
-
-
-class height =
-fixes height :: "'a \<Rightarrow> nat"
+(* definition heavily based on Tree234_Set, Pair structure from ...*)
 
 datatype btree = Leaf | Node "(btree * nat) list"
 
+definition "btree_of_pair = fst"
+definition "sep_of_pair = snd"
+
 fun inorder :: "btree \<Rightarrow> nat list" where
 "inorder Leaf = []" |
-"inorder (Node kvs) = (fold (\<lambda> (sub, sep) res. res @ inorder sub @ [sep]) kvs [])" 
+"inorder (Node kvs) = (foldr (@) (map (\<lambda> (sub, sep). inorder sub @ [sep]) kvs) [])" 
+
+class height =
+fixes height :: "'a \<Rightarrow> nat"
 
 instantiation btree :: height
 begin
 
 fun height_btree :: "btree \<Rightarrow> nat" where
 "height Leaf = 0" |
-"height (Node kvs) = Suc (Max (set (map (height \<circ> fst) kvs)))"
+"height (Node kvs) = Suc (fold max (map (height \<circ> fst) kvs) 0)"
 
 instance ..
 
 end
 
+(* not sure if required but appearently already present for coding equivalence *)
+lemma set_eq_fold:"Suc (fold max xs 0) = Suc (Max (set (0#xs)))"
+  by (metis Max.set_eq_fold)
+
 value "(Node [(Leaf, 1), (Node [(Leaf, 1), (Leaf, 10)], 10), (Leaf, 30), (Leaf, 100)])"
+value "inorder (Node [(Leaf, 1), (Node [(Leaf, 1), (Leaf, 10)], 10), (Leaf, 30), (Leaf, 100)])"
 
 fun children where
 "children Leaf = {}" |
@@ -48,7 +56,7 @@ fun k_btree:: "nat \<Rightarrow> btree \<Rightarrow> bool"  where
 
 fun k_btree_root where
 "k_btree_root k Leaf = True" |
-"k_btree_root k (Node xs) = (key_invar xs \<and> btree_list xs \<and>  (fold (\<and>) (map (k_btree k \<circ> fst) xs) True))"
+"k_btree_root k (Node xs) = (key_invar xs \<and> btree_list xs \<and>  (fold (\<and>) (map (k_btree k \<circ> btree_of_pair) xs) True))"
 
 datatype list_result = Nomatch | Subtree btree | Match
 
@@ -75,20 +83,35 @@ value "height (Node [(Leaf, 0), (Node [(Leaf, 1), (Leaf, 10)], 12), (Leaf, 30), 
 value "size (Node [(Leaf, 0), (Node [(Leaf, 1), (Leaf, 10)], 12), (Leaf, 30), (Leaf, 100)])"
 
 
-lemma "x \<in> set (map fst t) \<Longrightarrow> btree_set x \<subseteq> btree_set (Node t)"
-  apply(induction x)
-   apply(auto simp add: btree_set_def)
-  sorry
+lemma append_foldr_set: "set (foldr (@) xs []) = \<Union> (set (map set xs))"
+  apply(induction xs)
+   apply(auto)
+  done
 
-lemma "btree_list_choose y t = Subtree x \<Longrightarrow> x \<in> set (map fst t)"
+lemma child_subset: "p \<in> set t \<Longrightarrow> btree_set (fst p) \<subseteq> btree_set (Node t)"
+  apply(induction p arbitrary: t)
+   apply(auto simp add: btree_set_def append_foldr_set)
+  done
+
+
+lemma some_child_sub: "btree_list_choose y t = Subtree x \<Longrightarrow> x \<in> set (map fst t)"
   apply(induction y t rule: btree_list_choose.induct)
    apply(simp_all)
   by (metis GT list_result.distinct(5) list_result.inject)
 
+lemma some_child_match: "btree_list_choose y t = Match \<Longrightarrow> y \<in> set (map snd t)"
+  apply(induction y t rule: btree_list_choose.induct)
+   apply(auto simp add: cmp_def)
+  by (metis list_result.distinct(6))
+
 lemma "isin y t = True \<Longrightarrow> y \<in> btree_set t"
-  apply(induction y t rule: isin.induct)
-   apply(auto simp add: btree_set_def split: list_result.splits)
-sorry
+proof(induction y t rule: isin.induct)
+  case (1 y)
+  then show ?case by simp
+next
+  case (2 y t)
+then show ?case sorry
+qed
 
 
 end

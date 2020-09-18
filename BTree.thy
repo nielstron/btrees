@@ -5,7 +5,9 @@ begin
 text "General structure:  nat values in the leafs and nat/tree node internal node list (nat always larger than every element in the corresponding subtree)"
 (* definition heavily based on Tree234_Set, Pair structure from ...*)
 (* TODO should all basic definitions be more abstract and use later refinements for implementations *)
-(* TODO to keep the list as pairs, the type for the btrees should be changed to linorder with TOP *)
+(* TODO to keep the list as pairs, the type for the btrees should be changed to linorder with TOP
+ alternative: sep is the element *smaller* than all all elements in the respective tree - problem: how to descend into the correct subtree?
+ *)
 
 
 (* TODO more abstract idea: inside each Btree node is some abstract implementation of a sorted list (i.e. a BST),
@@ -42,14 +44,14 @@ value "(Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)], 10), (Leaf, 30), 
 value "inorder (Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)], 10), (Leaf, 30), (Leaf, 100)])"
 
 fun subtrees where "subtrees xs = (map fst xs)"
-fun seperators where "seperators xs = (map fst xs)"
+fun seperators where "seperators xs = (map snd xs)"
 
 definition btree_set:: "'a btree \<Rightarrow> 'a set" where 
   "btree_set = set \<circ> inorder"
 
 fun btree_set_alt:: "'a btree \<Rightarrow> 'a set" where
 "btree_set_alt Leaf = {}" |
-"btree_set_alt (Node t) = set (map snd t) \<union> \<Union> (set (map (btree_set_alt) (subtrees t)))"
+"btree_set_alt (Node t) = set (seperators t) \<union> \<Union> (set (map (btree_set_alt) (subtrees t)))"
 
 
 
@@ -108,12 +110,12 @@ lemma child_subset: "p \<in> set t \<Longrightarrow> btree_set (fst p) \<subsete
   done
 
 
-lemma some_child_sub: "btree_list_choose t y = Subtree x \<Longrightarrow> x \<in> set (map fst t)"
+lemma some_child_sub: "btree_list_choose t y = Subtree x \<Longrightarrow> x \<in> set (subtrees t)"
   apply(induction t y rule: btree_list_choose.induct)
    apply(simp_all)
   by (metis GT list_result.distinct(5) list_result.inject)
 
-lemma some_child_match: "btree_list_choose t y = Match \<Longrightarrow> y \<in> set (map snd t)"
+lemma some_child_match: "btree_list_choose t y = Match \<Longrightarrow> y \<in> set (seperators t)"
   apply(induction t y rule: btree_list_choose.induct)
    apply(auto simp add: cmp_def)
   by (metis list_result.distinct(6))
@@ -122,7 +124,7 @@ lemma isin_true_not_nomatch: "isin (Node t) y = True \<Longrightarrow> btree_lis
   by auto
 
 
-lemma "isin n y = True \<Longrightarrow> y \<in> btree_set n"
+lemma isin_implied_in_set: "isin n y \<Longrightarrow> y \<in> btree_set n"
 proof(induction n y rule: isin.induct)
   case (2 t y) 
   then have "btree_list_choose t y = Match \<or> (\<exists>sub. btree_list_choose t y = Subtree sub)"
@@ -135,40 +137,165 @@ proof(induction n y rule: isin.induct)
   next
     assume "\<exists>sub. btree_list_choose t y = Subtree sub"
     then obtain sub where sub_tree: "btree_list_choose t y = Subtree sub" by blast
-    then have "sub \<in> set (map fst t)" using some_child_sub by auto
+    then have "sub \<in> set (subtrees t)" using some_child_sub by auto
     also have "y \<in> btree_set sub" using 2 sub_tree by auto
     ultimately show "y \<in> btree_set (Node t)" 
       using child_subset by fastforce
   qed
 qed simp
 
-fun sorted_list:: "('a::{linorder, bot}) \<Rightarrow> ('a btree \<times> 'a) list \<Rightarrow> bool" where
-"sorted_list left [] = True" |
-"sorted_list left ((sub, sep)#xs) = ((\<forall>x \<in> btree_set sub. x > left \<and> x < sep) \<and> left < sep \<and> sorted_list sep xs)"
+fun sorted_list_help:: "('a::{linorder}) \<Rightarrow> ('a btree \<times> 'a) list \<Rightarrow> bool" where
+"sorted_list_help left [] = True" |
+"sorted_list_help left ((sub, sep)#xs) = ((\<forall>x \<in> btree_set sub. x > left \<and> x < sep) \<and> left < sep \<and> sorted_list_help sep xs)"
 
-fun sorted_alt:: "('a::{linorder, bot} btree) \<Rightarrow> bool" where
-"sorted_alt Leaf = True" |
-"sorted_alt (Node xs) = (sorted_list bot xs \<and> (\<forall>sub \<in> set (map fst xs). sorted_alt sub))"
+fun sorted_list:: "(('a::linorder) btree \<times> 'a) list \<Rightarrow> bool" where
+"sorted_list [] = True" |
+"sorted_list ((sub, sep)#xs) = ((\<forall>x \<in> btree_set sub. x < sep) \<and> sorted_list_help sep xs)"
 
-lemma sorted_list_part: "sorted_list a xs \<Longrightarrow> sorted (map snd ((t, a)#xs))"
-  apply(induction a xs rule: sorted_list.induct)
+
+(* idea: make sorted_list a sorted_wrt *)
+find_theorems sorted_wrt
+thm sorted_wrt_append
+
+fun sub_sep_sm where
+ "sub_sep_sm (sub_l, sep_l) (sub_r, sep_r) =
+  ((sep_l < sep_r) \<and> (\<forall>x \<in> btree_set sub_r. sep_l < x))"
+
+fun sub_sep_cons where
+"sub_sep_cons (sub, sep) = (\<forall>x \<in> btree_set sub. x < sep)"
+
+lemma sorted_wrt_list_sorted: "sorted_wrt sub_sep_sm xs \<Longrightarrow> sorted (seperators xs)"
+  apply(induction xs) 
+   apply (auto simp add: sorted_wrt_Cons)
+  done
+
+lemma sorted_wrt_sorted_left: "sorted_wrt sub_sep_sm ((sub, sep)#xs) \<Longrightarrow> t \<in> set (subtrees xs) \<Longrightarrow> \<forall>x \<in> btree_set t. x > sep"
+  apply(induction xs) 
+   apply (auto simp add: sorted_wrt_Cons)
+  done
+
+(* the below is independent of the inter-pair sorting *)
+lemma sorted_wrt_sorted_right: "\<forall>x \<in> set xs. sub_sep_cons x \<Longrightarrow> (t, sep) \<in> set xs \<Longrightarrow> \<forall>x \<in> btree_set t. x < sep"
+  by auto
+
+fun sorted_alt2 where
+"sorted_alt2 Leaf = True" |
+"sorted_alt2 (Node xs) = (sorted_wrt sub_sep_sm xs \<and> (\<forall>x \<in> set xs. sub_sep_cons x) \<and> (\<forall>sub \<in> set (subtrees xs). sorted_alt2 sub))"
+
+value "sorted_alt (Node [(Node [(Node [], a\<^sub>1)], a\<^sub>2)])"
+value "sorted (inorder (Node [(Node [(Node [], a\<^sub>1)], a\<^sub>2)]))"
+value "sorted_alt2 (Node [(Node [(Node [], a\<^sub>1)], a\<^sub>2)])"
+
+lemma "(sorted (inorder sub) \<and> (\<forall>x \<in> btree_set sub. x < sep)) = sorted((inorder sub) @ [sep])"
+  unfolding btree_set_def using sorted_snoc_iff
+  by auto
+
+
+(* idea: we show that if any element is in the btree_set of a tree, then it must be in the list or in the subtree given by btree_list_choose,
+show the latter by case distinction on the compare of btree_list *)
+
+lemma btree_set_alt_induct: "x \<in> btree_set_alt (Node xs) \<Longrightarrow> x \<in> set (seperators xs) \<or> (\<exists>sub \<in> set (subtrees xs). x \<in> btree_set_alt sub)"
+  apply(induction xs)
    apply(auto)
   done
+
+find_theorems sorted_wrt map
+
+lemma isin_set: "sorted_alt2 t \<Longrightarrow> x \<in> btree_set_alt t \<Longrightarrow> isin t x"
+proof (induction t x rule: isin.induct)
+  case (2 xs y)
+  from 2 have tmp: "sorted_wrt sub_sep_sm xs" by auto
+  from 2 have tmp2: "\<forall>x \<in> set xs. sub_sep_cons x" by auto
   
+  from 2 have "y \<in> set (seperators xs) \<or> (\<exists>sub \<in> set (subtrees xs). y \<in> btree_set_alt sub)"
+    using btree_set_alt_induct by simp
+  then show ?case
+  proof
+    assume "y \<in> set (seperators xs)"
+    then have "\<lbrakk>sorted_wrt sub_sep_sm xs; (\<forall>x \<in> set xs. sub_sep_cons x)\<rbrakk> \<Longrightarrow> btree_list_choose xs y = Match"
+    proof (induction xs y rule: btree_list_choose.induct)
+      case (2 sub sep ys y)
+      then show ?case
+      using 2 proof (cases "cmp y sep")
+        case LT
+        from 2 have "sorted (seperators ((sub,sep)#ys))" using sorted_wrt_list_sorted by blast
+        then have "sorted (sep#(seperators ys))" by simp
+        then have "\<forall>x \<in> set (seperators ys). sep < x"
+          by (simp add: sorted_wrt_Cons)
+        then have "y \<notin> set (seperators ys)"
+          using local.LT by auto
+        then have "y \<notin> set (seperators ((sub, sep) # ys))"
+          using local.LT by auto
+        then show ?thesis
+          using "2.prems"(3) by auto
+      next
+        case GT
+        (* we need to show that sortedness is inductive *)
+        from 2 have "sorted_wrt sub_sep_sm ys"
+          by (simp add: sorted_wrt_Cons)
+        then show ?thesis using GT 2 sorted_wrt_Cons by auto
+      qed auto
+    qed auto
+    then show "BTree.isin (Node xs) y" using 2 by simp
+  next
+    assume "(\<exists>sub \<in> set (subtrees xs). y \<in> btree_set_alt sub)"
+    then have "\<lbrakk>(\<exists>sub \<in> set (subtrees xs). y \<in> btree_set_alt sub); sorted_wrt sub_sep_sm xs; (\<forall>x \<in> set xs. sub_sep_cons x)\<rbrakk> \<Longrightarrow> (\<exists>s. btree_list_choose xs y = Subtree s \<and> y \<in> btree_set_alt s)"
+    proof (induction xs y rule: btree_list_choose.induct)
+      case (2 sub sep ys y)
+      then show ?case
+      using 2 proof (cases "cmp y sep")
+        case LT
 
-lemma sorted_list_bot: "sorted_list bot xs \<Longrightarrow> sorted (map snd xs)"
-  using sorted_list_part by (cases xs) auto
+        from 2 have "t \<in> set (subtrees ys) \<Longrightarrow> \<forall>x \<in> btree_set t. x > sep"
+          using sorted_wrt_sorted_left by blast
+        then have "t \<in> set (subtrees ys) \<Longrightarrow> \<forall>x \<in> btree_set t. x > y" using local.LT by auto
+        then have "t \<in> set (subtrees ys) \<Longrightarrow> y \<notin> btree_set t" by auto
+        then have y_not_in_subs: "t \<in> set (subtrees ys) \<Longrightarrow> y \<notin> btree_set_alt t" by (simp add: btree_set_set_def)
 
+        from 2 have "\<exists>sub \<in> set (subtrees ((sub,sep)#ys)). y \<in> btree_set_alt sub" by simp
+        then have "\<exists>sub \<in> set (sub#(subtrees ys)). y \<in> btree_set_alt sub" by simp
+        then have "y \<in> btree_set_alt sub" 
+          by (metis "2.prems"(2) GT btree_set_set_def cmp_val.distinct(3) local.LT set_ConsD sorted_wrt_sorted_left)
+        then show ?thesis unfolding btree_list_choose.simps
+          by (simp add: local.LT)
+      next
+        case GT
+        (* we need to show that sortedness is inductive *)
+        from 2 have GT1: "sorted_wrt sub_sep_sm ys"
+          by (simp add: sorted_wrt_Cons)
+        from 2 have GT2: "\<exists>t \<in> set (subtrees ys). y \<in> btree_set_alt t"
+        proof - (* due to z3 *)
+        obtain bb :: "'a btree" where
+          f1: "bb \<in> set (subtrees ((sub, sep) # ys)) \<and> y \<in> btree_set_alt bb"
+          using "2.prems"(1) by blast
+        then have f2: "bb \<in> fst ` set ((sub, sep) # ys)"
+          by simp
+        obtain pp :: "('a btree \<times> 'a) set \<Rightarrow> ('a btree \<times> 'a \<Rightarrow> 'a btree) \<Rightarrow> 'a btree \<Rightarrow> 'a btree \<times> 'a" where
+          "\<forall>x0 x1 x2. (\<exists>v3. v3 \<in> x0 \<and> x2 = x1 v3) = (pp x0 x1 x2 \<in> x0 \<and> x2 = x1 (pp x0 x1 x2))"
+          by moura
+          then have "\<forall>b f P. (b \<notin> f ` P \<or> pp P f b \<in> P \<and> b = f (pp P f b)) \<and> (b \<in> f ` P \<or> (\<forall>p. p \<notin> P \<or> b \<noteq> f p))"
+          by blast
+        then have "bb \<in> fst ` set ys"
+          using f2 f1 by (metis (no_types) "2.prems"(3) btree_set_set_def cmp_def cmp_val.distinct(3) fst_conv local.GT set_ConsD sub_sep_cons.simps)
+          then show ?thesis
+            using f1 by auto
+        qed
+        then show ?thesis using GT 2 sorted_wrt_Cons GT1 GT2 by simp
+      next
+        case EQ
+        then show ?thesis
+          using "2.prems"(1) "2.prems"(2) "2.prems"(3) btree_set_set_def sorted_wrt_sorted_left by fastforce
+      qed
+    qed auto
+    then show "BTree.isin (Node xs) y" using 2
+      by (metis BTree.isin.simps(2) \<open>\<exists>sub\<in>set (subtrees xs). y \<in> btree_set_alt sub\<close> list_result.simps(9) some_child_sub sorted_alt2.simps(2))
+  qed
+qed auto
 
-lemma "sorted (inorder t) = sorted_alt t"
-  apply(induction t)
-   apply(auto) 
-sorry
+lemma "sorted_alt2 t \<Longrightarrow> isin t y = (y \<in> btree_set t)"
+  using BTree.isin_set btree_set_set_def isin_implied_in_set by fastforce
 
-lemma isin_set: "sorted(inorder t) \<Longrightarrow> isin t x = (x \<in> btree_set t)"
-  unfolding btree_set_def 
-  apply (induction t) 
-   apply(auto split: list_result.splits) 
-  sorry
+lemma "sorted_alt2 t = sorted (inorder t)"
+  sorry (*TODO*)
 
 end

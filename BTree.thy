@@ -357,24 +357,66 @@ qed (auto simp add: btree_set_set_def)
 lemma "sorted_alt2 t \<Longrightarrow> isin t y = (y \<in> btree_set t)"
   using BTree.isin_set btree_set_set_def isin_implied_in_set by fastforce
 
+lemma "\<lbrakk>\<forall>y \<in> set ys. \<forall>x \<in> set xs. y < x; sorted ys; sorted xs\<rbrakk> \<Longrightarrow> sorted (ys@xs)"
+  using sorted_wrt_append by blast
+
+lemma fold_append_simp: "(f x @ (foldr (@) (map f xs) [])) = (foldr (@) (map f (x#xs)) [])" by simp
+
 lemma "sorted_alt2 t \<Longrightarrow> sorted (inorder t)"
 proof(induction t)
   case (Node xs)
-  then have "\<lbrakk>sorted_wrt sub_sep_sm xs; \<forall>x\<in> set xs. sub_sep_cons x\<rbrakk> \<Longrightarrow> sorted (inorder (Node xs))"
+  then have "\<lbrakk>sorted_alt2 (Node xs)\<rbrakk> \<Longrightarrow> sorted (inorder (Node xs))"
   proof (induction xs)
-    case (Cons a xs)
-    then obtain sub sep where pair_a: "a = (sub,sep)" by (cases a) simp
-    then have "\<forall>x \<in> set (seperators xs). sep < x"
-      by (metis list.simps(9) local.Cons(2) prod.sel(2) seperators.simps sorted_wrt_Cons sorted_wrt_list_sorted)
-    from pair_a Cons have "\<forall>t \<in> set (subtrees xs). (\<forall>x \<in> btree_set t. sep < x)"
-      by (simp add: sorted_wrt_sorted_left)
-    have "\<forall>x \<in> set (foldr (@) (map (\<lambda> (sub, sep). inorder sub @ [sep]) xs) []). sep < x" 
-    then show ?case sorry
+    case (Cons a list)
+    then have Cons_help: 
+      "sorted_wrt sub_sep_sm list" 
+      "\<forall>x \<in> set list. sub_sep_cons x"
+      "\<forall>sub \<in> set (subtrees list). sorted_alt2 sub"
+      by (simp add: sorted_wrt_Cons)+
+    then have "sorted_alt2 (Node list)" using Cons
+      by simp
+    then have Cons_sorted: "sorted (inorder (Node list))"
+      using Cons.IH Cons.prems(2) by auto
+
+    from Cons obtain sub sep where pair_a: "a = (sub,sep)" by (cases a) simp
+    then have "sorted_alt2 sub" using Node Cons
+      by simp
+    then have "sorted (inorder sub)" using Node Cons pair_a
+      by force
+
+
+    from pair_a have "\<forall>x \<in> set (seperators list). sep < x"
+      using sorted_wrt_Cons sorted_wrt_list_sorted Cons_help
+      by (metis (no_types, lifting) Cons.prems(1) list.simps(9) seperators.simps snd_conv sorted_alt2.simps(2))
+    also from pair_a Cons have "\<forall>t \<in> set (subtrees list). (\<forall>x \<in> btree_set t. sep < x)"
+      using sorted_alt2.simps(2) sorted_wrt_sorted_left by blast
+    ultimately have "\<forall>x \<in> btree_set_alt (Node list). sep < x"
+      using btree_set_set_def by fastforce
+    then have "\<forall>x \<in> btree_set (Node list). sep < x"
+      by (simp add: btree_set_set_def)
+    then have sep_sm: "\<forall>x \<in> set (inorder (Node list)). sep < x"
+      unfolding btree_set_def by auto
+    then have "sorted (sep # inorder (Node list))"
+      using Cons sorted_Cons_iff Cons_sorted by blast
+    moreover have "\<forall>y \<in> set (inorder sub). \<forall>x \<in> set (inorder (Node list)). y < x"
+      using Cons_help sep_sm pair_a Cons
+      by (metis (no_types, lifting) btree_set_def comp_apply dual_order.strict_trans list.set_intros(1) sorted_alt2.simps(2) sub_sep_cons.simps)
+    ultimately have "sorted (inorder sub @ sep # inorder (Node list))"
+      using sorted_wrt_append[of "(<)" "inorder sub" "sep # inorder (Node list)"] \<open>sorted (inorder (Node list))\<close>
+      by (metis \<open>Sorted_Less.sorted (BTree.inorder sub)\<close> btree_set_def comp_apply insert_iff list.set(2) local.Cons(2) pair_a sorted_alt2.simps(2) sub_sep_cons.simps)
+    then have "sorted ((inorder sub @ [sep]) @ inorder (Node list))"
+      by simp
+    then have "sorted ((\<lambda>(sub, sep). BTree.inorder sub @ [sep]) a @ foldr (@) (map (\<lambda>(sub, sep). BTree.inorder sub @ [sep]) list) [])"
+      unfolding inorder.simps by (simp add: pair_a)
+    then have "sorted (foldr (@) (map (\<lambda>(sub, sep). BTree.inorder sub @ [sep]) (a#list)) [])" 
+      by simp
+    then show ?case by simp
   qed auto
   then show ?case using Node by auto
 qed auto
 
 find_theorems sorted_wrt "(@)"
+find_theorems sorted_wrt "(#)"
 thm sorted_wrt_append
 
 

@@ -37,7 +37,11 @@ lemma isin_true_not_empty_r: "\<lbrakk>isin (Node t) y; split_fun t y = (l, r)\<
 
 
 
-lemma isin_implied_in_set: "isin n y \<Longrightarrow> y \<in> btree_set n"
+find_theorems set_btree
+find_theorems map snd
+thm snd_conv snds.intros btree.set_intros
+
+lemma isin_implied_in_set: "isin n y \<Longrightarrow> y \<in> set_btree n"
 proof(induction n y rule: isin.induct)
   case (2 t y)
   then obtain l r where 21: "split_fun t y = (l,r)" by auto
@@ -49,13 +53,13 @@ proof(induction n y rule: isin.induct)
     assume "y = sep"
     then have "y \<in> set (seperators t)" using some_child_sub(2) split_fun_child 2 21 22
       by metis
-    then show "y \<in> btree_set (Node t)" by (simp add: btree_set_set_def)
+    then show "y \<in> set_btree (Node t)"
+      by (meson seperators_in_set subsetD)
   next
     assume "y \<noteq> sep"
-    then have "y \<in> btree_set sub" unfolding isin.simps using 2 21 22 by auto
-    then show "y \<in> btree_set (Node t)"
-      using "21" "22" child_subset split_fun_child
-      by (metis fst_eqD subsetD)
+    then have "y \<in> set_btree sub" unfolding isin.simps using 2 21 22 by auto
+    then show "y \<in> set_btree (Node t)"
+      by (metis "21" "22" child_subset fst_eqD split_fun_child subsetD)
   qed
 qed simp
 
@@ -88,67 +92,67 @@ qed
 thm sorted_wrt_sorted_left
 
 lemma linear_split_subtree_match:
-  assumes "\<exists>sub \<in> set (subtrees xs). y \<in> btree_set sub"
+  assumes "\<exists>sub \<in> set (subtrees xs). y \<in> set_btree sub"
   assumes "sorted_wrt sub_sep_sm xs"
   assumes "\<forall>x \<in> set xs. sub_sep_cons x"
   assumes "split_fun xs y = (l,r)"
-  shows "y \<in> btree_set (fst (hd r))"
+  shows "y \<in> set_btree (fst (hd r))"
   and "r \<noteq> []"
 proof -
   have "\<forall> (sub,sep) \<in> set l. y > sep"
     using assms(2) assms(4) split_fun_req(2) sorted_wrt_list_sorted by fastforce
-  then have "\<forall> (sub, sep) \<in> set l. y \<notin> btree_set sub"
-    by (metis (no_types, lifting) Un_iff assms(2) assms(3) assms(4) split_fun_req(1) split_fun_req(2) btree_set_set_def case_prodI2 less_asym' set_append some_child_sub(2) sorted_wrt_list_sorted sub_sep_cons.simps)
-  moreover have "\<exists>sub \<in> set (subtrees (l@r)). y \<in> btree_set sub"
-    using assms(1) assms(2) assms(4) split_fun_req(1) sorted_wrt_list_sorted by blast
-  ultimately have "\<exists>sub \<in> set (subtrees r). y \<in> btree_set sub" by auto
-  then show "y \<in> btree_set (fst (hd r))"
+  then have "\<forall> (sub, sep) \<in> set l. y \<notin> set_btree sub"
+    by (metis (no_types, lifting) Un_iff assms(2) assms(3) assms(4) case_prodI2 not_less_iff_gr_or_eq set_append some_child_sub(2) sorted_wrt_list_sorted split_fun_req(1) split_fun_req(2) sub_sep_cons.simps)
+  moreover have "\<exists>sub \<in> set (subtrees (l@r)). y \<in> set_btree sub"
+    using assms(1) assms(4) split_fun_req(1) by blast
+  ultimately have "\<exists>sub \<in> set (subtrees r). y \<in> set_btree sub" by auto
+  then show "y \<in> set_btree (fst (hd r))"
   proof (cases r)
     case (Cons a list)
     then obtain psub psep where a_split: "a = (psub, psep)" by (cases a)
     then have "y \<le> psep" 
       using  split_fun_req(3)[of xs y l r] assms Cons sorted_wrt_list_sorted by fastforce
-    moreover have "\<forall>t \<in> set (subtrees list). \<forall>x \<in> btree_set t. psep < x"
+    moreover have "\<forall>t \<in> set (subtrees list). \<forall>x \<in> set_btree t. psep < x"
       using sorted_wrt_sorted_left a_split assms(2) assms(4) split_fun_req(1) local.Cons sorted_wrt_append sorted_wrt_list_sorted by blast
-    ultimately have "\<forall>t \<in> set (subtrees list). y \<notin> btree_set t"
+    ultimately have "\<forall>t \<in> set (subtrees list). y \<notin> set_btree t"
       using leD by blast
-    then have "y \<in> btree_set psub"
-      using \<open>\<exists>sub\<in>set (subtrees r). y \<in> btree_set sub\<close> a_split local.Cons by auto
+    then have "y \<in> set_btree psub"
+      using \<open>\<exists>sub\<in>set (subtrees r). y \<in> set_btree sub\<close> a_split local.Cons by auto
     then show ?thesis
       by (simp add: a_split local.Cons)
   qed simp
-  from \<open>\<exists>sub \<in> set (subtrees r). y \<in> btree_set sub\<close> show "r \<noteq> []" by auto
+  from \<open>\<exists>sub \<in> set (subtrees r). y \<in> set_btree sub\<close> show "r \<noteq> []" by auto
 qed
 
 
-lemma isin_set: "sorted_alt2 t \<Longrightarrow> x \<in> btree_set t \<Longrightarrow> isin t x"
+lemma isin_set: "sorted_alt t \<Longrightarrow> x \<in> set_btree t \<Longrightarrow> isin t x"
 proof (induction t x rule: isin.induct)
   case (2 xs y)
     obtain l r where choose_split: "split_fun xs y = (l,r)"
       by fastforce
-  from 2 have "y \<in> set (seperators xs) \<or> (\<exists>sub \<in> set (subtrees xs). y \<in> btree_set sub)"
-    using btree_set_alt_induct by (simp add: btree_set_set_def)
+  from 2 have "y \<in> set (seperators xs) \<or> (\<exists>sub \<in> set (subtrees xs). y \<in> set_btree sub)"
+    by (meson set_btree_induct)
   then show ?case
   proof
     assume asm: "y \<in> set (seperators xs)"
     then have "snd (hd r) = y" "r \<noteq> []" using choose_split split_fun_seperator_match asm 2 sorted_wrt_list_sorted
-      by (metis sorted_alt2.simps(2))+
+      by (metis sorted_alt.simps(2))+
     then show "isin (Node xs) y" unfolding isin.simps
       using choose_split by (cases r) auto
   next
-    assume asms: "(\<exists>sub \<in> set (subtrees xs). y \<in> btree_set sub)"
-    then have "y \<in> btree_set (fst (hd r))" "r \<noteq> []"
+    assume asms: "(\<exists>sub \<in> set (subtrees xs). y \<in> set_btree sub)"
+    then have "y \<in> set_btree (fst (hd r))" "r \<noteq> []"
       using choose_split linear_split_subtree_match
-      by (metis "2.prems"(1) sorted_alt2.simps(2))+
+      by (metis "2.prems"(1) sorted_alt.simps(2))+
     moreover have "fst (hd r) \<in> set (subtrees xs)"
       using calculation(2) choose_split split_fun_req(1) by fastforce
     ultimately show "isin (Node xs) y" using 2 choose_split
       unfolding isin.simps by (cases r) (fastforce)+
   qed
-qed (auto simp add: btree_set_set_def)
+qed auto
 
-lemma "sorted_alt2 t \<Longrightarrow> isin t y = (y \<in> btree_set t)"
-  using isin_set btree_set_set_def isin_implied_in_set by fastforce
+lemma "sorted_alt t \<Longrightarrow> isin t y = (y \<in> set_btree t)"
+  using isin_set isin_implied_in_set by fastforce
 
 
 end

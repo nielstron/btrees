@@ -248,5 +248,11 @@ lemma sorted_alt_eq: "sorted (inorder t) = sorted_alt t"
   using sorted_alt_sorted sorted_sorted_alt by blast
 
 
+lemma seperators_in_set: "set (seperators t) \<subseteq> set_btree (Node t)"
+  by (induction t) auto
+
+lemma subtrees_in_set: "s \<in> set (subtrees t) \<Longrightarrow> set_btree s \<subseteq> set_btree (Node t)"
+  by (induction t) auto
+
 
 end

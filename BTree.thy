@@ -3,9 +3,9 @@ theory BTree
 begin
 
 text "General structure:  nat values in the leafs and nat/tree node internal node list (nat always larger than every element in the corresponding subtree)"
-(* definition heavily based on Tree234_Set, Pair structure from ...*)
+(* definition heavily based on Tree234_Set, Pair structure from popl10 (malecha)/mtps08*)
 (* TODO should all basic definitions be more abstract and use later refinements for implementations *)
-(* TODO to keep the list as pairs, the type for the btrees should be changed to linorder with TOP
+(* TODO to keep the list as pairs, the type for the btrees may be changed to linorder with TOP
  alternative: sep is the element *smaller* than all all elements in the respective tree - problem: how to descend into the correct subtree?
  *)
 
@@ -37,7 +37,7 @@ instance ..
 end
 
 (* not sure if required but appearently already present for coding equivalence *)
-lemma set_eq_fold:"Suc (fold max xs 0) = Suc (Max (set (0#xs)))"
+lemma set_eq_fold:"fold max xs n = Max (set (n#xs))"
   by (metis Max.set_eq_fold)
 
 value "(Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)], 10), (Leaf, 30), (Leaf, 100)])"
@@ -49,6 +49,8 @@ fun seperators where "seperators xs = (map snd xs)"
 definition btree_set:: "'a btree \<Rightarrow> 'a set" where 
   "btree_set = set \<circ> inorder"
 
+thm btree.simps
+(* TODO use set_btree instead *)
 fun btree_set_alt:: "'a btree \<Rightarrow> 'a set" where
 "btree_set_alt Leaf = {}" |
 "btree_set_alt (Node t) = set (seperators t) \<union> \<Union> (set (map (btree_set_alt) (subtrees t)))"
@@ -78,6 +80,7 @@ fun k_spread:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
 
 
 (*TODO: at some point this better be replaced with something binary search like *)
+(* split *)
 fun btree_list_choose_help:: "(('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> ('a btree\<times>'a) list \<Rightarrow>  (('a btree\<times>'a) list \<times> ('a btree\<times>'a) list)" where
 "btree_list_choose_help [] x prev = (prev, [])" |
 "btree_list_choose_help ((sub, sep)#xs) x prev = (if sep < x then btree_list_choose_help xs x (prev @ [(sub, sep)]) else (prev, (sub,sep)#xs))"
@@ -86,7 +89,7 @@ fun btree_list_choose:: "(('a::linorder) btree\<times>'a) list \<Rightarrow> 'a 
 "btree_list_choose xs x = btree_list_choose_help xs x []"
 
 
-lemma [simp]:"(x, (a, b) # x22) = btree_list_choose_help t y xs \<Longrightarrow>
+lemma [termination_simp]:"(x, (a, b) # x22) = btree_list_choose_help t y xs \<Longrightarrow>
        y \<noteq> b \<Longrightarrow> size a < Suc (size_list (\<lambda>x. Suc (size (fst x))) t)"
   apply(induction t y xs arbitrary: a b x x22 rule: btree_list_choose_help.induct)
   apply(simp_all)
@@ -305,7 +308,7 @@ proof -
     using assms(2) assms(4) btree_list_choose_req(2) sorted_wrt_list_sorted by fastforce
   then have "\<forall> (sub, sep) \<in> set l. y \<notin> btree_set sub"
     by (metis (no_types, lifting) Un_iff assms(2) assms(3) assms(4) btree_list_choose_req(1) btree_list_choose_req(2) btree_set_set_def case_prodI2 less_asym' set_append some_child_sub(2) sorted_wrt_list_sorted sub_sep_cons.simps)
-  also have "\<exists>sub \<in> set (subtrees (l@r)). y \<in> btree_set sub"
+  moreover have "\<exists>sub \<in> set (subtrees (l@r)). y \<in> btree_set sub"
     using assms(1) assms(2) assms(4) btree_list_choose_req(1) sorted_wrt_list_sorted by blast
   ultimately have "\<exists>sub \<in> set (subtrees r). y \<in> btree_set sub" by auto
   then show "y \<in> btree_set (fst (hd r))"
@@ -314,7 +317,7 @@ proof -
     then obtain psub psep where a_split: "a = (psub, psep)" by (cases a)
     then have "y \<le> psep" 
       using  btree_list_choose_req(3)[of xs y l r] assms Cons sorted_wrt_list_sorted by fastforce
-    also have "\<forall>t \<in> set (subtrees list). \<forall>x \<in> btree_set t. psep < x"
+    moreover have "\<forall>t \<in> set (subtrees list). \<forall>x \<in> btree_set t. psep < x"
       using sorted_wrt_sorted_left a_split assms(2) assms(4) btree_list_choose_req(1) local.Cons sorted_wrt_append sorted_wrt_list_sorted by blast
     ultimately have "\<forall>t \<in> set (subtrees list). y \<notin> btree_set t"
       using leD by blast
@@ -347,7 +350,7 @@ proof (induction t x rule: isin.induct)
     then have "y \<in> btree_set (fst (hd r))" "r \<noteq> []"
       using choose_split btree_list_choose_subtree_match
       by (metis "2.prems"(1) sorted_alt2.simps(2))+
-    also have "fst (hd r) \<in> set (subtrees xs)"
+    moreover have "fst (hd r) \<in> set (subtrees xs)"
       by (metis (no_types, lifting) btree_list_choose.elims calculation(2) choose_split eq_fst_iff list.sel(1) list.set_cases list.set_sel(1) some_child_pair some_child_sub(1))
     ultimately show "BTree.isin (Node xs) y" using 2 choose_split
       unfolding isin.simps by (cases r) (fastforce)+
@@ -360,7 +363,10 @@ lemma "sorted_alt2 t \<Longrightarrow> isin t y = (y \<in> btree_set t)"
 lemma "\<lbrakk>\<forall>y \<in> set ys. \<forall>x \<in> set xs. y < x; sorted ys; sorted xs\<rbrakk> \<Longrightarrow> sorted (ys@xs)"
   using sorted_wrt_append by blast
 
-lemma fold_append_simp: "(f x @ (foldr (@) (map f xs) [])) = (foldr (@) (map f (x#xs)) [])" by simp
+
+find_theorems sorted_wrt "(@)"
+find_theorems sorted_wrt "(#)"
+thm sorted_wrt_append
 
 lemma "sorted_alt2 t \<Longrightarrow> sorted (inorder t)"
 proof(induction t)
@@ -383,7 +389,6 @@ proof(induction t)
       by simp
     then have "sorted (inorder sub)" using Node Cons pair_a
       by force
-
 
     from pair_a have "\<forall>x \<in> set (seperators list). sep < x"
       using sorted_wrt_Cons sorted_wrt_list_sorted Cons_help
@@ -415,9 +420,17 @@ proof(induction t)
   then show ?case using Node by auto
 qed auto
 
-find_theorems sorted_wrt "(@)"
-find_theorems sorted_wrt "(#)"
-thm sorted_wrt_append
+lemma "sorted (inorder t) \<Longrightarrow> sorted_alt2 t"
+proof(induction t)
+  case (Node xs)
+  then have "\<lbrakk>sorted (inorder (Node xs))\<rbrakk> \<Longrightarrow> sorted_alt2 (Node xs)"
+  proof (induction xs)
+    case (Cons a list)
+      show ?case sorry
+  qed auto
+  then show ?case using Node by auto
+qed auto
+
 
 
 end

@@ -12,7 +12,7 @@ lemma subtree_smaller: "subr \<in> set (subtrees xs) \<Longrightarrow>
 datatype 'a up_i = T_i "'a btree" | Up_i "'a btree" 'a "'a btree"
 
 locale split_fun =
-  fixes split_fun ::  "(('a::{linorder, top}) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> (('a btree\<times>'a) list \<times> ('a btree\<times>'a) list)"
+  fixes split_fun ::  "(('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> (('a btree\<times>'a) list \<times> ('a btree\<times>'a) list)"
   (* idea: our only requirement for split_fun are the following two + the append requirement*)
   assumes split_fun_req:
    "\<lbrakk>split_fun xs p = (l,r)\<rbrakk> \<Longrightarrow> l @ r = xs"
@@ -27,17 +27,18 @@ lemma split_fun_child: "(ls, a # rs) = split_fun xs y \<Longrightarrow>
   by (metis in_set_conv_decomp split_fun_axioms split_fun_def)
 
 lemma [termination_simp]:"(x, (a, b) # x22) = split_fun t y \<Longrightarrow>
-      size a < Suc (size_list (\<lambda>x. Suc (size (fst x))) t)"
-  using split_fun_child subtree_smaller some_child_sub(1) by metis
+      size a < Suc (size_list (\<lambda>x. Suc (size (fst x))) t  + size l)"
+  using split_fun_child subtree_smaller some_child_sub(1)
+  by fastforce
 
 subsection "isin Function"
 
-fun isin:: "('a::{linorder, top}) btree \<Rightarrow> 'a \<Rightarrow> bool" where
+fun isin:: "('a::linorder) btree \<Rightarrow> 'a \<Rightarrow> bool" where
  "isin (Leaf) y = False" |
- "isin (Node t) y = (case split_fun t y of (_,r) \<Rightarrow> (case r of [] \<Rightarrow> False | (sub,sep)#xs \<Rightarrow> (if y = sep then True else isin sub y)))"
+ "isin (Node t l) y = (case split_fun t y of (_,r) \<Rightarrow> (case r of (sub,sep)#_ \<Rightarrow> (if y = sep then True else isin sub y) | [] \<Rightarrow> isin l y))"
 
 
-lemma isin_true_not_empty_r: "\<lbrakk>isin (Node t) y; split_fun t y = (l, r)\<rbrakk> \<Longrightarrow> r \<noteq> []"
+lemma isin_true_not_empty_r: "\<lbrakk>isin (Node ts t) y; split_fun ts y = (l, r)\<rbrakk> \<Longrightarrow> r \<noteq> [] \<or> (r=[] \<and> isin t y)"
   unfolding isin.simps by auto
 
 
@@ -48,23 +49,32 @@ thm snd_conv snds.intros btree.set_intros
 
 lemma isin_implied_in_set: "isin n y \<Longrightarrow> y \<in> set_btree n"
 proof(induction n y rule: isin.induct)
-  case (2 t y)
-  then obtain l r where 21: "split_fun t y = (l,r)" by auto
-  then have "r \<noteq> []" using isin_true_not_empty_r 2 by auto
-  then obtain sub sep xs where 22: "r = (sub,sep)#xs" by (cases r) auto
-  then have "y = sep \<or> y \<noteq> sep" using 21 22 by blast
+  case (2 ts t y)
+  then obtain l r where 21: "split_fun ts y = (l,r)" by auto
+  then have "r \<noteq> [] \<or> (r = [] \<and> isin t y)" using isin_true_not_empty_r 2 by auto
   then show ?case
   proof
-    assume "y = sep"
-    then have "y \<in> set (seperators t)" using some_child_sub(2) split_fun_child 2 21 22
-      by metis
-    then show "y \<in> set_btree (Node t)"
-      by (meson seperators_in_set subsetD)
+    assume "r \<noteq> []"
+    then obtain sub sep xs where 22: "r = (sub,sep)#xs" by (cases r) auto
+    then have "y = sep \<or> y \<noteq> sep" using 21 22 by blast
+    then show "y \<in> set_btree (Node ts t)"
+    proof
+      assume "y = sep"
+      then have "y \<in> set (seperators ts)" using some_child_sub(2) split_fun_child 2 21 22
+        by metis
+      then show "y \<in> set_btree (Node ts t)"
+        by (meson seperators_in_set subsetD)
+    next
+      assume "y \<noteq> sep"
+      then have "y \<in> set_btree sub" unfolding isin.simps using 2 21 22 by auto
+      then show "y \<in> set_btree (Node ts t)"
+        by (metis "21" "22" child_subset fst_eqD split_fun_child subsetD)
+    qed
   next
-    assume "y \<noteq> sep"
-    then have "y \<in> set_btree sub" unfolding isin.simps using 2 21 22 by auto
-    then show "y \<in> set_btree (Node t)"
-      by (metis "21" "22" child_subset fst_eqD split_fun_child subsetD)
+    assume "r = [] \<and> isin t y"
+    then have "y \<in> set_btree t" 
+      by (simp add: "2.IH"(1) "21")
+    then show "y \<in> set_btree (Node ts t)" unfolding btree.set by auto
   qed
 qed simp
 
@@ -96,7 +106,7 @@ qed
 
 thm sorted_wrt_sorted_left
 
-lemma linear_split_subtree_match:
+lemma split_fun_subtree_match:
   assumes "\<exists>sub \<in> set (subtrees xs). y \<in> set_btree sub"
   assumes "sorted_wrt sub_sep_sm xs"
   assumes "\<forall>x \<in> set xs. sub_sep_cons x"
@@ -129,30 +139,39 @@ proof -
   from \<open>\<exists>sub \<in> set (subtrees r). y \<in> set_btree sub\<close> show "r \<noteq> []" by auto
 qed
 
+(* TODO proof that this follows from sorted alt *)
+lemma split_fun_last_empty: "\<lbrakk>sorted_alt (Node ts t); y \<in> set_btree t; split_fun ts y = (l,r)\<rbrakk> \<Longrightarrow> r = []"
+  unfolding sorted_alt.simps sorry
 
 lemma isin_set: "sorted_alt t \<Longrightarrow> x \<in> set_btree t \<Longrightarrow> isin t x"
 proof (induction t x rule: isin.induct)
-  case (2 xs y)
-    obtain l r where choose_split: "split_fun xs y = (l,r)"
+  case (2 ts t y)
+    obtain l r where choose_split: "split_fun ts y = (l,r)"
       by fastforce
-  from 2 have "y \<in> set (seperators xs) \<or> (\<exists>sub \<in> set (subtrees xs). y \<in> set_btree sub)"
+  from 2 have "y \<in> set (seperators ts) \<or> (\<exists>sub \<in> set (subtrees ts). y \<in> set_btree sub) \<or> y \<in> set_btree t"
     by (meson set_btree_induct)
   then show ?case
-  proof
-    assume asm: "y \<in> set (seperators xs)"
+  proof (elim disjE)
+    assume asm: "y \<in> set (seperators ts)"
     then have "snd (hd r) = y" "r \<noteq> []" using choose_split split_fun_seperator_match asm 2 sorted_wrt_list_sorted
       by (metis sorted_alt.simps(2))+
-    then show "isin (Node xs) y" unfolding isin.simps
+    then show "isin (Node ts t) y" unfolding isin.simps
       using choose_split by (cases r) auto
   next
-    assume asms: "(\<exists>sub \<in> set (subtrees xs). y \<in> set_btree sub)"
+    assume asms: "(\<exists>sub \<in> set (subtrees ts). y \<in> set_btree sub)"
     then have "y \<in> set_btree (fst (hd r))" "r \<noteq> []"
-      using choose_split linear_split_subtree_match
+      using choose_split split_fun_subtree_match
       by (metis "2.prems"(1) sorted_alt.simps(2))+
-    moreover have "fst (hd r) \<in> set (subtrees xs)"
+    moreover have "fst (hd r) \<in> set (subtrees ts)"
       using calculation(2) choose_split split_fun_req(1) by fastforce
-    ultimately show "isin (Node xs) y" using 2 choose_split
+    ultimately show "isin (Node ts t) y" using 2 choose_split
       unfolding isin.simps by (cases r) (fastforce)+
+  next
+    assume asms: "y \<in> set_btree t"
+    then have "r = []" 
+      using split_fun_last_empty "2.prems"(1) choose_split by blast
+    then show "isin (Node ts t) y"
+      by (metis (no_types, lifting) "2.IH"(1) "2.prems"(1) asms btree.distinct(1) btree.inject case_prodI2 list.simps(4) local.isin.elims(3) sorted_alt.simps(2) split_fun_last_empty)
   qed
 qed auto
 
@@ -161,35 +180,23 @@ lemma "sorted_alt t \<Longrightarrow> isin t y = (y \<in> set_btree t)"
 
 subsection "insert Function"
 
-(* ideas: split at median (that is the abstract idea of taking the middle element)
-or use the fact of sortedness and just split the list in half *)
-fun median where "median xs = top"
-
-fun node_i:: "nat \<Rightarrow> (('a::{linorder,top}) btree \<times> 'a) list \<Rightarrow> 'a up_i" where
-"node_i k xs = (
-if length xs \<le> 2*k then T_i (Node xs)
-else (
-  case split_fun xs (median (seperators xs)) of (ls, (sub,sep)#rs) \<Rightarrow>
-    Up_i (Node (ls@[(sub,top)])) sep (Node rs)
-  )
-)"
-
-fun node_i2:: "nat \<Rightarrow> (('a::{linorder,top}) btree \<times> 'a) list \<Rightarrow> 'a up_i" where
-"node_i2 k xs = (
-if length xs \<le> 2*k then T_i (Node xs)
+(*TODO what if the last node flows over? *)
+fun node_i:: "nat \<Rightarrow> ('a btree \<times> 'a) list \<Rightarrow> 'a btree \<Rightarrow> 'a up_i" where
+"node_i k xs x = (
+if length xs \<le> 2*k then T_i (Node xs x)
 else (
   case drop k xs of (sub,sep)#rs \<Rightarrow>
-    Up_i (Node ((take k xs)@[(sub,top)])) sep (Node rs)
+    Up_i (Node (take k xs) sub) sep (Node rs x)
   )
 )"
 
 fun ins where
 "ins k x Leaf = (Up_i Leaf x Leaf)" |
-"ins k x (Node xs) = (case split_fun xs x of 
+"ins k x (Node ts t) = (case split_fun ts x of 
  (ls,(sub,sep)#rs) \<Rightarrow> 
   (case ins k x sub of 
-    Up_i l a r \<Rightarrow> node_i k (ls @ (l,a)#(r,sep)#rs) | 
-    T_i a \<Rightarrow> node_i k (ls @ (a,sep) # rs)
+    Up_i l a r \<Rightarrow> node_i k (ls @ (l,a)#(r,sep)#rs) t | 
+    T_i a \<Rightarrow> node_i k (ls @ (a,sep) # rs) t
   )
 )"
 

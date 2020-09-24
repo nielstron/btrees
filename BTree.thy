@@ -118,7 +118,7 @@ fun sub_sep_cons where
 "sub_sep_cons (sub, sep) = (\<forall>x \<in> set_btree sub. x < sep)"
 
 subsection "sortedness"
-(*TODO add last tree *)
+
 fun sorted_alt where
 "sorted_alt Leaf = True" |
 "sorted_alt (Node ts t) = (sorted_wrt sub_sep_sm ts \<and> (\<forall>x \<in> set ts. sub_sep_cons x) \<and> (\<forall>sep \<in> set (seperators ts). \<forall>y \<in> set_btree t. sep < y) \<and> (\<forall>sub \<in> set (subtrees ts). sorted_alt sub) \<and> sorted_alt t)"

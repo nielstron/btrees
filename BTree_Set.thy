@@ -139,9 +139,27 @@ proof -
   from \<open>\<exists>sub \<in> set (subtrees r). y \<in> set_btree sub\<close> show "r \<noteq> []" by auto
 qed
 
-(* TODO proof that this follows from sorted alt *)
-lemma split_fun_last_empty: "\<lbrakk>sorted_alt (Node ts t); y \<in> set_btree t; split_fun ts y = (l,r)\<rbrakk> \<Longrightarrow> r = []"
-  unfolding sorted_alt.simps sorry
+(* Additional proof for last tree *)
+lemma split_fun_last_empty: 
+  assumes "y \<in> set_btree t"
+    and "(\<forall>sep \<in> set (seperators ts). \<forall>y \<in> set_btree t. sep < y)"
+    and "\<forall>x \<in> set ts. sub_sep_cons x"
+    and "sorted (seperators ts)"
+    and "split_fun ts y = (l,r)"
+  shows "r = []"
+proof (cases r)
+  case Nil
+  then show ?thesis by simp
+next
+  case (Cons a list)
+  then obtain sub sep where a_pair: "a = (sub,sep)" by (cases a)
+  then have "y \<le> sep" 
+    using assms split_fun_def split_fun_axioms Cons a_pair by fastforce
+  then have "False"
+    by (metis a_pair assms(1) assms(2) assms(5) leD local.Cons some_child_sub(2) split_fun_child)
+  then show ?thesis by simp
+qed
+  
 
 lemma isin_set: "sorted_alt t \<Longrightarrow> x \<in> set_btree t \<Longrightarrow> isin t x"
 proof (induction t x rule: isin.induct)
@@ -169,9 +187,11 @@ proof (induction t x rule: isin.induct)
   next
     assume asms: "y \<in> set_btree t"
     then have "r = []" 
-      using split_fun_last_empty "2.prems"(1) choose_split by blast
+      using split_fun_last_empty "2.prems"(1) choose_split
+      using sorted_alt.simps(2) sorted_wrt_list_sorted by blast
     then show "isin (Node ts t) y"
-      by (metis (no_types, lifting) "2.IH"(1) "2.prems"(1) asms btree.distinct(1) btree.inject case_prodI2 list.simps(4) local.isin.elims(3) sorted_alt.simps(2) split_fun_last_empty)
+      unfolding isin.simps 
+      using "2.IH"(1) "2.prems"(1) asms choose_split by auto
   qed
 qed auto
 
@@ -192,11 +212,16 @@ else (
 
 fun ins where
 "ins k x Leaf = (Up_i Leaf x Leaf)" |
-"ins k x (Node ts t) = (case split_fun ts x of 
+"ins k x (Node ts t) = (case split_fun ts x of
  (ls,(sub,sep)#rs) \<Rightarrow> 
   (case ins k x sub of 
     Up_i l a r \<Rightarrow> node_i k (ls @ (l,a)#(r,sep)#rs) t | 
     T_i a \<Rightarrow> node_i k (ls @ (a,sep) # rs) t
+  ) |
+ (ls, []) \<Rightarrow>
+  (case ins k x t of
+    Up_i l a r \<Rightarrow> node_i k (ls@[(l,a)]) r |
+    T_i a \<Rightarrow> node_i k ls a
   )
 )"
 

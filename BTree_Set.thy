@@ -9,8 +9,10 @@ lemma subtree_smaller: "subr \<in> set (subtrees xs) \<Longrightarrow>
    apply(simp_all)
   using image_iff by fastforce
 
+datatype 'a up_i = T_i "'a btree" | Up_i "'a btree" 'a "'a btree"
+
 locale split_fun =
-  fixes split_fun ::  "(('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> (('a btree\<times>'a) list \<times> ('a btree\<times>'a) list)"
+  fixes split_fun ::  "(('a::{linorder, top}) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> (('a btree\<times>'a) list \<times> ('a btree\<times>'a) list)"
   (* idea: our only requirement for split_fun are the following two + the append requirement*)
   assumes split_fun_req:
    "\<lbrakk>split_fun xs p = (l,r)\<rbrakk> \<Longrightarrow> l @ r = xs"
@@ -18,6 +20,7 @@ locale split_fun =
    "\<lbrakk>split_fun xs p = (l,r); sorted (seperators xs)\<rbrakk> \<Longrightarrow> (case r of [] \<Rightarrow> True | ((psub, psep)#rs) \<Rightarrow> (p \<le> psep \<and> (\<forall>sep \<in> set (seperators rs). p < sep)))"
 
 begin
+
 
 lemma split_fun_child: "(ls, a # rs) = split_fun xs y \<Longrightarrow>
        a \<in> set xs"
@@ -27,7 +30,9 @@ lemma [termination_simp]:"(x, (a, b) # x22) = split_fun t y \<Longrightarrow>
       size a < Suc (size_list (\<lambda>x. Suc (size (fst x))) t)"
   using split_fun_child subtree_smaller some_child_sub(1) by metis
 
-fun isin:: "('a::linorder) btree \<Rightarrow> 'a \<Rightarrow> bool" where
+subsection "isin Function"
+
+fun isin:: "('a::{linorder, top}) btree \<Rightarrow> 'a \<Rightarrow> bool" where
  "isin (Leaf) y = False" |
  "isin (Node t) y = (case split_fun t y of (_,r) \<Rightarrow> (case r of [] \<Rightarrow> False | (sub,sep)#xs \<Rightarrow> (if y = sep then True else isin sub y)))"
 
@@ -154,6 +159,39 @@ qed auto
 lemma "sorted_alt t \<Longrightarrow> isin t y = (y \<in> set_btree t)"
   using isin_set isin_implied_in_set by fastforce
 
+subsection "insert Function"
+
+(* ideas: split at median (that is the abstract idea of taking the middle element)
+or use the fact of sortedness and just split the list in half *)
+fun median where "median xs = top"
+
+fun node_i:: "nat \<Rightarrow> (('a::{linorder,top}) btree \<times> 'a) list \<Rightarrow> 'a up_i" where
+"node_i k xs = (
+if length xs \<le> 2*k then T_i (Node xs)
+else (
+  case split_fun xs (median (seperators xs)) of (ls, (sub,sep)#rs) \<Rightarrow>
+    Up_i (Node (ls@[(sub,top)])) sep (Node rs)
+  )
+)"
+
+fun node_i2:: "nat \<Rightarrow> (('a::{linorder,top}) btree \<times> 'a) list \<Rightarrow> 'a up_i" where
+"node_i2 k xs = (
+if length xs \<le> 2*k then T_i (Node xs)
+else (
+  case drop k xs of (sub,sep)#rs \<Rightarrow>
+    Up_i (Node ((take k xs)@[(sub,top)])) sep (Node rs)
+  )
+)"
+
+fun ins where
+"ins k x Leaf = (Up_i Leaf x Leaf)" |
+"ins k x (Node xs) = (case split_fun xs x of 
+ (ls,(sub,sep)#rs) \<Rightarrow> 
+  (case ins k x sub of 
+    Up_i l a r \<Rightarrow> node_i k (ls @ (l,a)#(r,sep)#rs) | 
+    T_i a \<Rightarrow> node_i k (ls @ (a,sep) # rs)
+  )
+)"
 
 end
 

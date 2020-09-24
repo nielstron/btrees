@@ -2,6 +2,8 @@ theory BTree
   imports Main "HOL-Data_Structures.Cmp" "HOL-Data_Structures.Tree23_Set" "HOL-Data_Structures.Tree234_Set"
 begin
 
+subsection "General structure and concepts definition"
+
 text "General structure:  nat values in the leafs and nat/tree node internal node list (nat always larger than every element in the corresponding subtree)"
 (* definition heavily based on Tree234_Set, Pair structure from popl10 (malecha)/mtps08*)
 (* TODO should all basic definitions be more abstract and use later refinements for implementations *)
@@ -113,6 +115,8 @@ fun sub_sep_sm where
 
 fun sub_sep_cons where
 "sub_sep_cons (sub, sep) = (\<forall>x \<in> set_btree sub. x < sep)"
+
+subsection "sortedness"
 
 fun sorted_alt where
 "sorted_alt Leaf = True" |

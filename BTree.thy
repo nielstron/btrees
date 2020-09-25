@@ -45,6 +45,12 @@ value "inorder (Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10),
 fun subtrees where "subtrees xs = (map fst xs)"
 fun seperators where "seperators xs = (map snd xs)"
 
+lemma set_map_pred_eq: "(\<forall>x \<in> set (map f xs). P x) = (\<forall>x \<in> set xs. P (f x))"
+  apply(induction xs)
+   apply(auto)
+  done
+
+
 definition set_btree_inorder:: "'a btree \<Rightarrow> 'a set" where 
   "set_btree_inorder = set \<circ> inorder"
 
@@ -93,9 +99,13 @@ fun bal:: "'a btree \<Rightarrow> bool" where
 "bal Leaf = True" |
 "bal (Node ts t) = ((\<forall>sub \<in> set (subtrees ts). height (Node ts t) = Suc (height sub)) \<and> Suc (height t) = height (Node ts t) \<and> (\<forall>sub \<in> set (subtrees ts). bal sub) \<and> bal t)"
 
-fun k_spread:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
-"k_spread k Leaf = True" |
-"k_spread k (Node ts t) = ((length ts \<ge> k \<and> length ts \<le> 2*k+1) \<and> (\<forall>sub \<in> set (subtrees ts). k_spread k sub) \<and> k_spread k t)"
+(*value "nat \<lceil>(5::nat) / 2\<rceil>"*)
+
+(* alt1: following knuths definition to allow for any natural number as order and resolve ambiguity *)
+(* alt2: use range [k,2*k] allowing for valid btrees from k=1 onwards *)
+fun order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
+"order k Leaf = True" |
+"order k (Node ts t) = ((length ts \<ge> k  \<and> length ts \<le> 2*k) \<and> (\<forall>sub \<in> set (subtrees ts). order k sub) \<and> order k t)"
 
 
 value "set_btree_inorder (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
@@ -130,6 +140,7 @@ value "sorted_alt (Node [(Node [(Node [] Leaf, a\<^sub>1)] Leaf, a\<^sub>2)] Lea
 lemma sorted_wrt_list_sorted: "sorted_wrt sub_sep_sm xs \<Longrightarrow> sorted (seperators xs)"
   by (induction xs) (auto simp add: sorted_wrt_Cons)
 
+
 lemma sorted_wrt_sorted_left: "sorted_wrt sub_sep_sm ((sub, sep)#xs) \<Longrightarrow> t \<in> set (subtrees xs) \<Longrightarrow> \<forall>x \<in> set_btree t. x > sep"
   by (induction xs) (auto simp add: sorted_wrt_Cons)
 
@@ -158,7 +169,7 @@ proof(induction t)
       "sorted_wrt sub_sep_sm list" 
       "\<forall>x \<in> set list. sub_sep_cons x"
       "\<forall>sub \<in> set (subtrees list). sorted_alt sub"
-      by (simp add: sorted_wrt_Cons)+
+      by (simp_all add: sorted_wrt_Cons)
     then have "sorted_alt (Node list t)" using Cons
       by simp
     then have Cons_sorted: "sorted (inorder (Node list t))"
@@ -235,7 +246,8 @@ proof (induction ts)
   then obtain sub sep where x_pair: "x = (sub, sep)" by (cases x)
   then have list_split: "inorder (Node (x#list) t) = inorder sub @ sep # inorder (Node list t)" unfolding inorder.simps by auto
   then have "sorted (inorder (Node list t))" 
-    using sorted_wrt_append Cons.prems sorted_cons by fastforce
+    using  Cons.prems sorted_cons
+    by (simp add: list_split sorted_wrt_append sorted_wrt_Cons)
   then have sorted_wrt_rec: "sorted_wrt sub_sep_sm list" using Cons by auto
 
   from list_split have "\<forall>l \<in> set (inorder (Node list t)). sep < l"

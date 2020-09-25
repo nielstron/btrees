@@ -200,15 +200,31 @@ lemma "sorted_alt t \<Longrightarrow> isin t y = (y \<in> set_btree t)"
 
 subsection "insert Function"
 
-(*TODO what if the last node flows over? *)
+fun tree_i where
+"tree_i (T_i sub) = sub" |
+"tree_i (Up_i l a r) = (Node [(l,a)] r)"
+
 fun node_i:: "nat \<Rightarrow> ('a btree \<times> 'a) list \<Rightarrow> 'a btree \<Rightarrow> 'a up_i" where
 "node_i k xs x = (
 if length xs \<le> 2*k then T_i (Node xs x)
 else (
-  case drop k xs of (sub,sep)#rs \<Rightarrow>
-    Up_i (Node (take k xs) sub) sep (Node rs x)
+  case drop (length xs div 2) xs of (sub,sep)#rs \<Rightarrow>
+    Up_i (Node (take (length xs div 2) xs) sub) sep (Node rs x)
   )
 )"
+
+find_theorems drop length take
+thm append_take_drop_id
+
+fun inorder_i where
+"inorder_i (T_i sub) = inorder sub" |
+"inorder_i (Up_i l a r) = (inorder l @ [a]) @ inorder r"
+
+lemma drop_not_empty: "xs \<noteq> [] \<Longrightarrow> drop (length xs div 2) xs \<noteq> []"
+  apply(induction xs)
+   apply(auto)
+  done
+
 
 fun ins where
 "ins k x Leaf = (Up_i Leaf x Leaf)" |
@@ -216,14 +232,145 @@ fun ins where
  (ls,(sub,sep)#rs) \<Rightarrow> 
   (case ins k x sub of 
     Up_i l a r \<Rightarrow> node_i k (ls @ (l,a)#(r,sep)#rs) t | 
-    T_i a \<Rightarrow> node_i k (ls @ (a,sep) # rs) t
+    T_i a \<Rightarrow> T_i (Node (ls @ (a,sep) # rs) t)
   ) |
  (ls, []) \<Rightarrow>
   (case ins k x t of
     Up_i l a r \<Rightarrow> node_i k (ls@[(l,a)]) r |
-    T_i a \<Rightarrow> node_i k ls a
+    T_i a \<Rightarrow> T_i (Node ls a)
   )
 )"
+
+fun order_i where
+"order_i k (T_i sub) = order k sub" |
+"order_i k (Up_i l a r) = (order k l \<and> order k r)"
+
+lemma node_i_order_i:
+  assumes "length ts \<ge> k"
+    and "length ts \<le> 2*k+1"
+    and "\<forall>x \<in> set (subtrees ts). order k x"
+    and "order k t"
+  shows "order_i k (node_i k ts t)"
+proof (cases "length ts \<le> 2*k")
+case True
+  then show ?thesis using set_map_pred_eq assms by simp
+next
+  case False
+  then have length_ts: "length ts = 2*k+1"
+    using assms(2) by linarith
+  then have "drop (length ts div 2) ts \<noteq> []" by simp
+  then obtain sub sep rs where drop_ts: "drop (length ts div 2) ts = (sub,sep)#rs" 
+    by (metis eq_snd_iff hd_Cons_tl)
+  then have "length rs = length ts - (length ts div 2) - 1" using length_drop
+    by (metis One_nat_def add_diff_cancel_right' list.size(4))
+  then have "length rs \<ge> k" "length rs \<le> 2*k" using length_ts
+    by (simp_all)
+  moreover have "set ((sub,sep)#rs) \<subseteq> set ts"
+    by (metis drop_ts set_drop_subset)
+  ultimately have o_r: "order k sub" "order k (Node rs t)" using drop_ts assms drop_ts by auto
+  moreover have "length (take (length ts div 2) ts) \<ge> k" "length (take (length ts div 2) ts) \<le> 2*k"
+    using length_take assms length_ts by(simp_all)
+  ultimately have o_l: "order k (Node (take (length ts div 2) ts) sub)"
+    using set_take_subset assms by fastforce
+  from o_r o_l have "order_i k (Up_i (Node (take (length ts div 2) ts) sub) sep (Node rs t))" by simp
+  then show ?thesis unfolding node_i.simps
+    by (simp add: False drop_ts)
+qed
+
+find_theorems "set" "(@)" "(#)"
+
+lemma "order k t \<Longrightarrow> order_i k (ins k x t)"
+proof(induction k x t rule: ins.induct)
+  case (2 k x ts t)
+  then obtain l r where split_res: "split_fun ts x = (l, r)"
+    by (meson surj_pair)
+  then have split_app: "l@r = ts" using split_fun_axioms split_fun_def
+    by fastforce
+
+  from 2 have suborders:
+    "order k t"
+    "\<forall>s \<in> set (subtrees ts). order k s"
+    "length ts \<le> 2*k"
+    "length ts \<ge> k"
+    unfolding order.simps by simp+
+  then have "\<forall>x \<in> set (subtrees l). order k x" using suborders split_app
+    by auto
+  
+  show ?case
+  proof (cases r)
+    case Nil
+    then have "order_i k (ins k x t)" using 2 suborders split_res
+      by simp
+    
+    show ?thesis
+    proof (cases "ins k x t")
+      case (T_i x1)
+      then have "order k x1"
+        using \<open>order_i k (local.ins k x t)\<close> by auto
+      moreover have "length l \<le> 2*k" "length l \<ge> k" using suborders split_app Nil
+        by auto
+      moreover have "\<forall>x \<in> set (subtrees l). order k x" using suborders split_app Nil
+        by simp
+      ultimately have "order k (Node l x1)"
+        using order.simps(2) by blast
+      then show ?thesis unfolding ins.simps using T_i Nil 2 split_res
+        by simp
+    next
+      case (Up_i x21 x22 x23)
+      then have "order k x21" "order k x23"
+        using \<open>order_i k (local.ins k x t)\<close> by auto
+      moreover have "length (l@[(x21,x22)]) \<le> 2*k+1" "length (l@[(x21,x22)]) \<ge> k" using suborders split_app Nil
+        by auto
+      moreover have "\<forall>x \<in> set (subtrees (l@[(x21,x22)])). order k x" using \<open>order k x21\<close> suborders split_app Nil
+        by auto
+      ultimately have "order_i k (node_i k (l@[(x21,x22)]) x23)"
+        using node_i_order_i by (simp del: node_i.simps)
+      then show ?thesis  unfolding ins.simps using Up_i Nil 2 split_res
+        by simp
+    qed
+  next
+    case (Cons a list)
+    then obtain sub sep where a_prod: "a  = (sub, sep)" by (cases a)
+    then have "order_i k (ins k x sub)" using 2 suborders split_res
+      by (metis local.Cons some_child_sub(1) split_fun_child)
+    
+    show ?thesis
+    proof (cases "ins k x sub")
+      case (T_i x1)
+      then have "order k t"
+        using 2 by auto
+      moreover have "length  (l @ (x1,sep) # list) \<le> 2*k" "length (l @ (sub,sep) # list) \<ge> k"
+        using suborders split_app Cons
+        by auto
+      moreover have "\<forall>x \<in> set (subtrees l). order k x" "order k x1" "\<forall>x \<in> set (subtrees list). order k x"
+        using suborders split_app Cons T_i  \<open>order_i k (local.ins k x sub)\<close>
+        by auto
+      ultimately have "order k (Node (l @ (x1,sep) # list) t)"
+        by auto
+      then show ?thesis unfolding ins.simps using T_i Cons 2 split_res a_prod
+        by simp
+    next
+      case (Up_i x21 x22 x23)
+      then have "order k t"
+        using 2 by auto
+      moreover have
+        "length (l@(x21,x22)#(x23,sep)#list) \<le> 2*k+1"
+        "length (l@(x21,x22)#(x23,sep)#list) \<ge> k"
+        using suborders split_app Cons by auto
+      moreover have "\<forall>x \<in> set (subtrees l). order k x" "\<forall>x \<in> set (subtrees list). order k x"
+        using suborders split_app Cons by auto
+      moreover have "order k x21" "order k x23"
+        using \<open>order_i k (local.ins k x sub)\<close> Up_i by auto
+      ultimately have "order_i k (node_i k (l@(x21,x22)#(x23,sep)#list) t)"
+        using node_i_order_i[of k "(l@(x21,x22)#(x23,sep)#list)" t]
+        by (auto simp del: node_i.simps)
+      then show ?thesis  unfolding ins.simps using Up_i Cons 2 split_res a_prod
+        by simp
+    qed
+  qed
+qed simp
+
+
 
 end
 

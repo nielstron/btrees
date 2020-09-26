@@ -292,9 +292,7 @@ proof(induction k x t rule: ins.induct)
     "\<forall>s \<in> set (subtrees ts). order k s"
     "length ts \<le> 2*k"
     "length ts \<ge> k"
-    unfolding order.simps by simp+
-  then have "\<forall>x \<in> set (subtrees l). order k x" using suborders split_app
-    by auto
+    unfolding order.simps by simp_all
   
   show ?case
   proof (cases r)
@@ -305,28 +303,14 @@ proof(induction k x t rule: ins.induct)
     show ?thesis
     proof (cases "ins k x t")
       case (T_i x1)
-      then have "order k x1"
-        using \<open>order_i k (local.ins k x t)\<close> by auto
-      moreover have "length l \<le> 2*k" "length l \<ge> k" using suborders split_app Nil
-        by auto
-      moreover have "\<forall>x \<in> set (subtrees l). order k x" using suborders split_app Nil
-        by simp
-      ultimately have "order k (Node l x1)"
-        using order.simps(2) by blast
-      then show ?thesis unfolding ins.simps using T_i Nil 2 split_res
-        by simp
+      then show ?thesis unfolding ins.simps using T_i 2 split_res
+          suborders split_app Nil \<open>order_i k (ins k x t)\<close>
+        using order.simps(2) by auto
     next
       case (Up_i x21 x22 x23)
-      then have "order k x21" "order k x23"
-        using \<open>order_i k (local.ins k x t)\<close> by auto
-      moreover have "length (l@[(x21,x22)]) \<le> 2*k+1" "length (l@[(x21,x22)]) \<ge> k" using suborders split_app Nil
-        by auto
-      moreover have "\<forall>x \<in> set (subtrees (l@[(x21,x22)])). order k x" using \<open>order k x21\<close> suborders split_app Nil
-        by auto
-      ultimately have "order_i k (node_i k (l@[(x21,x22)]) x23)"
-        using node_i_order_i by (simp del: node_i.simps)
-      then show ?thesis  unfolding ins.simps using Up_i Nil 2 split_res
-        by simp
+      then show ?thesis unfolding ins.simps
+        using Up_i Nil 2 split_res \<open>order_i k (ins k x t)\<close> suborders split_app Nil node_i_order_i[of k "l@[(x21,x22)]" x23]
+        by (auto simp del: node_i.simps)
     qed
   next
     case (Cons a list)
@@ -337,20 +321,12 @@ proof(induction k x t rule: ins.induct)
     show ?thesis
     proof (cases "ins k x sub")
       case (T_i x1)
-      then have "order k t"
-        using 2 by auto
-      moreover have "length  (l @ (x1,sep) # list) \<le> 2*k" "length (l @ (sub,sep) # list) \<ge> k"
-        using suborders split_app Cons
+      then show ?thesis unfolding ins.simps
+        using suborders split_app Cons \<open>order_i k (local.ins k x sub)\<close> T_i Cons 2 split_res a_prod
         by auto
-      moreover have "\<forall>x \<in> set (subtrees l). order k x" "order k x1" "\<forall>x \<in> set (subtrees list). order k x"
-        using suborders split_app Cons T_i  \<open>order_i k (local.ins k x sub)\<close>
-        by auto
-      ultimately have "order k (Node (l @ (x1,sep) # list) t)"
-        by auto
-      then show ?thesis unfolding ins.simps using T_i Cons 2 split_res a_prod
-        by simp
     next
       case (Up_i x21 x22 x23)
+        (* The only case where explicit reasoning is required - likely due to the insertion of 2 elements in the list *)
       then have "order k t"
         using 2 by auto
       moreover have
@@ -370,14 +346,61 @@ proof(induction k x t rule: ins.induct)
   qed
 qed simp
 
+thm bal.simps
 
+fun bal_i where
+"bal_i (T_i t) = bal t" |
+"bal_i (Up_i l a r) = (height l = height r \<and> bal l \<and> bal r)"
+
+lemma in_subtrees_drop: "set (subtrees (drop n xs)) \<subseteq> set (subtrees xs)"
+  apply(induction xs)
+   apply(simp_all) 
+  using image_iff in_set_dropD by fastforce
+
+lemma in_subtrees_take: "set (subtrees (take n xs)) \<subseteq> set (subtrees xs)"
+  apply(induction xs)
+   apply(simp_all) 
+  using image_iff in_set_takeD by fastforce
+
+lemma node_i_bal_i:
+  assumes "\<forall>x \<in> set (subtrees ts). bal x"
+    and "bal t"
+  and "\<forall>x \<in> set (subtrees ts). height t = height x"
+shows "bal_i (node_i k ts t)"
+proof(cases "length ts \<le> 2* k")
+  case False
+  then have "length ts > 0" by linarith
+  then obtain sub sep rs where list_split: "drop (length ts div 2) ts = (sub,sep)#rs"
+    by (metis Cons_nth_drop_Suc drop0 eq_snd_iff neq_Nil_conv split_fun.drop_not_empty split_fun_axioms)
+  then have "\<forall>s \<in> set (subtrees ((sub,sep)#rs)). height s = height t"
+    using in_subtrees_drop assms by (metis subsetD)
+  then have 1: "bal (Node rs t)"
+    unfolding bal.simps using assms list_split
+    by (metis Cons_nth_drop_Suc drop_eq_Nil in_subtrees_drop le_less_linear list.discI list.inject subset_code(1))
+
+
+  have "height t = height sub"
+    by (simp add: \<open>\<forall>s\<in>set (subtrees ((sub, sep) # rs)). height s = height t\<close>)
+  then have 2: "bal (Node (take (length ts div 2) ts) sub)"
+    unfolding bal.simps using assms
+    by (metis in_subtrees_drop in_subtrees_take list.set_intros(1) list_split some_child_sub(1) subsetD)
+
+  have "height (Node (take (length ts div 2) ts) sub) = Suc (height t)"
+    using "2" \<open>BTree.height_class.height t = BTree.height_class.height sub\<close> height_bal_tree by auto
+  moreover have "height (Node rs t) = Suc (height t)"
+    using "1" height_bal_tree by blast
+  ultimately have "bal_i (Up_i (Node (take (length ts div 2) ts) sub) sep (Node rs t))"
+    using 1 2 by simp
+  then show ?thesis unfolding node_i.simps using 1 2 False list_split by simp
+qed (simp add: assms)
+
+  
 
 end
 
 
 
 (*TODO: at some point this better be replaced with something binary search like *)
-(* split *)
 fun linear_split_help:: "(('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> ('a btree\<times>'a) list \<Rightarrow>  (('a btree\<times>'a) list \<times> ('a btree\<times>'a) list)" where
 "linear_split_help [] x prev = (prev, [])" |
 "linear_split_help ((sub, sep)#xs) x prev = (if sep < x then linear_split_help xs x (prev @ [(sub, sep)]) else (prev, (sub,sep)#xs))"
@@ -396,8 +419,7 @@ lemma some_child_sm: "linear_split_help t y xs = (l,(sub,sep)#ts) \<Longrightarr
 lemma linear_split_append: "linear_split_help xs p ys = (l,r) \<Longrightarrow> l@r = ys@xs"
   apply(induction xs p ys arbitrary: l r rule: linear_split_help.induct)
    apply(simp_all)
-  apply(metis Pair_inject)
-  done
+  by (metis Pair_inject)
 
 lemma linear_split_sm: "\<lbrakk>linear_split_help xs p ys = (l,r); sorted (seperators (ys@xs)); \<forall>sep \<in> set (seperators ys). p > sep\<rbrakk> \<Longrightarrow> \<forall>sep \<in> set (seperators l). p > sep"
   apply(induction xs p ys arbitrary: l r rule: linear_split_help.induct)
@@ -440,12 +462,7 @@ lemma linear_split_req:
     and "sorted (seperators xs)"
   shows "\<forall>sep \<in> set (seperators l). p > sep"
   and "(case r of [] \<Rightarrow> True | ((psub, psep)#rs) \<Rightarrow> (p \<le> psep \<and> (\<forall>sep \<in> set (seperators rs). p < sep)))"
-proof - 
-  show "\<forall>sep \<in> set (seperators l). p > sep" using assms linear_split_sm by force
-next
-  show "(case r of [] \<Rightarrow> True | ((psub, psep)#rs) \<Rightarrow> (p \<le> psep \<and> (\<forall>sep \<in> set (seperators rs). p < sep)))"
-    using assms linear_split_gr by force
-qed
+  using assms linear_split_sm linear_split_gr by fastforce+
 
 interpretation btree_linear_search: split_fun "linear_split"
   by (simp add: linear_split_req linear_split_append split_fun_def)

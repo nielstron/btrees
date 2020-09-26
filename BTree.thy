@@ -1,6 +1,8 @@
 theory BTree                 
-  imports Main "HOL-Data_Structures.Cmp" "HOL-Data_Structures.Tree23_Set" "HOL-Data_Structures.Tree234_Set"
+  imports Main "HOL-Data_Structures.Cmp" "HOL-Data_Structures.Tree234_Set"
 begin
+
+declare sorted_wrt.simps(2)[simp add]
 
 subsection "General structure and concepts definition"
 
@@ -21,6 +23,9 @@ fun inorder :: "'a btree \<Rightarrow> 'a list" where
 "inorder Leaf = []" |
 "inorder (Node ts t) = (foldr (@) (map (\<lambda> (sub, sep). inorder sub @ [sep]) ts) []) @ inorder t" 
 
+fun subtrees where "subtrees xs = (map fst xs)"
+fun seperators where "seperators xs = (map snd xs)"
+
 class height =
 fixes height :: "'a \<Rightarrow> nat"
 
@@ -29,7 +34,7 @@ begin
 
 fun height_btree :: "'a btree \<Rightarrow> nat" where
 "height Leaf = 0" |
-"height (Node ts t) = Suc (fold max (map (height \<circ> fst) ts) (height t))"
+"height (Node ts t) = Suc (fold max (map height (subtrees ts)) (height t))"
 
 instance ..
 
@@ -42,8 +47,6 @@ lemma set_eq_fold: "fold max xs n = Max (set (n#xs))"
 value "(Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
 value "inorder (Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
 
-fun subtrees where "subtrees xs = (map fst xs)"
-fun seperators where "seperators xs = (map snd xs)"
 
 lemma set_map_pred_eq: "(\<forall>x \<in> set (map f xs). P x) = (\<forall>x \<in> set xs. P (f x))"
   apply(induction xs)
@@ -97,7 +100,22 @@ lemma subtrees_in_set: "s \<in> set (subtrees ts) \<Longrightarrow> set_btree s 
 
 fun bal:: "'a btree \<Rightarrow> bool" where
 "bal Leaf = True" |
-"bal (Node ts t) = ((\<forall>sub \<in> set (subtrees ts). height (Node ts t) = Suc (height sub)) \<and> Suc (height t) = height (Node ts t) \<and> (\<forall>sub \<in> set (subtrees ts). bal sub) \<and> bal t)"
+"bal (Node ts t) = ((\<forall>sub \<in> set (subtrees ts). height t = height sub) \<and> (\<forall>sub \<in> set (subtrees ts). bal sub) \<and> bal t)"
+
+lemma bal_all_subtrees_equal: "bal (Node ts t) \<Longrightarrow> (\<forall>s1 \<in> set (subtrees ts). \<forall>s2 \<in> set (subtrees ts). height s1 = height s2)"
+  by (metis BTree.bal.simps(2))
+
+find_theorems fold max
+
+lemma fold_max_set: "\<forall>x \<in> set t. x = f \<Longrightarrow> fold max t f = f"
+  apply(induction t)
+   apply(auto simp add: max_def_raw)
+  done
+
+lemma height_bal_tree: "bal (Node ts t) \<Longrightarrow> height (Node ts t) = Suc (height t)"
+  unfolding height_btree.simps bal.simps
+  by (simp add: fold_max_set)
+
 
 (*value "nat \<lceil>(5::nat) / 2\<rceil>"*)
 

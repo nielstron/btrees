@@ -41,8 +41,8 @@ instance ..
 end
 
 (* not sure if required but appearently already present for coding equivalence *)
-lemma set_eq_fold: "fold max xs n = Max (set (n#xs))"
-  by (metis Max.set_eq_fold)
+lemma set_eq_fold: "fold max xs n = Max (set xs \<union> {n})"
+  by (metis Max.set_eq_fold Un_insert_right list.simps(15) sup_bot.right_neutral)
 
 value "(Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
 value "inorder (Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
@@ -116,6 +116,7 @@ lemma height_bal_tree: "bal (Node ts t) \<Longrightarrow> height (Node ts t) = S
   unfolding height_btree.simps bal.simps
   by (simp add: fold_max_set)
 
+  
 
 (*value "nat \<lceil>(5::nat) / 2\<rceil>"*)
 

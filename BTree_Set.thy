@@ -280,6 +280,15 @@ qed
 find_theorems "set" "(@)" "(#)"
 
 lemma "order k t \<Longrightarrow> order_i k (ins k x t)"
+  apply(induction k x t rule: ins.induct)
+   apply(auto simp del: node_i.simps split!: prod.splits list.splits up_i.splits
+ simp add: split_fun_req split_fun_axioms split_fun_def some_child_sub split_fun_child node_i_order_i)
+  using split_fun_axioms split_fun_def apply fastforce
+  using split_fun_req(1) apply fastforce
+  using split_fun_req(1) apply fastforce
+  oops
+
+lemma "order k t \<Longrightarrow> order_i k (ins k x t)"
 proof(induction k x t rule: ins.induct)
   case (2 k x ts t)
   then obtain l r where split_res: "split_fun ts x = (l, r)"
@@ -362,6 +371,19 @@ lemma in_subtrees_take: "set (subtrees (take n xs)) \<subseteq> set (subtrees xs
    apply(simp_all) 
   using image_iff in_set_takeD by fastforce
 
+fun height_i where
+"height_i (T_i t) = height t" |
+"height_i (Up_i l a r) = max (height l) (height r)"
+
+lemma node_i_bal_i:
+  assumes "\<forall>x \<in> set (subtrees ts). bal x"
+    and "bal t"
+  and "\<forall>x \<in> set (subtrees ts). height t = height x"
+shows "bal_i (node_i k ts t)"
+  apply(cases "length ts \<le> 2*k")
+   apply(auto split: list.splits simp add: assms height_bal_tree fold_max_set in_subtrees_drop in_subtrees_take)
+  oops
+
 lemma node_i_bal_i:
   assumes "\<forall>x \<in> set (subtrees ts). bal x"
     and "bal t"
@@ -394,7 +416,70 @@ proof(cases "length ts \<le> 2* k")
   then show ?thesis unfolding node_i.simps using 1 2 False list_split by simp
 qed (simp add: assms)
 
+find_theorems fold max
+thm Max.union
+
+
+lemma fold_max_max: "max (a::(_::linorder)) (fold max bs b) = fold max bs (max a b)"
+  apply(induction bs arbitrary: a b)
+  apply(auto simp add: max.left_commute)
+  done
+
+lemma max_sep_fold_max: "max (fold max as (a::(_::linorder))) (fold max bs b) = (fold max (as@a#bs) b)"
+  apply(induction as arbitrary: a bs b)
+   apply(auto simp add: max.assoc max.left_commute fold_max_max)
+  done
+
+lemma height_list_split_eq: "\<lbrakk>ls@(a,b)#rs = ts\<rbrakk> \<Longrightarrow> height_i (Up_i (Node ls a) b (Node rs t)) = height (Node ts t) "
+  by (auto simp add: fold_max_max max.commute)
+
+lemma node_i_height_i: "height_i (node_i k ts t) = height (Node ts t)"
+  apply(auto split: list.splits simp del: height_btree.simps)
+  by (metis append_take_drop_id height_i.simps(2) height_list_split_eq)
+
+lemma ins_height_i: "height_i (ins k x t) = height t"
+  apply(induction k x t rule: ins.induct)
+   apply(auto split!: prod.split list.split up_i.split simp del: node_i.simps
+ simp add: split_fun_req node_i_height_i fold_max_max max_sep_fold_max)
+  using split_fun_req(1) apply fastforce
+    apply (metis append_Nil2 split_fun_req(1))
+proof -
+fix ka :: nat and xa :: 'a and ts :: "('a btree \<times> 'a) list" and ta :: "'a btree" and x1 :: "('a btree \<times> 'a) list" and a :: "'a btree" and b :: 'a and x22 :: "('a btree \<times> 'a) list" and x1a :: "'a btree"
+  assume a1: "split_fun ts xa = (x1, (a, b) # x22)"
+have f2: "\<forall>n ns na. max (n::nat) (fold max ns na) = fold max ns (max n na)"
+  using fold_max_max by blast
+  have "x1 @ (a, b) # x22 = ts"
+    using a1 by (simp add: split_fun_req(1))
+  then show "fold max (map (BTree.height_class.height \<circ> fst) x22) (fold max (map (BTree.height_class.height \<circ> fst) x1) (max (BTree.height_class.height a) (BTree.height_class.height ta))) = fold max (map (BTree.height_class.height \<circ> fst) ts) (BTree.height_class.height ta)"
+    using f2 by force
+next
+  show "\<And>k x ts t x1 a b x22 x21 x22a x23.
+       (\<And>y. False \<Longrightarrow> y = [] \<Longrightarrow> height_i (local.ins k x t) = BTree.height_class.height t) \<Longrightarrow>
+       (\<And>xa y aa ba x22a xb ya.
+           xa = x1 \<and> aa = a \<and> ba = b \<and> x22a = x22 \<Longrightarrow>
+           y = (a, b) # x22 \<Longrightarrow>
+           xb = a \<and> ya = b \<Longrightarrow>
+           max (BTree.height_class.height x21) (BTree.height_class.height x23) =
+           BTree.height_class.height a) \<Longrightarrow>
+       split_fun ts x = (x1, (a, b) # x22) \<Longrightarrow>
+       local.ins k x a = Up_i x21 x22a x23 \<Longrightarrow>
+       fold max (map (BTree.height_class.height \<circ> fst) x22)
+        (fold max (map (BTree.height_class.height \<circ> fst) x1)
+          (max (BTree.height_class.height x23)
+            (max (BTree.height_class.height x21) (BTree.height_class.height t)))) =
+       fold max (map (BTree.height_class.height \<circ> fst) ts) (BTree.height_class.height t)"
+    by (smt comp_eq_dest_lhs fold_max_max fst_conv list.simps(9) map_append max.commute max_sep_fold_max split_fun_req(1)) 
+qed
+
+
+lemma "bal t \<Longrightarrow> bal_i (ins k x t)"
+  apply(induction k x t rule: ins.induct)
+   apply(auto simp del: node_i.simps split!: prod.splits list.splits up_i.splits
+ simp add: node_i_bal_i split_fun_def split_fun_axioms split_fun_req ins_height_i)
   
+  apply (metis append_self_conv fst_conv height_i.simps(1) ins_height_i split_fun_req(1))
+  using split_fun_req(1) apply fastforce
+  sorry
 
 end
 

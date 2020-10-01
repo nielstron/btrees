@@ -279,14 +279,69 @@ qed
 
 find_theorems "set" "(@)" "(#)"
 
+lemma split_fun_length_l: "split_fun ts x = (l,[]) \<Longrightarrow> length l = length ts"
+  using split_fun_req by fastforce
+
+lemma split_fun_length: "split_fun ts x = (x1, (a, b) # x22) \<Longrightarrow> Suc(length x1 + length x22) = length ts"
+  using split_fun_req by fastforce
+
+lemma split_fun_set_l: "split_fun ts x = (l,[]) \<Longrightarrow> set l = set ts"
+  using split_fun_req by fastforce
+
+lemma split_fun_set: 
+  assumes "split_fun ts z = (l,(a,b)#r)"
+  shows "(a,b) \<in> set ts"
+    and "(x,y) \<in> set l \<Longrightarrow> (x,y) \<in> set ts"
+    and "(x,y) \<in> set r \<Longrightarrow> (x,y) \<in> set ts"
+    and "set l \<union> set r \<union> {(a,b)} = set ts"
+  using split_fun_req assms by fastforce+
+
+thm fst_conv
+
+lemma order_fst: "\<forall>x \<in> xs. P (fst x) \<Longrightarrow> (a,b) \<in> xs \<Longrightarrow> P a"
+  by auto
+
+lemma inductive_order: "
+       \<lbrakk>
+\<forall>x\<in>set x1. order k (fst x);
+       split_fun x1 x = (x1a, (a, b) # x22);
+  local.ins k x a = T_i x1b;
+(\<And>a b x1aa. (a, b) \<in> set x1 \<Longrightarrow> x1aa = a \<Longrightarrow> order k a \<Longrightarrow> order_i k (local.ins k x a))\<rbrakk> \<Longrightarrow> order k x1b"
+  by (metis fst_conv order_i.simps(1) split_fun_child)
+
+lemma length_help:
+  assumes "k \<le> length x1"
+    and "length x1 \<le> 2 * k"
+    and "\<forall>x\<in>set x1. order k (fst x)"
+    and "order k t"
+    and "split_fun x1 x = (l, (sub, sep) # list)"
+    and "local.ins k x sub = Up_i x21 x22 x23"
+and "(\<And>a b x1aa. (a, b) \<in> set x1 \<Longrightarrow> x1aa = a \<Longrightarrow> order k a \<Longrightarrow> order_i k (local.ins k x a))"
+shows "order_i k (node_i k (l @ (x21, x22) # (x23, sep) # list) t)"
+proof -
+  have "order k t"
+    using assms by auto
+  moreover have
+    "length (l@(x21,x22)#(x23,sep)#list) \<le> 2*k+1"
+    "length (l@(x21,x22)#(x23,sep)#list) \<ge> k"
+    using split_fun_length assms by auto
+  moreover have "\<forall>x \<in> set (subtrees l). order k x" "\<forall>x \<in> set (subtrees list). order k x"
+    using assms split_fun_set by auto
+  moreover have "order k x21" "order k x23"
+    using assms split_fun_set(1) split_fun_axioms by fastforce+
+  ultimately show "order_i k (node_i k (l@(x21,x22)#(x23,sep)#list) t)"
+    using node_i_order_i[of k "(l@(x21,x22)#(x23,sep)#list)" t]
+    by (auto simp del: node_i.simps)
+qed
+  
+
 lemma "order k t \<Longrightarrow> order_i k (ins k x t)"
-  apply(induction k x t rule: ins.induct)
+  apply(induction t)
    apply(auto simp del: node_i.simps split!: prod.splits list.splits up_i.splits
- simp add: split_fun_req split_fun_axioms split_fun_def some_child_sub split_fun_child node_i_order_i)
-  using split_fun_axioms split_fun_def apply fastforce
-  using split_fun_req(1) apply fastforce
-  using split_fun_req(1) apply fastforce
-  oops
+ simp add: split_fun_length_l split_fun_length split_fun_set_l inductive_order split_fun_set node_i_order_i
+length_help)
+  done
+
 
 lemma "order k t \<Longrightarrow> order_i k (ins k x t)"
 proof(induction k x t rule: ins.induct)
@@ -468,6 +523,7 @@ next
           (max (BTree.height_class.height x23)
             (max (BTree.height_class.height x21) (BTree.height_class.height t)))) =
        fold max (map (BTree.height_class.height \<circ> fst) ts) (BTree.height_class.height t)"
+(* TODO this employs a heuristic solver *)
     by (smt comp_eq_dest_lhs fold_max_max fst_conv list.simps(9) map_append max.commute max_sep_fold_max split_fun_req(1)) 
 qed
 
@@ -479,7 +535,77 @@ lemma "bal t \<Longrightarrow> bal_i (ins k x t)"
   
   apply (metis append_self_conv fst_conv height_i.simps(1) ins_height_i split_fun_req(1))
   using split_fun_req(1) apply fastforce
-  sorry
+  oops
+
+(* the below proof is overly complicated as a number of lemmas regarding height are missing *)
+lemma "bal t \<Longrightarrow> bal_i (ins k x t)"
+proof(induction k x t rule: ins.induct)
+  case (2 k x ts t)
+  then obtain l r where split_res: "split_fun ts x = (l, r)"
+    by (meson surj_pair)
+  then have split_app: "l@r = ts" using split_fun_axioms split_fun_def
+    by fastforce
+  
+  show ?case
+  proof (cases r)
+    case Nil
+    then show ?thesis 
+    proof (cases "ins k x t")
+      case (T_i x1)
+      then have "bal (Node l x1)" unfolding bal.simps
+        by (metis "2.IH"(1) "2.prems" BTree.bal.simps(2) append_Nil2 bal_i.simps(1) height_i.simps(1) ins_height_i local.Nil split_app split_res)
+      then show ?thesis unfolding ins.simps using Nil T_i 2 split_res by simp
+    next
+      case (Up_i x21 x22 x23)
+      then have 
+        "(\<forall>x\<in>set (subtrees (l@[(x21,x22)])). BTree.bal x)"
+        "BTree.bal x23"
+        "(\<forall>x\<in>set (subtrees l). BTree.height_class.height x23 = BTree.height_class.height x)"
+        using "2.IH"(1) "2.prems" Up_i local.Nil split_res split_app
+        by simp_all (metis height_i.simps(2) ins_height_i max_def)
+      then show ?thesis unfolding ins.simps
+        using Up_i Nil 2 split_res by(simp del: node_i.simps add: node_i_bal_i)
+    qed
+  next
+    case (Cons a list)
+    then obtain sub sep where a_prod: "a  = (sub, sep)" by (cases a)
+    then have "bal_i (ins k x sub)" using 2 split_res
+      by (metis BTree.bal.simps(2) local.Cons some_child_sub(1) split_fun_child)
+    
+    show ?thesis
+    proof (cases "ins k x sub")
+      case (T_i x1)
+      then have "bal x1" "height x1 = height t"
+        using 2 T_i \<open>bal_i (local.ins k x sub)\<close>
+        by simp (metis "2.prems" BTree.bal.simps(2) T_i a_prod height_i.simps(1) ins_height_i local.Cons some_child_sub(1) split_fun_child split_res)
+      then show ?thesis
+        using split_app Cons T_i 2 split_res a_prod
+        by auto
+    next
+      case (Up_i x21 x22 x23)
+        (* The only case where explicit reasoning is required - likely due to the insertion of 2 elements in the list *)
+      then have "bal t"
+        using 2 by auto
+      moreover have
+        "\<forall>x \<in> set (subtrees (l@(x21,x22)#(x23,sep)#list)). bal x"
+        using Up_i split_app Cons 2 \<open>bal_i (ins k x sub)\<close> by auto
+      moreover have "\<forall>x \<in> set (subtrees (l@(x21,x22)#(x23,sep)#list)). height x = height t"
+        using Up_i split_app Cons 2 \<open>bal_i (ins k x sub)\<close> ins_height_i split_res a_prod
+        apply auto
+        apply (metis height_i.simps(2) max_def)
+         apply force+
+        done
+      ultimately have "bal_i (node_i k (l@(x21,x22)#(x23,sep)#list) t)"
+        using node_i_bal_i[of "(l@(x21,x22)#(x23,sep)#list)" t] by (simp del: node_i.simps)
+      then show ?thesis unfolding ins.simps using Up_i Cons 2 split_res a_prod
+        by simp
+    qed
+  qed
+qed simp
+
+(* TODO sorted invariant *)
+
+(* TODO ins acts as a Set insertion *)
 
 end
 

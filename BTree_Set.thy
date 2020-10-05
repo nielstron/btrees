@@ -294,19 +294,23 @@ lemma split_fun_set:
     and "(x,y) \<in> set l \<Longrightarrow> (x,y) \<in> set ts"
     and "(x,y) \<in> set r \<Longrightarrow> (x,y) \<in> set ts"
     and "set l \<union> set r \<union> {(a,b)} = set ts"
+    and "\<exists>x \<in> set ts. b \<in> Basic_BNFs.snds x"
   using split_fun_req assms by fastforce+
+
+lemma impl_one_two: "(\<exists>x \<in> set ts. b \<in> Basic_BNFs.snds x) \<Longrightarrow> \<exists>x\<in>set ts. ((\<exists>x\<in>Basic_BNFs.fsts x. b \<in> set_btree x) \<or> b \<in> Basic_BNFs.snds x)"
+  by auto
 
 thm fst_conv
 
 lemma order_fst: "\<forall>x \<in> xs. P (fst x) \<Longrightarrow> (a,b) \<in> xs \<Longrightarrow> P a"
   by auto
 
-lemma inductive_order: "
-       \<lbrakk>
-\<forall>x\<in>set x1. order k (fst x);
-       split_fun x1 x = (x1a, (a, b) # x22);
-  local.ins k x a = T_i x1b;
-(\<And>a b x1aa. (a, b) \<in> set x1 \<Longrightarrow> x1aa = a \<Longrightarrow> order k a \<Longrightarrow> order_i k (local.ins k x a))\<rbrakk> \<Longrightarrow> order k x1b"
+lemma inductive_order: "\<lbrakk>
+   \<forall>x\<in>set x1. order k (fst x);
+   split_fun x1 x = (x1a, (a, b) # x22);
+   local.ins k x a = T_i x1b;
+   (\<And>a b x1aa. (a, b) \<in> set x1 \<Longrightarrow> x1aa = a \<Longrightarrow> order k a \<Longrightarrow> order_i k (local.ins k x a))
+\<rbrakk> \<Longrightarrow> order k x1b"
   by (metis fst_conv order_i.simps(1) split_fun_child)
 
 lemma length_help:
@@ -331,10 +335,10 @@ proof -
     using assms split_fun_set(1) split_fun_axioms by fastforce+
   ultimately show "order_i k (node_i k (l@(x21,x22)#(x23,sep)#list) t)"
     using node_i_order_i[of k "(l@(x21,x22)#(x23,sep)#list)" t]
-    by (auto simp del: node_i.simps)
+    by (auto simp del: node_i.simps simp add: split_fun_length split_fun_set assms)
 qed
   
-
+(* "Automatic proof, using a number of lemmata *)
 lemma "order k t \<Longrightarrow> order_i k (ins k x t)"
   apply(induction t)
    apply(auto simp del: node_i.simps split!: prod.splits list.splits up_i.splits
@@ -342,7 +346,7 @@ lemma "order k t \<Longrightarrow> order_i k (ins k x t)"
 length_help)
   done
 
-
+(* direct proof *)
 lemma "order k t \<Longrightarrow> order_i k (ins k x t)"
 proof(induction k x t rule: ins.induct)
   case (2 k x ts t)
@@ -606,6 +610,103 @@ qed simp
 (* TODO sorted invariant *)
 
 (* TODO ins acts as a Set insertion *)
+
+fun set_up_i where
+"set_up_i (T_i t) = set_btree t" |
+"set_up_i (Up_i l a r) = set_btree l \<union> set_btree r \<union> {a}"
+
+thm BTree.set_btree_induct
+
+lemma set_drop_take: "set l = set (drop n l) \<union> set (take n l)"
+  by (metis append_take_drop_id set_append sup_commute)
+
+lemma node_i_set: "set_up_i (node_i k ts t) = set_btree (Node ts t)"
+proof (cases "length ts \<le> 2*k")
+  case False
+  then have "length ts > 0" by linarith
+  then obtain sub sep rs where drop_split: "drop (length ts div 2) ts = (sub,sep)#rs"
+    by (metis Cons_nth_drop_Suc drop0 drop_not_empty eq_snd_iff neq_Nil_conv)
+  then have "set_btree (Node ts t) = (\<Union>x \<in> set ts. \<Union> (set_btree ` Basic_BNFs.fsts x) \<union> Basic_BNFs.snds x) \<union> set_btree t"
+    by simp
+  also have "\<dots> = (\<Union>x \<in> set (drop (length ts div 2) ts) \<union> set (take (length ts div 2) ts). \<Union> (set_btree ` Basic_BNFs.fsts x) \<union> Basic_BNFs.snds x) \<union> set_btree t"
+    using set_drop_take[of ts "length ts div 2"] by simp
+  also have "\<dots> = set_up_i (Up_i (Node (take (length ts div 2) ts) sub) sep (Node rs t))" using drop_split by auto
+  also have "\<dots> = set_up_i (node_i k ts t)" using False drop_split by simp
+  finally show ?thesis  by simp
+qed simp
+
+find_theorems set_btree
+thm btree.set
+
+lemma set_btree_split: "set_btree (Node (l@(sub,sep)#r) t) = set_btree (Node (l@r) t) \<union> set_btree sub \<union> {sep}"
+  apply(induction r)
+   apply(auto)
+  done
+
+lemma ins_set: "set_up_i (ins k x t) = set_btree t \<union> {x}"
+  apply(induction t)
+   apply(auto simp del: node_i.simps split!: prod.split list.splits up_i.splits
+simp add: split_fun_set_l split_fun_set  node_i_set set_btree_split)
+  oops
+
+lemma ins_set: "set_up_i (ins k x t) = set_btree t \<union> {x}"
+proof(induction t)
+  case (Node ts t)
+  then obtain l r where split_res: "split_fun ts x = (l, r)"
+    by (meson surj_pair)
+  then have split_app: "l@r = ts" using split_fun_axioms split_fun_def
+    by fastforce
+  
+  show ?case
+  proof (cases r)
+    case Nil
+
+    show ?thesis 
+    proof (cases "ins k x t")
+      case (T_i x1)
+      then have "set_btree (Node l x1) = set_btree (Node ts t) \<union> {x}"
+        using Node split_app Nil by auto
+      then show ?thesis
+        by (simp add: T_i local.Nil split_res)
+    next
+      case (Up_i x21 x22 x23)
+      then have t0: "set_up_i (Up_i x21 x22 x23) = set_btree t \<union> {x}" using Node by auto
+      then have "set_up_i (node_i k (l@[(x21,x22)]) x23) = set_btree (Node (l@[(x21,x22)]) x23)"
+        using node_i_set by (simp del: node_i.simps)
+      also have "\<dots> = set_btree (Node ts t) \<union> {x}" using Node split_app Nil t0 by auto
+      finally show ?thesis
+        by (simp add: Up_i local.Nil split_res)
+    qed
+  next
+    case (Cons a list)
+    then obtain sub sep where a_split: "a = (sub,sep)" by (cases a)
+    then show ?thesis
+    proof (cases "ins k x sub")
+      case (T_i x1)
+      then have "set_btree x1 = set_btree sub \<union> {x}"
+        using Node a_split split_app Cons by fastforce
+      then have "set_btree (Node (l @ (x1,sep) # list) t) = set_btree (Node (l @ (sub,sep) # list) t) \<union> {x}"
+        using set_btree_split by auto
+      also have "\<dots> = set_btree (Node ts t) \<union> {x}" using split_app Cons a_split by simp
+      finally show ?thesis
+        using Node Cons a_split split_res T_i by simp
+    next
+      case (Up_i x21 x22 x23)
+      then have t0: "set_btree x21 \<union> {x22} \<union> set_btree x23 = set_btree sub \<union> {x}"
+        using Node a_split split_app Cons by fastforce
+      then have "set_up_i (node_i k (l @ (x21,x22)#(x23,sep)#list) t) = set_btree (Node (l @ (x21,x22)#(x23,sep)#list) t)"
+        using node_i_set by (simp del: node_i.simps)
+      also have "\<dots> = set_btree (Node (l@(sub,sep)#list) t) \<union> {x}"
+        using t0 set_btree_split by auto
+      also have "\<dots> = set_btree (Node ts t) \<union> {x}"
+        using split_app Cons a_split by simp
+      finally show ?thesis unfolding ins.simps 
+        using Up_i a_split local.Cons split_app split_res by simp
+    qed
+  qed
+qed simp
+
+  
 
 end
 

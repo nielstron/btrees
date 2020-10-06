@@ -167,6 +167,15 @@ lemma sorted_wrt_sorted_left: "sorted_wrt sub_sep_sm ((sub, sep)#xs) \<Longright
 lemma sorted_wrt_sorted_right: "\<forall>x \<in> set xs. sub_sep_cons x \<Longrightarrow> (t, sep) \<in> set xs \<Longrightarrow> \<forall>x \<in> set_btree t. x < sep"
   by auto
 
+find_theorems sorted_wrt "(@)"
+
+(* this works only for linear orders *)
+lemma sorted_wrt_sorted_right2: "
+sorted_wrt sub_sep_sm (ls@(sub,(sep::('a::linorder)))#rs) \<Longrightarrow> (\<forall>x \<in> set (ls@(sub,sep)#rs). sub_sep_cons x) \<Longrightarrow>
+ (\<forall>x \<in> set_btree (Node ls sub). x < sep)"
+  apply (auto simp add: sorted_wrt_append)
+  by (meson UnI1 dual_order.strict_trans sub_sep_cons.simps sub_sep_sm.simps)
+
 lemma sorted_pair_list: "(sorted (inorder sub) \<and> (\<forall>x \<in> set_btree_inorder sub. x < sep)) = sorted((inorder sub) @ [sep])"
   unfolding set_btree_inorder_def using sorted_snoc_iff
   by auto

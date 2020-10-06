@@ -25,6 +25,10 @@ fun inorder :: "'a btree \<Rightarrow> 'a list" where
 
 fun subtrees where "subtrees xs = (map fst xs)"
 fun seperators where "seperators xs = (map snd xs)"
+fun btree_pair_set where
+"btree_pair_set uu = ((set_btree ` Basic_BNFs.fsts uu) \<union> Basic_BNFs.snds uu)"
+fun btree_list_set where
+"btree_list_set ts = (\<Union>uu\<in>set ts. btree_pair_set uu)"
 
 class height =
 fixes height :: "'a \<Rightarrow> nat"

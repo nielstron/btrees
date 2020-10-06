@@ -607,67 +607,6 @@ proof(induction k x t rule: ins.induct)
   qed
 qed simp
 
-(* TODO sorted invariant *)
-
-thm sorted_alt.simps
-
-find_theorems sorted_wrt take
-
-fun sorted_up_i where
-"sorted_up_i (T_i t) = sorted_alt t" |
-"sorted_up_i (Up_i l a r) = (sorted_alt l \<and> sorted_alt r \<and> sub_sep_cons (l,a) \<and> (\<forall>y \<in> set_btree r. a < y))"
-
-
-lemma sorted_alt_split_rs: "sorted_alt (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> sorted_alt (Node rs t)"
-  apply(induction ls)
-   apply(auto)
-  done
-
-lemma sorted_alt_split_ls: "sorted_alt (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> sorted_alt (Node ls sub)"
-  apply(induction ls)
-   apply(auto)
-  done
-
-
-lemma node_i_sorted:
-  assumes "sorted_alt (Node ts t)"
-  shows "sorted_up_i (node_i k ts t)"
-using assms proof(cases "length ts \<le> 2*k")
-  case False
-  then have "length ts > 0" by linarith
-  then obtain sub sep rs where list_drop: "drop (length ts div 2) ts = (sub,sep)#rs"
-    by (metis Cons_nth_drop_Suc drop0 eq_snd_iff neq_Nil_conv split_fun.drop_not_empty split_fun_axioms)
-  then have sorted_list_drop: "sorted_wrt sub_sep_sm ((sub,sep)#rs)"
-    by (metis sorted_wrt_drop assms sorted_alt.simps(2))
-
-  let ?take = "take (length ts div 2) ts"
-  have "sorted_up_i (Up_i (Node ?take sub) sep (Node rs t))"
-    unfolding sorted_up_i.simps
-  proof (safe)
-    from sorted_list_drop have
-      "\<forall>r \<in> set (subtrees rs). \<forall>x \<in> set_btree r. sep < x"
-      "\<forall>r \<in> set (seperators rs). sep < r"
-      by (auto simp add: sorted_wrt_sorted_left)
-    then show "\<And>x. x \<in> set_btree (Node rs t) \<Longrightarrow> sep < x"
-      by (metis assms list.set_intros(1) list_drop set_btree_induct set_drop_subset some_child_sub(2) sorted_alt.simps(2) subset_code(1))
-  next
-    show "sorted_alt (Node rs t)"
-      using list_drop sorted_alt_split_rs assms append_take_drop_id
-      by metis
-  next
-    show "sorted_alt (Node ?take sub)"
-      using list_drop sorted_alt_split_ls assms append_take_drop_id
-      by metis
-  next
-    show "sub_sep_cons (Node ?take sub, sep)"
-      by (metis (no_types, lifting) append_take_drop_id assms list_drop sorted_alt.simps(2) sorted_wrt_sorted_right2 sub_sep_cons.simps)
-  qed
-  then show ?thesis
-    using False list_drop by simp
-qed simp
-
-(* TODO sorted of ins *)
-
 (* ins acts as a Set insertion *)
 
 fun set_up_i where
@@ -765,7 +704,93 @@ proof(induction t)
   qed
 qed simp
 
-  
+
+(* TODO sorted invariant *)
+
+thm sorted_alt.simps
+
+find_theorems sorted_wrt take
+
+fun sorted_up_i where
+"sorted_up_i (T_i t) = sorted_alt t" |
+"sorted_up_i (Up_i l a r) = (sorted_alt l \<and> sorted_alt r \<and> sub_sep_cons (l,a) \<and> (\<forall>y \<in> set_btree r. a < y))"
+
+
+lemma sorted_alt_split_rs: "sorted_alt (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> sorted_alt (Node rs t)"
+  apply(induction ls)
+   apply(auto)
+  done
+
+lemma sorted_alt_split_ls: "sorted_alt (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> sorted_alt (Node ls sub)"
+  apply(induction ls)
+   apply(auto)
+  done
+
+
+lemma node_i_sorted:
+  assumes "sorted_alt (Node ts t)"
+  shows "sorted_up_i (node_i k ts t)"
+using assms proof(cases "length ts \<le> 2*k")
+  case False
+  then have "length ts > 0" by linarith
+  then obtain sub sep rs where list_drop: "drop (length ts div 2) ts = (sub,sep)#rs"
+    by (metis Cons_nth_drop_Suc drop0 eq_snd_iff neq_Nil_conv split_fun.drop_not_empty split_fun_axioms)
+  then have sorted_list_drop: "sorted_wrt sub_sep_sm ((sub,sep)#rs)"
+    by (metis sorted_wrt_drop assms sorted_alt.simps(2))
+
+  let ?take = "take (length ts div 2) ts"
+  have "sorted_up_i (Up_i (Node ?take sub) sep (Node rs t))"
+    unfolding sorted_up_i.simps
+  proof (safe)
+    from sorted_list_drop have
+      "\<forall>r \<in> set (subtrees rs). \<forall>x \<in> set_btree r. sep < x"
+      "\<forall>r \<in> set (seperators rs). sep < r"
+      by (auto simp add: sorted_wrt_sorted_left)
+    then show "\<And>x. x \<in> set_btree (Node rs t) \<Longrightarrow> sep < x"
+      by (metis assms list.set_intros(1) list_drop set_btree_induct set_drop_subset some_child_sub(2) sorted_alt.simps(2) subset_code(1))
+  next
+    show "sorted_alt (Node rs t)"
+      using list_drop sorted_alt_split_rs assms append_take_drop_id
+      by metis
+  next
+    show "sorted_alt (Node ?take sub)"
+      using list_drop sorted_alt_split_ls assms append_take_drop_id
+      by metis
+  next
+    show "sub_sep_cons (Node ?take sub, sep)"
+      by (metis (no_types, lifting) append_take_drop_id assms list_drop sorted_alt.simps(2) sorted_wrt_sorted_right2 sub_sep_cons.simps)
+  qed
+  then show ?thesis
+    using False list_drop by simp
+qed simp
+
+thm btree.set
+
+fun btree_list_set where
+"btree_list_set ts = (\<Union>uu\<in>set ts. \<Union> (set_btree ` Basic_BNFs.fsts uu) \<union> Basic_BNFs.snds uu)"
+
+(* TODO sorted of ins *)
+lemma "sorted_alt t \<Longrightarrow> sorted_up_i (ins k x t)"
+proof (induction t)
+  case (Node ts t)
+  then obtain ls rs where list_split: "split_fun ts x = (ls,rs)" by (cases "split_fun ts x")
+  then show ?case
+  proof (cases "rs")
+    case Nil
+    then show ?thesis
+    proof (cases "ins k x t")
+      case (T_i x1) (* braucht evtl eine schönere formulierung für die sortierung/mengen von baum*sep listen *)
+      then have "sorted_alt x1" using Node by simp
+      then show ?thesis unfolding ins.simps using Node list_split by simp
+    next
+      case (Up_i x21 x22 x23)
+      then show ?thesis sorry
+    qed
+  next
+    case (Cons a list)
+    then show ?thesis sorry
+  qed
+qed simp
 
 end
 

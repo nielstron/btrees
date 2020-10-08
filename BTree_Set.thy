@@ -230,9 +230,12 @@ fun ins where
 "ins k x Leaf = (Up_i Leaf x Leaf)" |
 "ins k x (Node ts t) = (case split_fun ts x of
  (ls,(sub,sep)#rs) \<Rightarrow> 
-  (case ins k x sub of 
-    Up_i l a r \<Rightarrow> node_i k (ls @ (l,a)#(r,sep)#rs) t | 
-    T_i a \<Rightarrow> T_i (Node (ls @ (a,sep) # rs) t)
+  (if sep = x then
+    T_i (Node ts t)
+  else
+    (case ins k x sub of 
+      Up_i l a r \<Rightarrow> node_i k (ls @ (l,a)#(r,sep)#rs) t | 
+      T_i a \<Rightarrow> T_i (Node (ls @ (a,sep) # rs) t))
   ) |
  (ls, []) \<Rightarrow>
   (case ins k x t of
@@ -338,7 +341,7 @@ proof -
     by (auto simp del: node_i.simps simp add: split_fun_length split_fun_set assms)
 qed
   
-(* "Automatic proof, using a number of lemmata *)
+(* "Automatic proof", using a number of lemmata *)
 lemma "order k t \<Longrightarrow> order_i k (ins k x t)"
   apply(induction t)
    apply(auto simp del: node_i.simps split!: prod.splits list.splits up_i.splits
@@ -348,14 +351,14 @@ length_help)
 
 (* direct proof *)
 lemma "order k t \<Longrightarrow> order_i k (ins k x t)"
-proof(induction k x t rule: ins.induct)
-  case (2 k x ts t)
+proof(induction t)
+  case (Node ts t)
   then obtain l r where split_res: "split_fun ts x = (l, r)"
     by (meson surj_pair)
   then have split_app: "l@r = ts" using split_fun_axioms split_fun_def
     by fastforce
 
-  from 2 have suborders:
+  from Node have suborders:
     "order k t"
     "\<forall>s \<in> set (subtrees ts). order k s"
     "length ts \<le> 2*k"
@@ -365,51 +368,57 @@ proof(induction k x t rule: ins.induct)
   show ?case
   proof (cases r)
     case Nil
-    then have "order_i k (ins k x t)" using 2 suborders split_res
+    then have "order_i k (ins k x t)" using Node suborders split_res
       by simp
     
     show ?thesis
     proof (cases "ins k x t")
       case (T_i x1)
-      then show ?thesis unfolding ins.simps using T_i 2 split_res
+      then show ?thesis unfolding ins.simps using T_i Node split_res
           suborders split_app Nil \<open>order_i k (ins k x t)\<close>
         using order.simps(2) by auto
     next
       case (Up_i x21 x22 x23)
       then show ?thesis unfolding ins.simps
-        using Up_i Nil 2 split_res \<open>order_i k (ins k x t)\<close> suborders split_app Nil node_i_order_i[of k "l@[(x21,x22)]" x23]
+        using Up_i Nil Node split_res \<open>order_i k (ins k x t)\<close> suborders split_app Nil node_i_order_i[of k "l@[(x21,x22)]" x23]
         by (auto simp del: node_i.simps)
     qed
   next
     case (Cons a list)
     then obtain sub sep where a_prod: "a  = (sub, sep)" by (cases a)
-    then have "order_i k (ins k x sub)" using 2 suborders split_res
-      by (metis local.Cons some_child_sub(1) split_fun_child)
-    
-    show ?thesis
-    proof (cases "ins k x sub")
-      case (T_i x1)
-      then show ?thesis unfolding ins.simps
-        using suborders split_app Cons \<open>order_i k (local.ins k x sub)\<close> T_i Cons 2 split_res a_prod
-        by auto
+    then show ?thesis
+    proof (cases "x = sep")
+      case True
+      then show ?thesis using Node a_prod Cons split_res by simp
     next
-      case (Up_i x21 x22 x23)
-        (* The only case where explicit reasoning is required - likely due to the insertion of 2 elements in the list *)
-      then have "order k t"
-        using 2 by auto
-      moreover have
-        "length (l@(x21,x22)#(x23,sep)#list) \<le> 2*k+1"
-        "length (l@(x21,x22)#(x23,sep)#list) \<ge> k"
-        using suborders split_app Cons by auto
-      moreover have "\<forall>x \<in> set (subtrees l). order k x" "\<forall>x \<in> set (subtrees list). order k x"
-        using suborders split_app Cons by auto
-      moreover have "order k x21" "order k x23"
-        using \<open>order_i k (local.ins k x sub)\<close> Up_i by auto
-      ultimately have "order_i k (node_i k (l@(x21,x22)#(x23,sep)#list) t)"
-        using node_i_order_i[of k "(l@(x21,x22)#(x23,sep)#list)" t]
-        by (auto simp del: node_i.simps)
-      then show ?thesis  unfolding ins.simps using Up_i Cons 2 split_res a_prod
-        by simp
+      case False
+      then have "order_i k (ins k x sub)"
+        using Node suborders split_res a_prod local.Cons split_fun.split_fun_set(1) split_fun_axioms by fastforce
+      show ?thesis
+      proof (cases "ins k x sub")
+        case (T_i x1)
+        then show ?thesis unfolding ins.simps
+          using suborders split_app Cons \<open>order_i k (local.ins k x sub)\<close> T_i Cons Node split_res a_prod
+          by auto
+      next
+        case (Up_i x21 x22 x23)
+          (* The only case where explicit reasoning is required - likely due to the insertion of 2 elements in the list *)
+        then have "order k t"
+          using Node by auto
+        moreover have
+          "length (l@(x21,x22)#(x23,sep)#list) \<le> 2*k+1"
+          "length (l@(x21,x22)#(x23,sep)#list) \<ge> k"
+          using suborders split_app Cons by auto
+        moreover have "\<forall>x \<in> set (subtrees l). order k x" "\<forall>x \<in> set (subtrees list). order k x"
+          using suborders split_app Cons by auto
+        moreover have "order k x21" "order k x23"
+          using \<open>order_i k (local.ins k x sub)\<close> Up_i by auto
+        ultimately have "order_i k (node_i k (l@(x21,x22)#(x23,sep)#list) t)"
+          using node_i_order_i[of k "(l@(x21,x22)#(x23,sep)#list)" t]
+          by (auto simp del: node_i.simps)
+        then show ?thesis  unfolding ins.simps using Up_i Cons Node split_res a_prod
+          by simp
+      qed
     qed
   qed
 qed simp
@@ -543,8 +552,8 @@ lemma "bal t \<Longrightarrow> bal_i (ins k x t)"
 
 (* the below proof is overly complicated as a number of lemmas regarding height are missing *)
 lemma "bal t \<Longrightarrow> bal_i (ins k x t)"
-proof(induction k x t rule: ins.induct)
-  case (2 k x ts t)
+proof(induction t)
+  case (Node ts t)
   then obtain l r where split_res: "split_fun ts x = (l, r)"
     by (meson surj_pair)
   then have split_app: "l@r = ts" using split_fun_axioms split_fun_def
@@ -557,52 +566,58 @@ proof(induction k x t rule: ins.induct)
     proof (cases "ins k x t")
       case (T_i x1)
       then have "bal (Node l x1)" unfolding bal.simps
-        by (metis "2.IH"(1) "2.prems" BTree.bal.simps(2) append_Nil2 bal_i.simps(1) height_i.simps(1) ins_height_i local.Nil split_app split_res)
-      then show ?thesis unfolding ins.simps using Nil T_i 2 split_res by simp
+        by (metis Node BTree.bal.simps(2) append_Nil2 bal_i.simps(1) height_i.simps(1) ins_height_i local.Nil split_app)
+      then show ?thesis unfolding ins.simps using Nil T_i Node split_res by simp
     next
       case (Up_i x21 x22 x23)
       then have 
         "(\<forall>x\<in>set (subtrees (l@[(x21,x22)])). BTree.bal x)"
         "BTree.bal x23"
         "(\<forall>x\<in>set (subtrees l). BTree.height_class.height x23 = BTree.height_class.height x)"
-        using "2.IH"(1) "2.prems" Up_i local.Nil split_res split_app
+        using Node Up_i local.Nil split_res split_app
         by simp_all (metis height_i.simps(2) ins_height_i max_def)
       then show ?thesis unfolding ins.simps
-        using Up_i Nil 2 split_res by(simp del: node_i.simps add: node_i_bal_i)
+        using Up_i Nil Node split_res by(simp del: node_i.simps add: node_i_bal_i)
     qed
   next
     case (Cons a list)
     then obtain sub sep where a_prod: "a  = (sub, sep)" by (cases a)
-    then have "bal_i (ins k x sub)" using 2 split_res
-      by (metis BTree.bal.simps(2) local.Cons some_child_sub(1) split_fun_child)
-    
-    show ?thesis
-    proof (cases "ins k x sub")
-      case (T_i x1)
-      then have "bal x1" "height x1 = height t"
-        using 2 T_i \<open>bal_i (local.ins k x sub)\<close>
-        by simp (metis "2.prems" BTree.bal.simps(2) T_i a_prod height_i.simps(1) ins_height_i local.Cons some_child_sub(1) split_fun_child split_res)
-      then show ?thesis
-        using split_app Cons T_i 2 split_res a_prod
-        by auto
+    then show ?thesis
+    proof (cases "x = sep")
+      case True
+      then show ?thesis using a_prod Node split_res Cons by simp
     next
-      case (Up_i x21 x22 x23)
-        (* The only case where explicit reasoning is required - likely due to the insertion of 2 elements in the list *)
-      then have "bal t"
-        using 2 by auto
-      moreover have
-        "\<forall>x \<in> set (subtrees (l@(x21,x22)#(x23,sep)#list)). bal x"
-        using Up_i split_app Cons 2 \<open>bal_i (ins k x sub)\<close> by auto
-      moreover have "\<forall>x \<in> set (subtrees (l@(x21,x22)#(x23,sep)#list)). height x = height t"
-        using Up_i split_app Cons 2 \<open>bal_i (ins k x sub)\<close> ins_height_i split_res a_prod
-        apply auto
-        apply (metis height_i.simps(2) max_def)
-         apply force+
-        done
-      ultimately have "bal_i (node_i k (l@(x21,x22)#(x23,sep)#list) t)"
-        using node_i_bal_i[of "(l@(x21,x22)#(x23,sep)#list)" t] by (simp del: node_i.simps)
-      then show ?thesis unfolding ins.simps using Up_i Cons 2 split_res a_prod
-        by simp
+      case False
+      then have "bal_i (ins k x sub)" using Node split_res
+        by (metis BTree.bal.simps(2) a_prod local.Cons prod_set_simps(1) singletonI some_child_sub(1) split_fun.split_fun_child split_fun_axioms)
+      show ?thesis
+      proof (cases "ins k x sub")
+        case (T_i x1)
+        then have "bal x1" "height x1 = height t"
+          using Node T_i \<open>bal_i (local.ins k x sub)\<close>
+          by simp (metis Node.prems BTree.bal.simps(2) T_i a_prod height_i.simps(1) ins_height_i local.Cons some_child_sub(1) split_fun_child split_res)
+        then show ?thesis
+          using split_app Cons T_i Node split_res a_prod
+          by auto
+      next
+        case (Up_i x21 x22 x23)
+          (* The only case where explicit reasoning is required - likely due to the insertion of 2 elements in the list *)
+        then have "bal t"
+          using Node by auto
+        moreover have
+          "\<forall>x \<in> set (subtrees (l@(x21,x22)#(x23,sep)#list)). bal x"
+          using Up_i split_app Cons Node \<open>bal_i (ins k x sub)\<close> by auto
+        moreover have "\<forall>x \<in> set (subtrees (l@(x21,x22)#(x23,sep)#list)). height x = height t"
+          using False Up_i split_app Cons Node \<open>bal_i (ins k x sub)\<close> ins_height_i split_res a_prod
+          apply auto
+          apply (metis height_i.simps(2) max_def)
+           apply (metis Un_iff fst_conv)+
+          done
+        ultimately have "bal_i (node_i k (l@(x21,x22)#(x23,sep)#list) t)"
+          using node_i_bal_i[of "(l@(x21,x22)#(x23,sep)#list)" t] by (simp del: node_i.simps)
+        then show ?thesis unfolding ins.simps using Up_i Cons Node split_res a_prod
+          by simp
+      qed
     qed
   qed
 qed simp
@@ -642,12 +657,6 @@ lemma set_btree_split: "set_btree (Node (l@(sub,sep)#r) t) = set_btree (Node (l@
   done
 
 lemma ins_set: "set_up_i (ins k x t) = set_btree t \<union> {x}"
-  apply(induction t)
-   apply(auto simp del: node_i.simps split!: prod.split list.splits up_i.splits
-simp add: split_fun_set_l split_fun_set  node_i_set set_btree_split)
-  oops
-
-lemma ins_set: "set_up_i (ins k x t) = set_btree t \<union> {x}"
 proof(induction t)
   case (Node ts t)
   then obtain l r where split_res: "split_fun ts x = (l, r)"
@@ -679,27 +688,37 @@ proof(induction t)
     case (Cons a list)
     then obtain sub sep where a_split: "a = (sub,sep)" by (cases a)
     then show ?thesis
-    proof (cases "ins k x sub")
-      case (T_i x1)
-      then have "set_btree x1 = set_btree sub \<union> {x}"
-        using Node a_split split_app Cons by fastforce
-      then have "set_btree (Node (l @ (x1,sep) # list) t) = set_btree (Node (l @ (sub,sep) # list) t) \<union> {x}"
-        using set_btree_split by auto
-      also have "\<dots> = set_btree (Node ts t) \<union> {x}" using split_app Cons a_split by simp
-      finally show ?thesis
-        using Node Cons a_split split_res T_i by simp
+    proof (cases "sep = x")
+      case False
+      then show ?thesis
+      proof (cases "ins k x sub")
+        case (T_i x1)
+        then have "set_btree x1 = set_btree sub \<union> {x}"
+          using Node a_split split_app Cons by fastforce
+        then have "set_btree (Node (l @ (x1,sep) # list) t) = set_btree (Node (l @ (sub,sep) # list) t) \<union> {x}"
+          using set_btree_split by auto
+        also have "\<dots> = set_btree (Node ts t) \<union> {x}" using split_app Cons a_split by simp
+        finally show ?thesis
+          using Node Cons a_split split_res T_i False by simp
+      next
+        case (Up_i x21 x22 x23)
+        then have t0: "set_btree x21 \<union> {x22} \<union> set_btree x23 = set_btree sub \<union> {x}"
+          using Node a_split split_app Cons by fastforce
+        then have "set_up_i (node_i k (l @ (x21,x22)#(x23,sep)#list) t) = set_btree (Node (l @ (x21,x22)#(x23,sep)#list) t)"
+          using node_i_set by (simp del: node_i.simps)
+        also have "\<dots> = set_btree (Node (l@(sub,sep)#list) t) \<union> {x}"
+          using t0 set_btree_split by auto
+        also have "\<dots> = set_btree (Node ts t) \<union> {x}"
+          using split_app Cons a_split by simp
+        finally show ?thesis unfolding ins.simps 
+          using Up_i a_split local.Cons split_app split_res False by simp
+      qed
     next
-      case (Up_i x21 x22 x23)
-      then have t0: "set_btree x21 \<union> {x22} \<union> set_btree x23 = set_btree sub \<union> {x}"
-        using Node a_split split_app Cons by fastforce
-      then have "set_up_i (node_i k (l @ (x21,x22)#(x23,sep)#list) t) = set_btree (Node (l @ (x21,x22)#(x23,sep)#list) t)"
-        using node_i_set by (simp del: node_i.simps)
-      also have "\<dots> = set_btree (Node (l@(sub,sep)#list) t) \<union> {x}"
-        using t0 set_btree_split by auto
-      also have "\<dots> = set_btree (Node ts t) \<union> {x}"
-        using split_app Cons a_split by simp
-      finally show ?thesis unfolding ins.simps 
-        using Up_i a_split local.Cons split_app split_res by simp
+      case True
+      then have "x \<in> set_btree (Node ts t)"
+        by (metis a_split btree.set_intros(2) local.Cons prod_set_simps(2) singletonI split_fun_child split_res)
+      then have "set_btree (Node ts t) = set_btree (Node ts t) \<union> {x}" by blast
+      then show ?thesis using a_split Node Cons True split_res by simp
     qed
   qed
 qed simp
@@ -765,9 +784,9 @@ using assms proof(cases "length ts \<le> 2*k")
 qed simp
 
 thm btree.set
+thm sorted_wrt_append
 
-fun btree_list_set where
-"btree_list_set ts = (\<Union>uu\<in>set ts. \<Union> (set_btree ` Basic_BNFs.fsts uu) \<union> Basic_BNFs.snds uu)"
+
 
 (* TODO sorted of ins *)
 lemma "sorted_alt t \<Longrightarrow> sorted_up_i (ins k x t)"
@@ -777,13 +796,45 @@ proof (induction t)
   then show ?case
   proof (cases "rs")
     case Nil
-    then show ?thesis
+    then have ls_sorted: "sorted_alt (Node ls t)" 
+        using list_split Node.prems split_fun_req(1) by fastforce
+    show ?thesis
     proof (cases "ins k x t")
       case (T_i x1) (* braucht evtl eine schönere formulierung für die sortierung/mengen von baum*sep listen *)
       then have "sorted_alt x1" using Node by simp
-      then show ?thesis unfolding ins.simps using Node list_split by simp
+      moreover have "\<forall>y \<in> set_btree x1. \<forall> sep \<in> set (seperators ls). sep < y"
+      proof
+        fix y assume "y \<in> set_btree x1"
+        then have "y \<in> set_btree t \<or> y = x"
+          using T_i ins_set by (metis UnE set_up_i.simps(1) singletonD)
+        then show "\<forall>sep \<in> set (seperators ls). sep < y"
+          by (meson ls_sorted Node.prems calculation(1) list_split sorted_alt.simps(2) sorted_wrt_list_sorted split_fun_req(2))
+      qed
+      ultimately show ?thesis
+        using ls_sorted
+        by (simp add: T_i list_split local.Nil)
     next
-      case (Up_i x21 x22 x23)
+      case (Up_i l a r)
+      
+      have "\<forall>b \<in> set ls. sub_sep_sm b (l, a)"
+      proof
+        fix b assume "b \<in> set ls"
+        obtain sub_l sep_l where "b = (sub_l, sep_l)" by (cases b)
+        then have "sep_l < x"
+          using Node.prems \<open>b \<in> set ls\<close> list_split sorted_wrt_list_sorted split_fun_req(2) by fastforce
+        moreover have "\<forall>y \<in> set_btree t. sep_l < y"
+          using Node.prems \<open>b = (sub_l, sep_l)\<close> \<open>b \<in> set ls\<close> list_split local.Nil split_fun_set_l by auto
+        moreover have "set_btree l \<union> {a} \<subseteq> set_btree t \<union> {x}"
+          by (metis Up_i ins_set insert_absorb2 set_up_i.simps(2) singleton_insert_inj_eq sup.mono sup_ge1)
+        ultimately show "sub_sep_sm b (l,a)"
+          using \<open>b = (sub_l, sep_l)\<close> by auto
+      qed
+      then have "sorted_wrt sub_sep_sm (ls@[(l,a)])"
+        using sorted_wrt_append ls_sorted by fastforce
+      moreover have "sorted_alt r" using Up_i Node by auto
+      moreover have "\<forall>y \<in> set_btree r. y < a" using Up_i Node sorry
+      moreover have "\<forall>y \<in> set_btree r. \<forall>x \<in> set (seperators ls). x < y" sorry
+      ultimately have "sorted_alt (Node (ls@[(l,a)]) r)" sorry
       then show ?thesis sorry
     qed
   next

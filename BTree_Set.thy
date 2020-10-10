@@ -22,14 +22,13 @@ locale split_fun =
 begin
 
 
-lemma split_fun_child: "(ls, a # rs) = split_fun xs y \<Longrightarrow>
+lemma split_fun_child: " split_fun xs y = (ls, a # rs) \<Longrightarrow>
        a \<in> set xs"
-  by (metis in_set_conv_decomp split_fun_axioms split_fun_def)
+  using split_fun_req(1) by fastforce
 
 lemma [termination_simp]:"(x, (a, b) # x22) = split_fun t y \<Longrightarrow>
       size a < Suc (size_list (\<lambda>x. Suc (size (fst x))) t  + size l)"
-  using split_fun_child subtree_smaller some_child_sub(1)
-  by fastforce
+  by (metis group_cancel.add1 plus_1_eq_Suc some_child_sub(1) split_fun_child subtree_smaller trans_less_add1)
 
 subsection "isin Function"
 
@@ -178,8 +177,8 @@ proof (induction t x rule: isin.induct)
   next
     assume asms: "(\<exists>sub \<in> set (subtrees ts). y \<in> set_btree sub)"
     then have "y \<in> set_btree (fst (hd r))" "r \<noteq> []"
-      using choose_split split_fun_subtree_match
-      by (metis "2.prems"(1) sorted_alt.simps(2))+
+      using choose_split split_fun_subtree_match "2.prems"(1) asms choose_split split_fun_subtree_match(2)
+      by auto
     moreover have "fst (hd r) \<in> set (subtrees ts)"
       using calculation(2) choose_split split_fun_req(1) by fastforce
     ultimately show "isin (Node ts t) y" using 2 choose_split
@@ -602,7 +601,7 @@ proof(induction t)
     proof (cases "ins k x t")
       case (T_i x1)
       then have "bal (Node l x1)" unfolding bal.simps
-        by (metis Node BTree.bal.simps(2) append_Nil2 bal_i.simps(1) height_i.simps(1) ins_height_i local.Nil split_app)
+        by (metis BTree.bal.simps(2) Node.IH(2) Node.prems append_Nil2 bal_i.simps(1) height_i.simps(1) ins_height_i local.Nil split_app)
       then show ?thesis unfolding ins.simps using Nil T_i Node split_res by simp
     next
       case (Up_i x21 x22 x23)
@@ -649,10 +648,8 @@ proof(induction t)
           apply (metis height_i.simps(2) max_def)
            apply (metis Un_iff fst_conv)+
           done
-        ultimately have "bal_i (node_i k (l@(x21,x22)#(x23,sep)#list) t)"
-          using node_i_bal_i[of "(l@(x21,x22)#(x23,sep)#list)" t] by (simp del: node_i.simps)
-        then show ?thesis unfolding ins.simps using Up_i Cons Node split_res a_prod
-          by simp
+        ultimately show ?thesis using Up_i Cons Node split_res a_prod
+          by (simp del: node_i.simps add: node_i_bal_i)
       qed
     qed
   qed
@@ -697,8 +694,8 @@ proof(induction t)
   case (Node ts t)
   then obtain l r where split_res: "split_fun ts x = (l, r)"
     by (meson surj_pair)
-  then have split_app: "l@r = ts" using split_fun_axioms split_fun_def
-    by fastforce
+  then have split_app: "l@r = ts"
+    using split_fun_req(1) by auto
   
   show ?case
   proof (cases r)

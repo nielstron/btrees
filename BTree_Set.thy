@@ -515,6 +515,11 @@ lemma subtrees_split: "set (subtrees (l@(a,b)#r)) = set (subtrees l) \<union> se
    apply(auto)
   done
 
+lemma fold_max_extract:"fold max (l@a#r) n = max (a::_::linorder) (fold max (l@r) n)"
+  apply(induction r arbitrary: l a n)
+   apply(auto simp add: fold_max_max max.left_commute)
+  done
+
 (* TODO fix *)
 lemma ins_height_i: "height_i (ins k x t) = height t"
 proof(induction t)
@@ -562,7 +567,19 @@ proof(induction t)
           using T_i height_sub False Cons Node split_list a_split by auto
       next
         case (Up_i x21 x22 x23)
-        then show ?thesis sorry
+        then have "max (height x21) (height x23) = height sub" using height_sub by auto
+        then have "height (Node ts t) = max (Suc (max (height x21) (height x23))) (height (Node (ls@list) t))"
+          using Cons a_split split_list_append fold_max_extract
+          by auto
+        also have "\<dots> = Suc (max (height x21) (max (height x23) (fold max (map height (subtrees (ls@list))) (height t))))"
+          by auto
+        also have "\<dots> = Suc (max (height x21) (fold max (map height ((subtrees ls)@x23#(subtrees list))) (height t)))"
+          by (simp add: fold_max_max)
+        also have "\<dots> = Suc (fold max (map height ((subtrees ls)@x21#x23#(subtrees list))) (height t))"
+          by (metis (no_types, lifting) fold_max_extract list.simps(9) map_append)
+        also have "\<dots> = height (Node (ls@(x21,x22)#(x23,sep)#list) t)" by auto
+        finally show ?thesis
+          using Up_i height_sub False Cons Node split_list a_split by (auto simp del: node_i.simps simp add: node_i_height_i)
       qed
     qed
   qed

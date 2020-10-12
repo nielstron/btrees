@@ -1101,6 +1101,65 @@ qed simp
 
 (* TODO deletion *)
 
+thm list.simps
+
+
+fun rebalance_middle_tree where
+"rebalance_middle_tree k ls Leaf sep rs Leaf = (
+  Node (ls@(Leaf,sep)#rs) Leaf
+)" |
+"rebalance_middle_tree k ls (Node mts mt) sep rs (Node tts tt) = (
+  if length mts \<ge> k then 
+    Node (ls@(Node mts mt,sep)#rs) (Node tts tt)
+  else (
+    case rs of [] \<Rightarrow> (
+      case node_i k (mts@(mt,sep)#tts) tt of
+       T_i u \<Rightarrow>
+        Node ls u |
+       Up_i l a r \<Rightarrow>
+        Node (ls@[(l,a)]) r) |
+    (Node rts rt,rsep)#rs \<Rightarrow> (
+      case node_i k (mts@(mt,sep)#rts) rt of
+      T_i u \<Rightarrow>
+        Node (ls@(u,rsep)#rs) (Node tts tt) |
+      Up_i l a r \<Rightarrow>
+        Node (ls@(l,a)#(r,rsep)#rs) (Node tts tt))
+))"
+
+
+
+
+fun rebalance_last_tree where
+"rebalance_last_tree k ts t = (
+case last ts of (sub,sep) \<Rightarrow>
+   rebalance_middle_tree k (butlast ts) sub sep [] t
+)"
+
+fun split_max where
+"split_max k (Node ts Leaf) = (
+  let (sub,sep) = last ts in 
+    (Node (butlast ts) sub, sep))" |
+"split_max k (Node ts t) = (
+case split_max k t of (Node tts tt, sep) \<Rightarrow>
+  (rebalance_last_tree k ts (Node tts tt), sep)
+)"
+
+fun del where
+"del k x Leaf = Leaf" |
+"del k x (Node ts t) = (
+  case split_fun ts x of 
+    (ls,[]) \<Rightarrow> 
+     rebalance_last_tree k ls (del k x t)
+  | (ls,(sub,sep)#rs) \<Rightarrow> (
+      if sep \<noteq> x then 
+        rebalance_middle_tree k ls (del k x sub) sep rs t
+      else if sub = Leaf then
+        Node (ls@rs) t
+      else let (sub_s, max_s) = split_max k sub in
+        rebalance_middle_tree k ls sub_s max_s rs t
+  )
+)"
+
 (* TODO runtime wrt runtime of split_fun *)
 
 end

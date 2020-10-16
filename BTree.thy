@@ -1,5 +1,5 @@
 theory BTree                 
-  imports Main "HOL-Data_Structures.Cmp" "HOL-Data_Structures.Tree234_Set"
+  imports Main "HOL-Data_Structures.Cmp"  "HOL-Data_Structures.Set_Specs"
 begin
 
 declare sorted_wrt.simps(2)[simp add]
@@ -25,10 +25,18 @@ fun inorder :: "'a btree \<Rightarrow> 'a list" where
 
 fun subtrees where "subtrees xs = (map fst xs)"
 fun seperators where "seperators xs = (map snd xs)"
-fun btree_pair_set where
-"btree_pair_set uu = (\<Union>(set_btree ` Basic_BNFs.fsts uu) \<union> Basic_BNFs.snds uu)"
-fun btree_list_set where
-"btree_list_set ts = (\<Union>uu\<in>set ts. btree_pair_set uu)"
+fun set_btree_pair where
+"set_btree_pair uu = (\<Union>(set_btree ` Basic_BNFs.fsts uu) \<union> Basic_BNFs.snds uu)"
+fun set_btree_list where
+"set_btree_list ts = (\<Union>uu\<in>set ts. set_btree_pair uu)"
+
+
+lemma set_btree_split: 
+  "set_btree (Node (l@(sub,sep)#r) t) = set_btree (Node (l@r) t) \<union> set_btree sub \<union> {sep}"
+  "set_btree (Node ts t) = set_btree_list ts \<union> set_btree t"
+  "set_btree_list (ls@m#rs) = set_btree_list ls \<union> set_btree_pair m \<union> set_btree_list rs"
+  "set_btree (Node (ls@m#rs) t) = set_btree_list ls \<union> set_btree_pair m \<union> set_btree_list rs \<union> set_btree t"
+  by auto
 
 class height =
 fixes height :: "'a \<Rightarrow> nat"
@@ -43,6 +51,9 @@ fun height_btree :: "'a btree \<Rightarrow> nat" where
 instance ..
 
 end
+
+lemma height_Leaf: "height (t::_ btree) = 0 \<longleftrightarrow> t = Leaf"
+  by (induction t) (auto)
 
 (* not sure if required but appearently already present for coding equivalence *)
 lemma set_eq_fold: "fold max xs n = Max (set xs \<union> {n})"

@@ -249,8 +249,8 @@ fun order_i where
 
 lemma node_i_order_i:
   assumes "length ts \<ge> k"
-    and "length ts \<le> 2*k+1"
-    and "\<forall>x \<in> set (subtrees ts). order k x"
+    and "length ts \<le> 4*k+1"
+    and "\<forall>x \<in> set ts. order k (fst x)"
     and "order k t"
   shows "order_i k (node_i k ts t)"
 proof (cases "length ts \<le> 2*k")
@@ -258,20 +258,25 @@ case True
   then show ?thesis using set_map_pred_eq assms by simp
 next
   case False
-  then have length_ts: "length ts = 2*k+1"
-    using assms(2) by linarith
-  then have "drop (length ts div 2) ts \<noteq> []" by simp
+  then have length_ts: "length ts > 0"
+    by linarith
+  then have "drop (length ts div 2) ts \<noteq> []"
+    using drop_not_empty by auto
   then obtain sub sep rs where drop_ts: "drop (length ts div 2) ts = (sub,sep)#rs" 
     by (metis eq_snd_iff hd_Cons_tl)
-  then have "length rs = length ts - (length ts div 2) - 1" using length_drop
+  then have length_rs: "length rs = length ts - (length ts div 2) - 1" using length_drop
     by (metis One_nat_def add_diff_cancel_right' list.size(4))
-  then have "length rs \<ge> k" "length rs \<le> 2*k" using length_ts
-    by (simp_all)
+  also have "\<dots> \<le> 4*k - ((4*k + 1) div 2)" using assms(2) by simp
+  also have "\<dots> = 2*k" by auto
+  finally have "length rs \<le> 2*k" by simp
+  moreover have "length rs \<ge> k" using False length_rs by simp
   moreover have "set ((sub,sep)#rs) \<subseteq> set ts"
     by (metis drop_ts set_drop_subset)
   ultimately have o_r: "order k sub" "order k (Node rs t)" using drop_ts assms drop_ts by auto
-  moreover have "length (take (length ts div 2) ts) \<ge> k" "length (take (length ts div 2) ts) \<le> 2*k"
-    using length_take assms length_ts by(simp_all)
+  moreover have "length (take (length ts div 2) ts) \<ge> k"
+    using length_take assms length_ts False by simp
+  moreover have  "length (take (length ts div 2) ts) \<le> 2*k"
+    using assms(2) by auto
   ultimately have o_l: "order k (Node (take (length ts div 2) ts) sub)"
     using set_take_subset assms by fastforce
   from o_r o_l have "order_i k (Up_i (Node (take (length ts div 2) ts) sub) sep (Node rs t))" by simp
@@ -299,53 +304,56 @@ lemma split_fun_set:
     and "\<exists>x \<in> set ts. b \<in> Basic_BNFs.snds x"
   using split_fun_req assms by fastforce+
 
-lemma impl_one_two: "(\<exists>x \<in> set ts. b \<in> Basic_BNFs.snds x) \<Longrightarrow> \<exists>x\<in>set ts. ((\<exists>x\<in>Basic_BNFs.fsts x. b \<in> set_btree x) \<or> b \<in> Basic_BNFs.snds x)"
-  by auto
-
 thm fst_conv
 
-lemma order_fst: "\<forall>x \<in> xs. P (fst x) \<Longrightarrow> (a,b) \<in> xs \<Longrightarrow> P a"
+lemma xs_split_fun_prop: 
+  "\<lbrakk>\<forall>x \<in> set xs. P (fst x); split_fun xs x = (ls, (a, b) # rs)\<rbrakk> \<Longrightarrow> P a"
+ (* "\<lbrakk>\<forall>x \<in> set xs. P (fst x); split_fun xs x = (ls, (a, b) # rs)\<rbrakk> \<Longrightarrow> \<forall>x \<in> set ls. P (fst x)"
+  "\<lbrakk>\<forall>x \<in> set xs. P (fst x); split_fun xs x = (ls, (a, b) # rs)\<rbrakk> \<Longrightarrow> \<forall>x \<in> set rs. P (fst x)"*)
+  using split_fun_req(1) by fastforce+
+
+
+lemma length_lemma:
+"split_fun ts x = (ls, (a,b)#rs) \<Longrightarrow> length (ls@(a,b)#rs) = length (ls@(c,d)#(e,f)#rs) - 1"
+"split_fun ts x = (ls, (a,b)#rs) \<Longrightarrow> length (ls@rs) = length (ls@(a,b)#rs) - 1"
   by auto
 
-lemma inductive_order: "\<lbrakk>
-   \<forall>x\<in>set x1. order k (fst x);
-   split_fun x1 x = (x1a, (a, b) # x22);
-   local.ins k x a = T_i x1b;
-   (\<And>a b x1aa. (a, b) \<in> set x1 \<Longrightarrow> x1aa = a \<Longrightarrow> order k a \<Longrightarrow> order_i k (local.ins k x a))
-\<rbrakk> \<Longrightarrow> order k x1b"
-  by (metis fst_conv order_i.simps(1) split_fun_child)
+lemma help_lem:
+  assumes  "\<forall>x \<in> set ls. P (fst x)" "\<forall>x \<in> set rs. P (fst x)"
+    and "P a" "P c"
+  shows "\<forall>x \<in> set (ls@(a,b)#(c,d)#rs). P (fst x)"
+  using assms by(auto)
 
-lemma length_help:
-  assumes "k \<le> length x1"
-    and "length x1 \<le> 2 * k"
-    and "\<forall>x\<in>set x1. order k (fst x)"
-    and "order k t"
-    and "split_fun x1 x = (l, (sub, sep) # list)"
-    and "local.ins k x sub = Up_i x21 x22 x23"
-and "(\<And>a b x1aa. (a, b) \<in> set x1 \<Longrightarrow> x1aa = a \<Longrightarrow> order k a \<Longrightarrow> order_i k (local.ins k x a))"
-shows "order_i k (node_i k (l @ (x21, x22) # (x23, sep) # list) t)"
-proof -
-  have "order k t"
-    using assms by auto
-  moreover have
-    "length (l@(x21,x22)#(x23,sep)#list) \<le> 2*k+1"
-    "length (l@(x21,x22)#(x23,sep)#list) \<ge> k"
-    using split_fun_length assms by auto
-  moreover have "\<forall>x \<in> set (subtrees l). order k x" "\<forall>x \<in> set (subtrees list). order k x"
-    using assms split_fun_set by auto
-  moreover have "order k x21" "order k x23"
-    using assms split_fun_set(1) split_fun_axioms by fastforce+
-  ultimately show "order_i k (node_i k (l@(x21,x22)#(x23,sep)#list) t)"
-    using node_i_order_i[of k "(l@(x21,x22)#(x23,sep)#list)" t]
-    by (auto simp del: node_i.simps simp add: split_fun_length split_fun_set assms)
-qed
-  
+thm node_i_order_i[of "_" "_@(_,_)#(_,_)#_" "_"]
+
 (* "Automatic proof", using a number of lemmata *)
 lemma "order k t \<Longrightarrow> order_i k (ins k x t)"
-  apply(induction t)
+  apply(induction k x t rule: ins.induct)
    apply(auto simp del: node_i.simps split!: prod.splits list.splits up_i.splits
- simp add: split_fun_length_l split_fun_length split_fun_set_l inductive_order split_fun_set node_i_order_i
-length_help)
+ simp add: split_fun_length_l split_fun_length split_fun_set_l split_fun_set node_i_order_i xs_split_fun_prop
+split_fun_req(1) length_lemma
+node_i_order_i[of "_" "_@(_,_)#(_,_)#_" "_"])
+  subgoal for k x ts t x1 a b x22 x21 x22a x2
+  proof -
+    assume assms:
+    "(\<And>y. False \<Longrightarrow> y = [] \<Longrightarrow> order_i k (local.ins k x t))"
+    "(\<And>xa y aa ba x22a xb ya.
+        xa = x1 \<and> aa = a \<and> ba = b \<and> x22a = x22 \<Longrightarrow>
+        y = (a, b) # x22 \<Longrightarrow> xb = a \<and> ya = b \<Longrightarrow> order k x21 \<and> order k x2)"
+    "k \<le> length ts"
+    "length ts \<le> 2 * k"
+    "\<forall>x\<in>set ts. order k (fst x)"
+    "order k t"
+    "split_fun ts x = (x1, (a, b) # x22)"
+    "local.ins k x a = Up_i x21 x22a x2"
+    "b \<noteq> x"
+    then have "k \<le> length (x1 @ (x21, x22a) # (x2, b) # x22)" using split_fun_req(1) length_lemma by auto
+    moreover have "length (x1@(x21,x22a)#(x2,b)#x22) \<le> 4*k+1" using split_fun_req(1) length_lemma assms by auto
+    moreover have "\<forall>x \<in> set (x1@(x21,x22a)#(x2,b)#x22). order k (fst x)" using assms
+      using split_fun_set by auto
+    moreover have "order k t" using assms by auto
+    ultimately show "order_i k (node_i k (x1 @ (x21, x22a) # (x2, b) # x22) t)" using node_i_order_i[of k "_@(_,_)#(_,_)#_" t] by (auto simp del: node_i.simps)
+  qed
   done
 
 (* direct proof *)
@@ -684,10 +692,6 @@ qed simp
 find_theorems set_btree
 thm btree.set
 
-lemma set_btree_split: "set_btree (Node (l@(sub,sep)#r) t) = set_btree (Node (l@r) t) \<union> set_btree sub \<union> {sep}"
-  apply(induction r)
-   apply(auto)
-  done
 
 lemma ins_set: "set_up_i (ins k x t) = set_btree t \<union> {x}"
 proof(induction t)
@@ -889,7 +893,7 @@ proof -
   finally show ?thesis by simp
 qed
 
-(* TODO sorted of ins *)
+(* sorted of ins *)
 lemma "sorted_alt t \<Longrightarrow> sorted_up_i (ins k x t)"
 proof (induction t)
   case (Node ts t)
@@ -1099,6 +1103,9 @@ proof (induction t)
   qed
 qed simp
 
+thm ins.induct
+thm btree.induct
+
 (* TODO deletion *)
 
 thm list.simps
@@ -1125,8 +1132,6 @@ fun rebalance_middle_tree where
       Up_i l a r \<Rightarrow>
         Node (ls@(l,a)#(r,rsep)#rs) (Node tts tt))
 ))"
-
-
 
 
 fun rebalance_last_tree where
@@ -1159,6 +1164,47 @@ fun del where
         rebalance_middle_tree k ls sub_s max_s rs t
   )
 )"
+
+
+lemma rebalance_middle_tree_set:
+  assumes "height t = height sub"
+    and "case rs of (rsub,rsep) # list \<Rightarrow> height t = height rsub | [] \<Rightarrow> True"
+  shows "set_btree (rebalance_middle_tree k ls sub sep rs t) = set_btree (Node (ls@(sub,sep)#rs) t)"
+proof(cases "height t")
+  case 0
+  then have "t = Leaf" "sub = Leaf" using height_Leaf assms by auto
+  then show ?thesis by simp
+next
+  case (Suc nat)
+  then obtain tts tt where t_node: "t = Node tts tt"
+    using height_Leaf by (cases t) simp
+  then obtain mts mt where sub_node: "sub = Node mts mt"
+    using assms by (cases sub) simp
+  then show ?thesis
+  proof (cases "length mts \<ge> k")
+    case False
+    then show ?thesis
+    proof (cases rs)
+      case Nil
+      then have
+        "set_up_i (node_i k (mts@(mt,sep)#tts) tt) = set_btree (Node (mts@(mt,sep)#tts) tt)"
+        using node_i_set by (simp del: node_i.simps)
+      then show ?thesis 
+        by (cases "node_i k (mts@(mt,sep)#tts) tt") (auto simp add: t_node sub_node set_btree_split False Nil)
+    next
+      case (Cons r list)
+      then obtain rsub rsep where r_split[simp]:"r = (rsub,rsep)" by (cases r)
+      then obtain rts rt where rsub_split[simp]: "rsub = Node rts rt"
+        using assms Cons height_Leaf Suc by (cases rsub) simp
+      then have
+        "set_up_i (node_i k (mts@(mt,sep)#rts) rt) = set_btree (Node (mts@(mt,sep)#rts) rt)"
+        using node_i_set by (simp del: node_i.simps)
+then show ?thesis 
+        by (cases "node_i k (mts@(mt,sep)#rts) rt") (auto simp add: t_node sub_node set_btree_split False Cons)
+    qed
+  qed (simp add: t_node sub_node)
+qed
+
 
 (* TODO runtime wrt runtime of split_fun *)
 

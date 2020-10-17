@@ -59,6 +59,40 @@ lemma height_Leaf: "height (t::_ btree) = 0 \<longleftrightarrow> t = Leaf"
 lemma set_eq_fold: "fold max xs n = Max (set xs \<union> {n})"
   by (metis Max.set_eq_fold Un_insert_right list.simps(15) sup_bot.right_neutral)
 
+thm btree.set
+
+value "height_alt (Node [] (Leaf::nat btree))"
+value "height (Node [] (Leaf::nat btree))"
+
+
+
+lemma fold_max_max: "max (a::(_::linorder)) (fold max bs b) = fold max bs (max a b)"
+  apply(induction bs arbitrary: a b)
+  apply(auto simp add: max.left_commute)
+  done
+
+lemma max_sep_fold_max: "max (fold max as (a::(_::linorder))) (fold max bs b) = (fold max (as@a#bs) b)"
+  apply(induction as arbitrary: a bs b)
+   apply(auto simp add: max.assoc max.left_commute fold_max_max)
+  done
+
+lemma fold_max_append: "fold max bs (max (a::(_::linorder)) b) = fold max (bs@[a]) b"
+  apply(induction bs arbitrary: a b)
+   apply(auto simp add: max.left_commute)
+  done
+
+lemma height_btree_order:
+  "height (Node (ls@[(sub,x)]) t) = height (Node ((sub,x)#ls) t)"
+  apply(induction ls arbitrary: sub x t)
+  apply(simp_all add: fold_max_max)
+  by (metis (mono_tags, hide_lams) fold_max_max fold_simps(2) max.commute)
+
+lemma height_btree_swap: 
+  "height (Node ((sub,x)#ls) t) = max (height (Node ls t)) (Suc (height sub))"
+apply(induction ls arbitrary: x ls t sub)
+  apply(auto simp add: fold_max_max max.commute)
+done
+
 value "(Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
 value "inorder (Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
 

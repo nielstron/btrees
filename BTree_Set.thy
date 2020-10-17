@@ -331,8 +331,7 @@ lemma "order k t \<Longrightarrow> order_i k (ins k x t)"
   apply(induction k x t rule: ins.induct)
    apply(auto simp del: node_i.simps split!: prod.splits list.splits up_i.splits
  simp add: split_fun_length_l split_fun_length split_fun_set_l split_fun_set node_i_order_i xs_split_fun_prop
-split_fun_req(1) length_lemma
-node_i_order_i[of "_" "_@(_,_)#(_,_)#_" "_"])
+split_fun_req(1) length_lemma node_i_order_i[of "_" "_@(_,_)#(_,_)#_" "_"])
   subgoal for k x ts t x1 a b x22 x21 x22a x2
   proof -
     assume assms:
@@ -494,21 +493,6 @@ qed (simp add: assms)
 find_theorems fold max
 thm Max.union
 
-
-lemma fold_max_max: "max (a::(_::linorder)) (fold max bs b) = fold max bs (max a b)"
-  apply(induction bs arbitrary: a b)
-  apply(auto simp add: max.left_commute)
-  done
-
-lemma max_sep_fold_max: "max (fold max as (a::(_::linorder))) (fold max bs b) = (fold max (as@a#bs) b)"
-  apply(induction as arbitrary: a bs b)
-   apply(auto simp add: max.assoc max.left_commute fold_max_max)
-  done
-
-lemma fold_max_append: "fold max bs (max (a::(_::linorder)) b) = fold max (bs@[a]) b"
-  apply(induction bs arbitrary: a b)
-   apply(auto simp add: max.left_commute)
-  done
 
 lemma height_list_drop_eq: "\<lbrakk>ls@(a,b)#rs = ts\<rbrakk> \<Longrightarrow> height_i (Up_i (Node ls a) b (Node rs t)) = height (Node ts t) "
   by (auto simp add: fold_max_max max.commute)
@@ -1143,10 +1127,11 @@ case last ts of (sub,sep) \<Rightarrow>
 fun split_max where
 "split_max k (Node ts Leaf) = (
   let (sub,sep) = last ts in 
-    (Node (butlast ts) sub, sep))" |
+    (Node (butlast ts) sub, sep)
+)" |
 "split_max k (Node ts t) = (
-case split_max k t of (Node tts tt, sep) \<Rightarrow>
-  (rebalance_last_tree k ts (Node tts tt), sep)
+case split_max k t of (sub, sep) \<Rightarrow>
+  (rebalance_last_tree k ts sub, sep)
 )"
 
 fun del where
@@ -1164,6 +1149,59 @@ fun del where
         rebalance_middle_tree k ls sub_s max_s rs t
   )
 )"
+
+thm node_i_height_i
+find_theorems height
+
+lemma rebalance_middle_tree_height:
+  assumes "height t = height sub"
+    and "case rs of (rsub,rsep) # list \<Rightarrow> height t = height rsub | [] \<Rightarrow> True"
+  shows "height (rebalance_middle_tree k ls sub sep rs t) = height (Node (ls@(sub,sep)#rs) t)"
+proof (cases "height t")
+  case 0
+  then have "t = Leaf" "sub = Leaf" using height_Leaf assms by auto
+  then show ?thesis by simp
+next
+  case (Suc nat)
+  then obtain tts tt where t_node: "t = Node tts tt"
+    using height_Leaf by (cases t) simp
+  then obtain mts mt where sub_node: "sub = Node mts mt"
+    using assms by (cases sub) simp
+  then show ?thesis
+  proof (cases "length mts \<ge> k")
+    case False
+    then show ?thesis
+    proof (cases rs)
+      case Nil
+      then have "height_i (node_i k (mts@(mt,sep)#tts) tt) = height (Node (mts@(mt,sep)#tts) tt)"
+        using node_i_height_i by blast
+      also have "\<dots> = max (height t) (height sub)"
+        by (metis assms(1) height_i.simps(2) height_list_drop_eq sub_node t_node)
+      finally have height_max: "height_i (node_i k (mts @ (mt, sep) # tts) tt) = max (height t) (height sub)" by simp
+      then show ?thesis
+        proof (cases "node_i k (mts@(mt,sep)#tts) tt")
+          case (T_i u)
+          then have "height u = max (height t) (height sub)" using height_max by simp
+          then have "height (Node ls u) = height (Node (ls@[(sub,sep)]) t)" using height_btree_order height_btree_swap
+            by (simp add: fold_max_max max.commute)
+          then show ?thesis using Nil False T_i
+            by (simp add: sub_node t_node)
+        next
+          case (Up_i l a r)
+          then have "height (Node (ls@[(sub,sep)]) t) = Suc (fold max (map height (subtrees ls)) (max (height sub) (height t)))"
+             by (simp add: fold_max_max)
+          also have "\<dots> = Suc (fold max (map height (subtrees ls)) (max (height l) (height r)))"
+            using height_max Up_i assms(1) by auto
+          also have "\<dots> = height (Node (ls@[(l,a)]) r)" using fold_max_append by auto
+          finally show ?thesis
+            using Up_i local.Nil sub_node t_node by auto
+        qed
+    next
+      case (Cons a list)
+      then show ?thesis sorry
+    qed
+  qed (simp add: sub_node t_node)
+qed
 
 
 lemma rebalance_middle_tree_set:
@@ -1199,13 +1237,42 @@ next
       then have
         "set_up_i (node_i k (mts@(mt,sep)#rts) rt) = set_btree (Node (mts@(mt,sep)#rts) rt)"
         using node_i_set by (simp del: node_i.simps)
-then show ?thesis 
-        by (cases "node_i k (mts@(mt,sep)#rts) rt") (auto simp add: t_node sub_node set_btree_split False Cons)
+      then show ?thesis 
+        by (cases "node_i k (mts@(mt,sep)#rts) rt")
+           (auto simp add: t_node sub_node set_btree_split False Cons)
     qed
   qed (simp add: t_node sub_node)
 qed
 
 
+lemma rebalance_last_tree_set:
+  assumes "height t = height sub"
+    and "ts = list@[(sub,sep)]"
+  shows "set_btree (rebalance_last_tree k ts t) = set_btree (Node ts t)"
+  using rebalance_middle_tree_set assms by auto
+
+find_theorems butlast last
+
+lemma split_max_set:
+  "\<lbrakk>split_max k (Node ts t) = (sub,sep); ts = ls@[(tsub,tsep)]; height tsub = height t\<rbrakk> \<Longrightarrow>
+   set_btree (Node ts t) = set_btree sub \<union> {sep}"
+proof(induction t arbitrary: ts ls tsub tsep sub sep)
+  case Leaf
+  then have "set_btree (Node ts Leaf) = set_btree_list ts" by auto
+  also have "\<dots> = set_btree_list (butlast ts) \<union> set_btree tsub \<union> {tsep}"
+    using append_butlast_last_id[of ts] set_btree_split(3)[of "butlast ts" "last ts" "[]"] Leaf
+    by simp
+  also have "\<dots> = set_btree (Node (butlast ts) tsub) \<union> {tsep}" by simp
+  finally have "set_btree (Node ts Leaf) = set_btree (Node (butlast ts) tsub) \<union> {tsep}" by simp
+  moreover have "split_max k (Node ts Leaf) = (Node (butlast ts) tsub, tsep)"
+    using last_snoc Leaf by auto
+  ultimately show ?case using Leaf by fastforce
+next
+  case (Node ts t)
+  then show ?case sorry
+qed
+  
+                           
 (* TODO runtime wrt runtime of split_fun *)
 
 end

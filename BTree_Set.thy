@@ -562,8 +562,6 @@ proof(induction t)
         then have "height (Node ts t) = max (Suc (max (height x21) (height x23))) (height (Node (ls@list) t))"
           using Cons a_split split_list_append fold_max_extract
           by auto
-        also have "\<dots> = Suc (max (height x21) (max (height x23) (fold max (map height (subtrees (ls@list))) (height t))))"
-          by auto
         also have "\<dots> = Suc (max (height x21) (fold max (map height ((subtrees ls)@x23#(subtrees list))) (height t)))"
           by (simp add: fold_max_max)
         also have "\<dots> = Suc (fold max (map height ((subtrees ls)@x21#x23#(subtrees list))) (height t))"
@@ -1125,11 +1123,11 @@ case last ts of (sub,sep) \<Rightarrow>
 )"
 
 fun split_max where
-"split_max k (Node ts Leaf) = (
+"split_max k (Node ts t) = (case t of Leaf \<Rightarrow> (
   let (sub,sep) = last ts in 
     (Node (butlast ts) sub, sep)
-)" |
-"split_max k (Node ts t) = (
+)|
+_ \<Rightarrow> 
 case split_max k t of (sub, sep) \<Rightarrow>
   (rebalance_last_tree k ts sub, sep)
 )"
@@ -1149,6 +1147,16 @@ fun del where
         rebalance_middle_tree k ls sub_s max_s rs t
   )
 )"
+
+fun reduce_root where
+"reduce_root Leaf = Leaf" |
+"reduce_root (Node ts t) = (case ts of
+   [] \<Rightarrow> t |
+   _ \<Rightarrow> (Node ts t)
+)"
+
+
+fun delete where "delete k x t = reduce_root (del k x t)"
 
 thm node_i_height_i
 find_theorems height
@@ -1198,11 +1206,104 @@ next
         qed
     next
       case (Cons a list)
-      then show ?thesis sorry
+      then obtain rsub rsep where a_split: "a = (rsub, rsep)"
+        by (cases a)
+      then obtain rts rt where r_node: "rsub = Node rts rt"
+        using assms(2) Cons height_Leaf Suc by (cases rsub) simp_all
+
+      then have "height_i (node_i k (mts@(mt,sep)#rts) rt) = height (Node (mts@(mt,sep)#rts) rt)"
+        using node_i_height_i by blast
+      also have "\<dots> = max (height rsub) (height sub)"
+        by (metis r_node height_i.simps(2) height_list_drop_eq max.commute sub_node)
+      finally have height_max: "height_i (node_i k (mts @ (mt, sep) # rts) rt) = max (height rsub) (height sub)" by simp
+      then show ?thesis
+      proof (cases "node_i k (mts@(mt,sep)#rts) rt")
+        case (T_i u)
+        then have "height u = max (height rsub) (height sub)"
+          using height_max T_i by simp
+        then have "fold max (map height (subtrees (ls@(u,rsep)#list))) = fold max (map height (subtrees (ls@(sub,sep)#rs)))"
+          using Cons a_split subtrees_split set_eq_fold by auto
+        then show ?thesis 
+          using T_i False Cons r_node a_split sub_node t_node by auto
+      next
+        case (Up_i l a r)
+        then have height_max: "max (height l) (height r) = max (height rsub) (height sub)" using height_max by auto
+
+        (* TODO: this calculation may be significantly minimized by using sufficiently non-abstract lemmas *)
+        have "fold max (map height (subtrees (ls@(sub,sep)#rs))) (height t) =
+                   max (height sub) (fold max (map height (subtrees (ls@rs))) (height t))"
+          using fold_max_extract by auto
+        also have "\<dots> = max (height sub) (fold max (map height (subtrees (ls@(rsub,rsep)#list))) (height t))"
+          using Cons a_split by auto
+        also have "\<dots> = max (height sub) (max (height rsub) (fold max (map height (subtrees (ls@list))) (height t)))"
+        proof -
+          have "fold max (map height (subtrees (ls@(rsub,rsep)#list))) (height t)
+= max (height rsub) (fold max (map height (subtrees (ls@list))) (height t))"
+            using fold_max_extract by simp
+          then show ?thesis by simp
+        qed
+        also have "\<dots> = max (max (height sub) (height rsub)) (fold max (map height (subtrees (ls@list))) (height t))"
+          by auto
+        also have "\<dots> = max (max (height l) (height r)) (fold max (map height (subtrees (ls@list))) (height t))"
+          using height_max by simp
+        also have "\<dots> = max (height l) (max (height r) (fold max (map height (subtrees (ls@list))) (height t)))"
+          by simp
+        also have "\<dots> = (fold max (map height ((subtrees ls)@l#r#(subtrees list))) (height t))"
+        proof -
+          have f1: "map height (subtrees ls) @ map height (map fst list) = map height (subtrees (ls @ list))"
+            by simp
+          have f2: "height r # map height (map fst list) = map height (r # subtrees list)"
+            by simp
+          have "map height (subtrees ls) @ height l # map height (r # subtrees list) = map height (subtrees ls @ l # r # subtrees list)"
+            by simp
+          then show ?thesis
+            using f2 f1 by (metis (no_types) fold_max_extract)
+        qed
+        also have "\<dots> = fold max (map height (subtrees (ls@(l,a)#(r,rsep)#list))) (height t)" by auto
+        finally show ?thesis
+          using Cons a_split r_node Up_i sub_node t_node by auto
+      qed
     qed
   qed (simp add: sub_node t_node)
 qed
 
+
+lemma rebalance_last_tree_height:
+  assumes "height t = height sub"
+    and "ts = list@[(sub,sep)]"
+  shows "height (rebalance_last_tree k ts t) = height (Node ts t)"
+  using rebalance_middle_tree_height assms by auto
+
+fun nonempty_lasttreebal where
+"nonempty_lasttreebal Leaf = True" |
+"nonempty_lasttreebal (Node ts t) = 
+((\<exists>ls tsub tsep. ts = (ls@[(tsub,tsep)]) \<and> height tsub = height t)
+\<and> nonempty_lasttreebal t)"
+
+lemma split_max_height:
+"\<lbrakk>split_max k t = (sub,sep); nonempty_lasttreebal t; t \<noteq> Leaf\<rbrakk> \<Longrightarrow>
+   height sub = height t"
+proof(induction t arbitrary: k sub sep)
+  case Node1: (Node tts tt)
+  then obtain ls tsub tsep where tts_split: "tts = ls@[(tsub,tsep)]" by auto
+  then show ?case
+  proof (cases tt)
+    case Leaf
+    then have "height (Node (ls@[(tsub,tsep)]) tt) = max (height (Node ls tsub)) (Suc (height tt))"
+      using height_btree_swap2 height_btree_order by metis
+    moreover have "split_max k (Node tts tt) = (Node ls tsub, tsep)"
+      using Leaf Node1 tts_split by auto
+    ultimately show ?thesis
+      using Leaf Node1 height_Leaf max_def by auto
+  next
+    case Node2: (Node x21 x22)
+    then obtain subsub subsep where sub_split: "split_max k tt = (subsub,subsep)" by (cases "split_max k tt")
+    then have "height subsub = height tt" using Node1 Node2 by auto
+    moreover have "split_max k (Node tts tt) = (rebalance_last_tree k tts subsub, subsep)"
+      using Node1 Node2 tts_split sub_split by auto
+    ultimately show ?thesis using rebalance_last_tree_height Node1 Node2 by auto
+  qed
+qed auto
 
 lemma rebalance_middle_tree_set:
   assumes "height t = height sub"
@@ -1254,23 +1355,28 @@ lemma rebalance_last_tree_set:
 find_theorems butlast last
 
 lemma split_max_set:
-  "\<lbrakk>split_max k (Node ts t) = (sub,sep); ts = ls@[(tsub,tsep)]; height tsub = height t\<rbrakk> \<Longrightarrow>
-   set_btree (Node ts t) = set_btree sub \<union> {sep}"
-proof(induction t arbitrary: ts ls tsub tsep sub sep)
-  case Leaf
-  then have "set_btree (Node ts Leaf) = set_btree_list ts" by auto
-  also have "\<dots> = set_btree_list (butlast ts) \<union> set_btree tsub \<union> {tsep}"
-    using append_butlast_last_id[of ts] set_btree_split(3)[of "butlast ts" "last ts" "[]"] Leaf
-    by simp
-  also have "\<dots> = set_btree (Node (butlast ts) tsub) \<union> {tsep}" by simp
-  finally have "set_btree (Node ts Leaf) = set_btree (Node (butlast ts) tsub) \<union> {tsep}" by simp
-  moreover have "split_max k (Node ts Leaf) = (Node (butlast ts) tsub, tsep)"
-    using last_snoc Leaf by auto
-  ultimately show ?case using Leaf by fastforce
-next
-  case (Node ts t)
-  then show ?case sorry
-qed
+  "\<lbrakk>split_max k t = (sub,sep); nonempty_lasttreebal t; t \<noteq> Leaf\<rbrakk> \<Longrightarrow>
+   set_btree t = set_btree sub \<union> {sep}"
+proof(induction t arbitrary: k sub sep)
+  case Node1: (Node ts t)
+  then obtain ls tsub tsep where ts_split: "ts = ls@[(tsub,tsep)]" by auto
+  then show ?case
+  proof (cases t)
+    case Leaf
+    then show ?thesis
+      using Node1 Leaf ts_split by fastforce
+  next
+    case Node2: (Node x21 x22)
+    then obtain subsub subsep where sub_split: "split_max k t = (subsub,subsep)" by (cases "split_max k t")
+    then have "set_btree subsub \<union> {subsep} = set_btree t" using Node1 Node2 by auto
+    then have "set_btree (rebalance_last_tree k ts subsub) \<union> {subsep} = set_btree (Node ts t)"
+      using rebalance_last_tree_set split_max_height Node1 Node2
+      by (metis (no_types, lifting) Un_insert_right btree.distinct(1) nonempty_lasttreebal.simps(2) rebalance_last_tree_set set_btree_split(2) sub_split sup_bot.right_neutral)
+    moreover have "split_max k (Node ts t) = (rebalance_last_tree k ts subsub, subsep)"
+      using Node1 Node2 ts_split sub_split by auto
+    ultimately show ?thesis using rebalance_last_tree_set Node1 Node2 by auto
+  qed
+qed auto
   
                            
 (* TODO runtime wrt runtime of split_fun *)

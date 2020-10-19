@@ -89,9 +89,11 @@ lemma height_btree_order:
 
 lemma height_btree_swap: 
   "height (Node ((sub,x)#ls) t) = max (height (Node ls t)) (Suc (height sub))"
-apply(induction ls arbitrary: x ls t sub)
-  apply(auto simp add: fold_max_max max.commute)
-done
+  by (auto simp add: fold_max_max max.commute)
+
+lemma height_btree_swap2: 
+  "height (Node ((sub,x)#ls) t) = max (height (Node ls sub)) (Suc (height t))"
+  by (auto simp add: fold_max_max max.commute)
 
 value "(Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
 value "inorder (Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"

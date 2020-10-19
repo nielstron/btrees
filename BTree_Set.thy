@@ -498,17 +498,7 @@ lemma node_i_height_i: "height_i (node_i k ts t) = height (Node ts t)"
   apply(auto split: list.splits simp del: height_btree.simps)
   by (metis append_take_drop_id height_i.simps(2) height_list_drop_eq)
 
-lemma subtrees_split: "set (subtrees (l@(a,b)#r)) = set (subtrees l) \<union> set (subtrees r) \<union> {a}"
-  apply(induction r)
-   apply(auto)
-  done
 
-lemma fold_max_extract:"fold max (l@a#r) n = max (a::_::linorder) (fold max (l@r) n)"
-  apply(induction r arbitrary: l a n)
-   apply(auto simp add: fold_max_max max.left_commute)
-  done
-
-(* TODO fix *)
 lemma ins_height_i: "height_i (ins k x t) = height t"
 proof(induction t)
   case (Node ts t)
@@ -631,10 +621,7 @@ proof(induction t)
           using Up_i split_app Cons Node \<open>bal_i (ins k x sub)\<close> by auto
         moreover have "\<forall>x \<in> set (subtrees (l@(x21,x22)#(x23,sep)#list)). height x = height t"
           using False Up_i split_app Cons Node \<open>bal_i (ins k x sub)\<close> ins_height_i split_res a_prod
-          apply auto
-          apply (metis height_i.simps(2) max_def)
-           apply (metis Un_iff fst_conv)+
-          done
+          by simp_all (metis Node.prems bal.simps(2) bal_split fst_conv height_i.simps(2) image_Un set_append set_map split_fun_child subtrees.simps sup.idem sup_nat_def)
         ultimately show ?thesis using Up_i Cons Node split_res a_prod
           by (simp del: node_i.simps add: node_i_bal_i)
       qed
@@ -741,7 +728,7 @@ proof(induction t)
 qed simp
 
 
-(* TODO sorted invariant *)
+(* sorted invariant *)
 
 thm sorted_alt.simps
 
@@ -1085,7 +1072,7 @@ qed simp
 thm ins.induct
 thm btree.induct
 
-(* TODO deletion *)
+(* deletion *)
 
 thm list.simps
 
@@ -1607,7 +1594,96 @@ then have "\<forall>sep \<in> set (seperators ls). sep < x"
   qed
 qed simp
 
+find_theorems node_i bal_i
 
+lemma height_bal_subtrees_merge: "\<lbrakk>height (Node as a) = height (Node bs b); bal (Node as a); bal (Node bs b)\<rbrakk>
+ \<Longrightarrow> \<forall>x \<in> set (subtrees as) \<union> {a}. height x = height b"
+  by (metis Suc_inject Un_iff bal.simps(2) height_bal_tree singletonD)
+
+lemma height_bal_node_i: 
+  assumes "height (Node as a) = height (Node bs b)"
+    and "bal (Node as a)"
+    and "bal (Node bs b)"
+  shows "bal_i (node_i k (as@(a,x)#bs) b)"
+proof -
+  have "\<forall>x\<in>set (subtrees (as @ (a, x) # bs)). bal x"
+    using subtrees_split assms by auto
+  moreover have "bal b"
+    using assms by auto
+  moreover have "\<forall>x\<in>set (subtrees as) \<union> {a} \<union> set (subtrees bs). height x = height b"
+    using assms height_bal_subtrees_merge
+    by blast
+  ultimately show ?thesis using node_i_bal_i[of "as@(a,x)#bs"] by (auto simp del: node_i.simps)
+qed
+
+lemma rebalance_middle_tree_bal: "bal (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> bal (rebalance_middle_tree k ls sub sep rs t)"
+proof (cases t)
+  case t_node: (Node tts tt)
+  assume assms: "bal (Node (ls @ (sub, sep) # rs) t)"
+  then obtain mts mt where sub_node: "sub = Node mts mt"
+    by (cases sub) (auto simp add: t_node)
+  have sub_heights: "height sub = height t" "bal sub" "bal t"
+    using assms by auto
+  show ?thesis
+  proof (cases "length mts \<ge> k")
+    case True
+    then show ?thesis
+      using t_node sub_node assms
+      by (auto simp del: bal.simps)
+  next
+  case False
+  then show ?thesis
+    proof (cases rs)
+      case Nil
+      have "height_i (node_i k (mts@(mt,sep)#tts) tt) = height (Node (mts@(mt,sep)#tts) tt)"
+        using node_i_height_i by blast
+      also have "\<dots> = Suc (height tt)"
+        by (metis height_bal_tree height_i.simps(2) height_list_drop_eq max.idem sub_heights(1) sub_heights(3) sub_node t_node)
+      also have "\<dots> = height t"
+        using height_bal_tree sub_heights(3) t_node by fastforce
+      finally have "height_i (node_i k (mts@(mt,sep)#tts) tt) = height t" by simp
+      moreover have "bal_i (node_i k (mts@(mt,sep)#tts) tt)"
+        using height_bal_node_i sub_node t_node sub_heights by auto
+      ultimately show ?thesis
+        apply (cases "node_i k (mts@(mt,sep)#tts) tt")
+        using assms local.Nil sub_node t_node by auto
+    next
+      case (Cons r rs)
+      then obtain rsub rsep where r_split: "r = (rsub,rsep)" by (cases r)
+      then have rsub_height: "height rsub = height t" "bal rsub"
+        using assms local.Cons by auto
+      then obtain rts rt where r_node: "rsub = (Node rts rt)"
+        apply(cases rsub) using t_node by simp
+      have "height_i (node_i k (mts@(mt,sep)#rts) rt) = height (Node (mts@(mt,sep)#rts) rt)"
+        using node_i_height_i by blast
+      also have "\<dots> = Suc (height rt)"
+        by (metis Un_iff  \<open>height rsub = height t\<close> assms bal.simps(2) bal_split height_bal_tree height_i.simps(2) height_list_drop_eq list.set_intros(1) local.Cons max.idem r_node r_split set_append some_child_sub(1) sub_heights(1) sub_node)
+      also have "\<dots> = height rsub"
+        using height_bal_tree r_node rsub_height(2) by fastforce
+      finally have 1: "height_i (node_i k (mts@(mt,sep)#rts) rt) = height rsub" by simp
+      moreover have 2: "bal_i (node_i k (mts@(mt,sep)#rts) rt)"
+        using height_bal_node_i sub_node sub_heights rsub_height r_node by auto
+      ultimately show ?thesis
+      proof (cases "node_i k (mts@(mt,sep)#rts) rt")
+        case (T_i u)
+        then have "bal (Node (ls@(u,rsep)#rs) t)"
+          using 1 2 Cons assms t_node subtrees_split sub_heights r_split rsub_height
+          unfolding bal.simps by (auto simp del: height_btree.simps)
+        then show ?thesis
+          using Cons assms t_node sub_node r_split r_node False T_i
+          by (auto simp del: node_i.simps bal.simps)
+      next
+        case (Up_i l a r)
+        then have "bal (Node (ls@(l,a)#(r,rsep)#rs) t)"
+          using 1 2 Cons assms t_node subtrees_split sub_heights r_split rsub_height
+          unfolding bal.simps by (auto simp del: height_btree.simps)
+        then show ?thesis
+          using Cons assms t_node sub_node r_split r_node False Up_i
+          by (auto simp del: node_i.simps bal.simps)
+      qed
+    qed
+  qed
+qed (simp add: height_Leaf)
 
 (* TODO runtime wrt runtime of split_fun *)
 

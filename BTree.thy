@@ -65,6 +65,11 @@ value "height_alt (Node [] (Leaf::nat btree))"
 value "height (Node [] (Leaf::nat btree))"
 
 
+lemma subtrees_split: "set (subtrees (l@(a,b)#r)) = set (subtrees l) \<union> set (subtrees r) \<union> {a}"
+  apply(induction r)
+   apply(auto)
+  done
+
 
 lemma fold_max_max: "max (a::(_::linorder)) (fold max bs b) = fold max bs (max a b)"
   apply(induction bs arbitrary: a b)
@@ -74,6 +79,12 @@ lemma fold_max_max: "max (a::(_::linorder)) (fold max bs b) = fold max bs (max a
 lemma max_sep_fold_max: "max (fold max as (a::(_::linorder))) (fold max bs b) = (fold max (as@a#bs) b)"
   apply(induction as arbitrary: a bs b)
    apply(auto simp add: max.assoc max.left_commute fold_max_max)
+  done
+
+
+lemma fold_max_extract:"fold max (l@a#r) n = max (a::_::linorder) (fold max (l@r) n)"
+  apply(induction r arbitrary: l a n)
+   apply(auto simp add: fold_max_max max.left_commute)
   done
 
 lemma fold_max_append: "fold max bs (max (a::(_::linorder)) b) = fold max (bs@[a]) b"

@@ -164,10 +164,26 @@ lemma fold_max_set: "\<forall>x \<in> set t. x = f \<Longrightarrow> fold max t 
   done
 
 lemma height_bal_tree: "bal (Node ts t) \<Longrightarrow> height (Node ts t) = Suc (height t)"
-  unfolding height_btree.simps bal.simps
   by (simp add: fold_max_set)
 
-  
+lemma subtrees_set: "set (subtrees (ls@a#rs)) = set (subtrees ls) \<union> set (subtrees rs) \<union> {fst a}"
+  by auto
+
+lemma bal_split: "bal (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> bal (Node (ls@rs) t)"
+proof -
+  assume "bal (Node (ls@(sub,sep)#rs) t)"
+  then have
+    "bal t"
+    "\<forall>sub \<in> set (subtrees (ls@(sub,sep)#rs)). height t = height sub \<and> bal sub"
+    using bal.simps(2) by blast+
+  moreover have "\<forall>sub \<in> set (subtrees ls) \<union> set (subtrees rs). height t = height sub \<and> bal sub"
+    using subtrees_set
+    by (simp add: calculation)
+  ultimately show "bal (Node (ls@rs) t)" by auto
+qed
+
+lemma bal_height: "bal (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> height (Node (ls@(sub,sep)#rs) t) = height (Node (ls@rs) t)"
+  using height_bal_tree bal_split by metis
 
 (*value "nat \<lceil>(5::nat) / 2\<rceil>"*)
 

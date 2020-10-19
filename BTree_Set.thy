@@ -1163,7 +1163,7 @@ find_theorems height
 
 lemma rebalance_middle_tree_height:
   assumes "height t = height sub"
-    and "case rs of (rsub,rsep) # list \<Rightarrow> height t = height rsub | [] \<Rightarrow> True"
+    and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"
   shows "height (rebalance_middle_tree k ls sub sep rs t) = height (Node (ls@(sub,sep)#rs) t)"
 proof (cases "height t")
   case 0
@@ -1305,6 +1305,79 @@ proof(induction t arbitrary: k sub sep)
   qed
 qed auto
 
+lemma order_bal_nonempty_lasttreebal: "\<lbrakk>k > 0; order k t; bal t\<rbrakk> \<Longrightarrow> nonempty_lasttreebal t"
+proof(induction k t rule: order.induct)
+  case (2 k ts t)
+  then have "length ts > 0" by auto
+  then obtain ls tsub tsep where ts_split: "ts = (ls@[(tsub,tsep)])"
+    by (metis eq_fst_iff length_greater_0_conv snoc_eq_iff_butlast)
+  moreover have "height tsub = height t"
+    using "2.prems"(3) ts_split by auto
+  moreover have "nonempty_lasttreebal t" using 2 by auto
+  ultimately show ?case by simp
+qed simp
+
+lemma bal_sub_height: "bal (Node (ls@a#rs) t) \<Longrightarrow> (case rs of [] \<Rightarrow> True | (sub,sep)#_ \<Rightarrow> height sub = height t)"
+  by (cases rs) (auto)
+
+lemma del_height: "\<lbrakk>k > 0; order k t; bal t\<rbrakk> \<Longrightarrow> height (del k x t) = height t"
+proof(induction k x t rule: del.induct)
+  case (2 k x ts t)
+  then obtain ls list where list_split: "split_fun ts x = (ls, list)" by (cases "split_fun ts x")
+  then show ?case
+  proof(cases list)
+    case Nil
+    then have "height (del k x t) = height t"
+      using 2 list_split order_bal_nonempty_lasttreebal by auto
+    moreover obtain lls sub sep where "ls = lls@[(sub,sep)]"
+      using split_fun_req(1) 2 list_split Nil
+      by (metis append_Nil2 nonempty_lasttreebal.simps(2) order_bal_nonempty_lasttreebal)
+    moreover have "Node ls t = Node ts t" using split_fun_req(1) Nil list_split by auto
+    ultimately show ?thesis
+      using rebalance_last_tree_height 2 list_split Nil split_fun_req(1) by auto
+  next
+    case (Cons a rs)
+    then have rs_height: "case rs of [] \<Rightarrow> True | (rsub,rsep)#_ \<Rightarrow> height rsub = height t" (* notice the difference if rsub and t are switched *)
+      using "2.prems"(3) bal_sub_height list_split split_fun_req(1) by blast
+    from Cons obtain sub sep where a_split: "a = (sub,sep)" by (cases a)
+    then have "sep \<noteq> x \<or> (sep = x \<and> sub = Leaf) \<or> (sep = x \<and> (\<exists>ts t. sub = Node ts t))"
+      using height_btree.cases by auto
+    then show ?thesis
+    proof (elim disjE)
+      assume asms: "sep \<noteq> x"
+      have "height (del k x sub) = height t"
+        using 2 \<open>sep \<noteq> x\<close> a_split list_split Cons split_fun_set(1) by fastforce
+      then have "height (rebalance_middle_tree k ls (del k x sub) sep rs t) = height (Node (ls@((del k x sub),sep)#rs) t)"
+        using rs_height rebalance_middle_tree_height by simp
+      also have "\<dots> = height (Node ts t)"
+        using 2 a_split asms list_split Cons split_fun_set(1) split_fun_req(1) by fastforce
+      finally show ?thesis
+        using asms Cons a_split list_split 2
+        by simp
+    next
+      assume asms: "sep = x \<and> sub = Leaf"
+      then have "height (Node ts t) = height (Node (ls@rs) t)"
+        using bal_height
+        using "2.prems"(3) a_split list_split Cons split_fun_req(1) by fastforce
+      then show ?thesis
+        using a_split list_split Cons asms 2 by auto
+    next
+      assume asms: "sep = x \<and> (\<exists>ts t. sub = Node ts t)"
+      then obtain sts st where sub_node: "sub = Node sts st" by blast
+      obtain sub_s max_s where sub_split: "split_max k sub = (sub_s, max_s)"
+        by (cases "split_max k sub")
+      then have "height sub_s = height t"
+        by (metis "2.prems" sub_node a_split bal.simps(2) btree.distinct(1) list_split local.Cons order.simps(2) order_bal_nonempty_lasttreebal some_child_sub(1) split_fun_set(1) split_max_height)
+      then have "height (rebalance_middle_tree k ls sub_s max_s rs t) = height (Node (ls@(sub_s,sep)#rs) t)"
+        using rs_height rebalance_middle_tree_height by simp
+      also have "\<dots> = height (Node ts t)"
+        using 2 a_split asms list_split Cons split_fun_set(1) split_fun_req(1) \<open>height sub_s = height t\<close> by fastforce
+      finally show ?thesis using asms Cons a_split list_split 2 sub_node sub_split
+        by auto
+    qed
+  qed
+qed simp
+
 lemma rebalance_middle_tree_set:
   assumes "height t = height sub"
     and "case rs of (rsub,rsep) # list \<Rightarrow> height t = height rsub | [] \<Rightarrow> True"
@@ -1377,7 +1450,7 @@ proof(induction t arbitrary: k sub sep)
     ultimately show ?thesis using rebalance_last_tree_set Node1 Node2 by auto
   qed
 qed auto
-  
+
                            
 (* TODO runtime wrt runtime of split_fun *)
 

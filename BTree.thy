@@ -196,6 +196,18 @@ qed
 lemma bal_height: "bal (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> height (Node (ls@(sub,sep)#rs) t) = height (Node (ls@rs) t)"
   using height_bal_tree bal_split by metis
 
+lemma bal_substitute: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height t = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
+  unfolding bal.simps
+  by (metis Un_iff fst_conv singletonD subtrees_set)
+
+lemma bal_substitute2: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height a = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
+  using bal_substitute
+  by (metis bal.simps(2) in_set_conv_decomp some_child_sub(1))
+
+lemma bal_substitute3: "bal (Node (ls@(a,b)#rs) t) \<Longrightarrow> bal (Node (ls@(a,c)#rs) t)"
+  unfolding bal.simps
+  by (metis subtrees_split)
+
 (*value "nat \<lceil>(5::nat) / 2\<rceil>"*)
 
 (* alt1: following knuths definition to allow for any natural number as order and resolve ambiguity *)

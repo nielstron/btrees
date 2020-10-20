@@ -217,6 +217,23 @@ fun order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
 "order k (Node ts t) = ((length ts \<ge> k  \<and> length ts \<le> 2*k) \<and> (\<forall>sub \<in> set (subtrees ts). order k sub) \<and> order k t)"
 
 
+(* the invariant for the root of the btree *)
+fun root_order where
+"root_order k Leaf = True" |
+"root_order k (Node ts t) = (
+  (length ts > 0) \<and>
+  (length ts \<le> 2*k) \<and>
+  (\<forall>s \<in> set (subtrees ts). order k s) \<and>
+   order k t
+)"
+
+
+lemma order_impl_root_order: "\<lbrakk>k > 0; order k t\<rbrakk> \<Longrightarrow> root_order k t"
+  apply(cases t)
+   apply(auto)
+  done
+
+
 value "set_btree_inorder (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
 value "height (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
 (* a bit weird *)

@@ -805,12 +805,16 @@ lemma sorted_wrt_split: "sorted_wrt sub_sep_sm (l@(a,(b::('a::linorder)))#r) =
 
 
 lemma sorted_r_indep: "sorted_wrt sub_sep_sm ((a,b)#rs) \<Longrightarrow> sorted_wrt sub_sep_sm ((x,b)#rs)"
-  apply(induction rs)
+  apply(cases rs)
    apply(auto)
   done
 
+
 lemma sorted_r_forall: "sorted_wrt P (a#rs) \<Longrightarrow> \<forall>y \<in> set rs. P a y"
   by simp
+
+lemma sorted_l_forall: "sorted_wrt P (ls@[a]) \<Longrightarrow> \<forall>y \<in> set ls. P y a"
+  by (simp add: sorted_wrt_append)
 
 lemma set_seperators_split: "set (seperators (l@(x,sep)#r)) = set (seperators l) \<union> set (seperators r) \<union> {sep}"
   apply(induction r)
@@ -1059,9 +1063,28 @@ proof (induction t)
                 by (metis (no_types, lifting) False Node.prems Un_insert_right Up_i a_split case_prod_unfold insert_iff less_le list.simps(5) list_split local.Cons set_up_i.simps(2) snd_conv sorted_alt.simps(2) sorted_wrt_list_sorted split_fun_req(3) split_fun_set(1) sub_sep_cons.simps sub_set sup_bot.right_neutral)
               ultimately show ?thesis by simp
           qed
-          moreover have "\<forall>y \<in> set ls. sub_sep_sm y (x21,x22)" sorry
+          moreover have "\<forall>y \<in> set ls. sub_sep_sm y (x21,x22)"
+          proof -
+            have "\<forall>y \<in> set ls. sub_sep_sm y (sub,sep)"
+            using sorted_l_forall sub_lists_sorted(1)
+            by metis
+            show ?thesis
+            proof
+              fix y assume y_in_ls: "y \<in> set ls"
+              then obtain ysub ysep where y_split: "y = (ysub, ysep)"
+                by (meson surj_pair)
+              then have "\<forall>z \<in> set_btree sub. ysep < z"
+                using \<open>\<forall>y\<in>set ls. sub_sep_sm y (sub, sep)\<close> y_in_ls by auto
+              moreover have "ysep < x"
+                using Node.prems y_split y_in_ls list_split sorted_wrt_list_sorted split_fun_req(2) by fastforce
+              ultimately have "\<forall>z \<in> set_btree x21. ysep < z" "ysep < x22"
+                using Up_i sub_set by auto
+              then show "sub_sep_sm y (x21, x22)"
+                by (simp add: y_split)
+            qed
+          qed
           moreover have "\<forall>y \<in> set list. sub_sep_sm (x23,sep) y"
-            using sorted_r_indep sorted_r_forall sub_lists_sorted(2)
+            using sorted_r_forall sub_lists_sorted(2)
             by auto
           ultimately show "sorted_wrt sub_sep_sm (ls @ (x21, x22) # (x23, sep) # list)"
             using sorted_wrt_split2 sorted_wrt_append sub_lists_sorted(1) sub_lists_sorted(2)

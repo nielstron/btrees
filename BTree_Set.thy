@@ -253,44 +253,6 @@ lemma drop_not_empty: "xs \<noteq> [] \<Longrightarrow> drop (length xs div 2) x
    apply(auto)
   done
 
-lemma node_i_order:
-  assumes "length ts \<ge> k"
-    and "length ts \<le> 4*k+1"
-    and "\<forall>x \<in> set ts. order k (fst x)"
-    and "order k t"
-  shows "order_up_i k (node_i k ts t)"
-proof (cases "length ts \<le> 2*k")
-case True
-  then show ?thesis using set_map_pred_eq assms by simp
-next
-  case False
-  then have length_ts: "length ts > 0"
-    by linarith
-  then have "drop (length ts div 2) ts \<noteq> []"
-    using drop_not_empty by auto
-  then obtain sub sep rs where drop_ts: "drop (length ts div 2) ts = (sub,sep)#rs" 
-    by (metis eq_snd_iff hd_Cons_tl)
-  then have length_rs: "length rs = length ts - (length ts div 2) - 1" using length_drop
-    by (metis One_nat_def add_diff_cancel_right' list.size(4))
-  also have "\<dots> \<le> 4*k - ((4*k + 1) div 2)" using assms(2) by simp
-  also have "\<dots> = 2*k" by auto
-  finally have "length rs \<le> 2*k" by simp
-  moreover have "length rs \<ge> k" using False length_rs by simp
-  moreover have "set ((sub,sep)#rs) \<subseteq> set ts"
-    by (metis drop_ts set_drop_subset)
-  ultimately have o_r: "order k sub" "order k (Node rs t)" using drop_ts assms drop_ts by auto
-  moreover have "length (take (length ts div 2) ts) \<ge> k"
-    using length_take assms length_ts False by simp
-  moreover have  "length (take (length ts div 2) ts) \<le> 2*k"
-    using assms(2) by auto
-  ultimately have o_l: "order k (Node (take (length ts div 2) ts) sub)"
-    using set_take_subset assms by fastforce
-  from o_r o_l have "order_up_i k (Up_i (Node (take (length ts div 2) ts) sub) sep (Node rs t))" by simp
-  then show ?thesis unfolding node_i.simps
-    by (simp add: False drop_ts)
-qed
-
-(* notice this is almost a duplicate of node_i_order *)
 lemma node_i_root_order:
   assumes "length ts > 0"
     and "length ts \<le> 4*k+1"
@@ -327,6 +289,41 @@ next
   then show ?thesis unfolding node_i.simps
     by (simp add: False drop_ts)
 qed
+
+lemma node_i_order_helper:
+  assumes "length ts \<ge> k"
+    and "length ts \<le> 4*k+1"
+    and "\<forall>x \<in> set ts. order k (fst x)"
+    and "order k t"
+  shows "case (node_i k ts t) of T_i t \<Rightarrow> order k t | _ \<Rightarrow> True"
+proof (cases "length ts \<le> 2*k")
+  case True
+  then show ?thesis using set_map_pred_eq assms by simp
+next
+  case False
+  then have length_ts: "length ts > 0"
+    by linarith
+  then have "drop (length ts div 2) ts \<noteq> []"
+    using drop_not_empty by auto
+  then obtain sub sep rs where drop_ts: "drop (length ts div 2) ts = (sub,sep)#rs" 
+    by (metis eq_snd_iff hd_Cons_tl)
+  then show ?thesis
+    unfolding node_i.simps
+    using assms by auto
+qed
+
+lemma node_i_order:
+  assumes "length ts \<ge> k"
+    and "length ts \<le> 4*k+1"
+    and "\<forall>x \<in> set ts. order k (fst x)"
+    and "order k t"
+  shows "order_up_i k (node_i k ts t)"
+  using node_i_root_order node_i_order_helper assms
+  apply(cases "node_i k ts t")
+   apply fastforce
+  apply (metis assms(1) assms(2) assms(3) assms(4) le_0_eq le_less_linear mult_0_right node_i.simps node_i_root_order order_up_i.simps(2) root_order_up_i.simps(2) up_i.distinct(1))
+  done
+
 
 find_theorems "set" "(@)" "(#)"
 
@@ -400,151 +397,79 @@ split_fun_req(1) length_lemma node_i_order[of "_" "_@(_,_)#(_,_)#_" "_"])
   done *)
 
 (* direct proof *)
-lemma ins_order: "order k t \<Longrightarrow> order_up_i k (ins k x t)"
-proof(induction t)
-  case (Node ts t)
+lemma ins_order: 
+   "order k t \<Longrightarrow> order_up_i k (ins k x t)"
+proof(induction k x t rule: ins.induct)
+  case (2 k x ts t)
   then obtain l r where split_res: "split_fun ts x = (l, r)"
     by (meson surj_pair)
   then have split_app: "l@r = ts" using split_fun_axioms split_fun_def
     by fastforce
 
-  from Node have suborders:
-    "order k t"
-    "\<forall>s \<in> set (subtrees ts). order k s"
-    "length ts \<le> 2*k"
-    "length ts \<ge> k"
-    unfolding order.simps by simp_all
-  
   show ?case
   proof (cases r)
     case Nil
-    then have "order_up_i k (ins k x t)" using Node suborders split_res
+    then have "order_up_i k (ins k x t)" using 2 split_res
       by simp
-    
-    show ?thesis
-    proof (cases "ins k x t")
-      case (T_i x1)
-      then show ?thesis unfolding ins.simps using T_i Node split_res
-          suborders split_app Nil \<open>order_up_i k (ins k x t)\<close>
-        using order.simps(2) by auto
-    next
-      case (Up_i x21 x22 x23)
-      then show ?thesis unfolding ins.simps
-        using Up_i Nil Node split_res \<open>order_up_i k (ins k x t)\<close> suborders split_app Nil node_i_order[of k "l@[(x21,x22)]" x23]
-        by (auto simp del: node_i.simps)
-    qed
+    then show ?thesis
+      using Nil 2 split_app split_res  split_app Nil node_i_order
+        by (auto split!: up_i.splits simp del: node_i.simps)
   next
     case (Cons a list)
     then obtain sub sep where a_prod: "a  = (sub, sep)" by (cases a)
     then show ?thesis
     proof (cases "x = sep")
       case True
-      then show ?thesis using Node a_prod Cons split_res by simp
+      then show ?thesis using 2 a_prod Cons split_res by simp
     next
       case False
       then have "order_up_i k (ins k x sub)"
-        using Node suborders split_res a_prod local.Cons split_fun.split_fun_set(1) split_fun_axioms by fastforce
+        using 2 split_res a_prod local.Cons split_fun.split_fun_set(1) split_fun_axioms
+        by fastforce
       show ?thesis
-      proof (cases "ins k x sub")
-        case (T_i x1)
-        then show ?thesis unfolding ins.simps
-          using suborders split_app Cons \<open>order_up_i k (local.ins k x sub)\<close> T_i Cons Node split_res a_prod
-          by auto
-      next
-        case (Up_i x21 x22 x23)
-          (* The only case where explicit reasoning is required - likely due to the insertion of 2 elements in the list *)
-        then have "order k t"
-          using Node by auto
-        moreover have
-          "length (l@(x21,x22)#(x23,sep)#list) \<le> 2*k+1"
-          "length (l@(x21,x22)#(x23,sep)#list) \<ge> k"
-          using suborders split_app Cons by auto
-        moreover have "\<forall>x \<in> set (subtrees l). order k x" "\<forall>x \<in> set (subtrees list). order k x"
-          using suborders split_app Cons by auto
-        moreover have "order k x21" "order k x23"
-          using \<open>order_up_i k (local.ins k x sub)\<close> Up_i by auto
-        ultimately have "order_up_i k (node_i k (l@(x21,x22)#(x23,sep)#list) t)"
-          using node_i_order[of k "(l@(x21,x22)#(x23,sep)#list)" t]
-          by (auto simp del: node_i.simps)
-        then show ?thesis  unfolding ins.simps using Up_i Cons Node split_res a_prod
-          by simp
-      qed
+          using 2 split_app Cons length_append node_i_order a_prod split_res
+            \<open>order_up_i k (local.ins k x sub)\<close>
+          by (auto split!: up_i.splits simp del: node_i.simps simp add: order_impl_root_order)
     qed
   qed
 qed simp
 
 
 (* notice this is almost a duplicate of ins_root_order *)
-lemma ins_root_order: "root_order k t \<Longrightarrow> root_order_up_i k (ins k x t)"
-proof(induction t)
+lemma ins_root_order: 
+  assumes "root_order k t"
+  shows "root_order_up_i k (ins k x t)"
+proof(cases t)
   case (Node ts t)
   then obtain l r where split_res: "split_fun ts x = (l, r)"
     by (meson surj_pair)
   then have split_app: "l@r = ts" using split_fun_axioms split_fun_def
     by fastforce
 
-  from Node have suborders:
-    "order k t"
-    "\<forall>s \<in> set (subtrees ts). order k s"
-    "length ts \<le> 2*k"
-    "length ts \<ge> 0"
-    unfolding order.simps by simp_all
-  
-  show ?case
+  show ?thesis
   proof (cases r)
     case Nil
-    then have "order_up_i k (ins k x t)" using Node suborders split_res
+    then have "order_up_i k (ins k x t)" using Node assms split_res
       by (simp add: ins_order)
-    
-    show ?thesis
-    proof (cases "ins k x t")
-      case (T_i x1)
-      then show ?thesis unfolding ins.simps using T_i Node split_res
-          suborders split_app Nil \<open>order_up_i k (ins k x t)\<close>
-        using order.simps(2) by auto
-    next
-      case (Up_i x21 x22 x23)
-      then show ?thesis unfolding ins.simps
-        using Up_i Nil Node split_res \<open>order_up_i k (ins k x t)\<close> suborders split_app Nil node_i_root_order[of "l@[(x21,x22)]" k x23]
-        by (auto simp del: node_i.simps simp add: order_impl_root_order)
-    qed
+    then show ?thesis
+      using Nil Node split_app split_res assms  split_app Nil node_i_root_order
+        by (auto split!: up_i.splits simp del: node_i.simps simp add: order_impl_root_order)
   next
     case (Cons a list)
     then obtain sub sep where a_prod: "a  = (sub, sep)" by (cases a)
     then show ?thesis
     proof (cases "x = sep")
       case True
-      then show ?thesis using Node a_prod Cons split_res by simp
+      then show ?thesis using assms Node a_prod Cons split_res by simp
     next
       case False
       then have "order_up_i k (ins k x sub)"
-        using Node suborders split_res a_prod local.Cons split_fun.split_fun_set(1) split_fun_axioms
-        by (metis ins_order some_child_sub(1))
+        using Node assms split_res a_prod local.Cons split_fun.split_fun_set(1) split_fun_axioms
+        by (metis ins_order root_order.simps(2) some_child_sub(1))
       show ?thesis
-      proof (cases "ins k x sub")
-        case (T_i x1)
-        then show ?thesis unfolding ins.simps
-          using suborders split_app Cons \<open>order_up_i k (local.ins k x sub)\<close> T_i Cons Node split_res a_prod
-          by auto
-      next
-        case (Up_i x21 x22 x23)
-          (* The only case where explicit reasoning is required - likely due to the insertion of 2 elements in the list *)
-        then have "order k t"
-          using Node by auto
-        moreover have
-          "length (l@(x21,x22)#(x23,sep)#list) \<le> 2*k+1"
-          "length (l@(x21,x22)#(x23,sep)#list) > 0"
-          using suborders split_app Cons by auto
-        moreover have "\<forall>x \<in> set (subtrees l). order k x" "\<forall>x \<in> set (subtrees list). order k x"
-          using suborders split_app Cons by auto
-        moreover have "order k x21" "order k x23"
-          using \<open>order_up_i k (local.ins k x sub)\<close> Up_i by auto
-        ultimately have "root_order_up_i k (node_i k (l@(x21,x22)#(x23,sep)#list) t)"
-          using node_i_root_order[of "(l@(x21,x22)#(x23,sep)#list)" k t]
-          by (auto simp del: node_i.simps simp add: order_impl_root_order)
-        then show ?thesis  unfolding ins.simps using Up_i Cons Node split_res a_prod
-          by simp
-      qed
+          using assms split_app Cons length_append Node node_i_root_order a_prod split_res
+            \<open>order_up_i k (local.ins k x sub)\<close>  node_i_root_order[of "(l@(_,_)#(_,sep)#list)" k t]
+          by (auto split!: up_i.splits simp del: node_i.simps simp add: order_impl_root_order)
     qed
   qed
 qed simp
@@ -1739,7 +1664,7 @@ then have "\<forall>sep \<in> set (seperators ls). sep < x"
       using "2.prems"(3) bal_sub_height list_split split_fun_req(1) by blast
     from Cons list_split have x_not_sub: "x \<notin> set_btree_list rs" "x \<notin> set_btree_list ls" "x \<notin> set_btree t"
       using sorted_split_contains 2
-      by (metis list.simps(5) sorted_alt.simps(2))+
+        by (metis list.simps(5) sorted_alt.simps(2))+
     from Cons obtain sub sep where a_split: "a = (sub,sep)" by (cases a)
     then have "sep \<noteq> x \<or> (sep = x \<and> sub = Leaf) \<or> (sep = x \<and> (\<exists>ts t. sub = Node ts t))"
       using height_btree.cases by auto
@@ -2201,6 +2126,8 @@ proof (induction k x t rule: del.induct)
   qed
 qed simp
 
+(* TODO sortedness of delete *)
+
 lemma reduce_root_order: "\<lbrakk>k > 0; almost_order k t\<rbrakk> \<Longrightarrow> root_order k (reduce_root t)"
   apply(cases t)
    apply(auto split!: list.splits simp add: order_impl_root_order)
@@ -2235,7 +2162,13 @@ lemma delete_set: "\<lbrakk>k > 0; bal t; root_order k t; sorted_alt t\<rbrakk> 
   using del_set
   by (metis reduce_root_set split_fun.delete.elims split_fun_axioms)
 
+(* TODO show that node_i style merging is equivalent to steal/merge policies *)
+
 (* TODO runtime wrt runtime of split_fun *)
+
+(* TODO (opt) proof of max/min filling/height of btree (is this related to ins/del functions at all?) *)
+
+(* TODO simpler induction schemes /less boilerplate isabelle/src/HOL/ex/Induction_Schema *)
 
 end
 

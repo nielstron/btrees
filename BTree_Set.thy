@@ -2484,6 +2484,52 @@ next
   qed simp
 qed
 
+lemma rebalance_last_tree_sorted: "\<lbrakk>sorted_alt (Node ts t); ts = ls@[(sub,sep)]; height sub = height t\<rbrakk>
+\<Longrightarrow> sorted_alt (rebalance_last_tree k ts t)"
+  using rebalance_middle_tree_sorted by auto
+
+find_theorems height split_max
+lemma split_max_sorted: "\<lbrakk>split_max k t = (sub,sep); sorted_alt t; nonempty_lasttreebal t; t \<noteq> Leaf\<rbrakk>
+\<Longrightarrow> sorted_alt sub"
+proof (induction k t arbitrary: sub sep rule: split_max.induct)
+  case (1 k ts t)
+  then show ?case
+  proof (cases t)
+    case Leaf
+    then obtain sub sep where last_split: "last ts = (sub,sep)"
+      by (cases "last ts")
+    have "sorted_alt (Node (butlast ts) sub)"
+      unfolding sorted_alt.simps
+      apply(safe)
+      apply (metis "1.prems"(2) append_butlast_last_id butlast.simps(1) sorted_alt_sorted sorted_inorder_subsepsm sorted_wrt_append)
+      apply (meson "1.prems"(2) in_set_butlastD sorted_alt.simps(2))
+      apply (metis "1.prems"(3) Leaf btree.distinct(1) btree.set_cases fst_conv height_Leaf last_split nonempty_lasttreebal.simps(2) snoc_eq_iff_butlast)
+      using "1.prems" apply auto[1]
+      by (metis "1.prems"(3) Leaf fst_conv height_Leaf last_split nonempty_lasttreebal.simps(2) snoc_eq_iff_butlast sorted_alt.simps(1))
+    then show ?thesis
+      using 1 Leaf last_split by auto
+  next
+    case (Node tts tt)
+    then obtain s_sub s_max where sub_split: "split_max k t = (s_sub,s_max)"
+      by (cases "split_max k t")
+    then have "set_btree s_sub \<union> {s_max} = set_btree t"
+      using split_max_set
+      by (metis "1.prems"(3) Node btree.distinct(1) nonempty_lasttreebal.simps(2))
+    then have "sorted_alt (Node ts s_sub)"
+      unfolding sorted_alt.simps
+      apply(safe)
+      using "1.prems"(2) apply (auto simp del: split_max.simps)[1]
+      using "1.prems"(2) apply (auto simp del: split_max.simps)[1]
+      using "1.prems"(2) apply (auto simp del: split_max.simps)[1]
+      using "1.prems"(2,3) "1.IH"[of tts tt s_sub s_max] Node sub_split
+      by (auto simp del: split_max.simps)
+    then have "sorted_alt (rebalance_last_tree k ts s_sub)"
+      using rebalance_last_tree_sorted
+      by (metis "1.prems"(3) Node btree.distinct(1) nonempty_lasttreebal.simps(2) split_max_height sub_split)
+    then show ?thesis using 1 Node sub_split by auto
+  qed
+qed simp
+
 lemma reduce_root_order: "\<lbrakk>k > 0; almost_order k t\<rbrakk> \<Longrightarrow> root_order k (reduce_root t)"
   apply(cases t)
    apply(auto split!: list.splits simp add: order_impl_root_order)

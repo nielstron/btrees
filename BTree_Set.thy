@@ -2164,15 +2164,14 @@ next
     using assms by (cases sub) simp
 
   have sub_sorted_lr:
+    "sorted_wrt sub_sep_sm (ls@[(sub,sep)])"
     "sorted_wrt sub_sep_sm ls" 
-    "sorted_wrt sub_sep_sm rs"
+    "sorted_wrt sub_sep_sm ((sub,sep)#rs)"
     "\<forall>x \<in> set ls. sub_sep_cons x"
     "\<forall>x \<in> set rs. sub_sep_cons x"
-    using assms(3) sorted_alt.simps(2) sorted_alt_split_ls apply blast
-    using assms(3) sorted_alt.simps(2) sorted_alt_split_rs apply blast
-    using assms(3) by auto
+    using assms(3) sorted_wrt_split by auto
   then show ?thesis
-  proof (cases "length mts \<ge> k \<and> length tts \<ge> k")
+  using assms t_node sub_node proof (cases "length mts \<ge> k \<and> length tts \<ge> k")
     case False
     then show ?thesis
     proof (cases rs)
@@ -2196,7 +2195,6 @@ next
             using subtree_sub_sm assms t_node sorted_sub_sep_impl
             by metis+
           then show "sub_sep_sm (mt, sep) (a, b)"
-            using subtree_in_subtrees assms
             by simp
         qed
       next
@@ -2214,7 +2212,7 @@ next
             apply (metis (no_types, lifting) Un_iff assms(3) dual_order.strict_trans list.set_intros(1) seperators_in_set set_append sorted_alt.simps(2) sorted_sub_sep_impl sub_node sub_sep_cons.simps subsetD)
             using assms(3) sorted_sub_sep_impl apply blast
             using \<open>x \<in> set_btree tt\<close> assms(3) sorted_alt.simps(2) t_node apply blast
-            done
+          done
         qed auto
       then have
         sorted_node_i: "sorted_up_i (node_i k (mts@(mt,sep)#tts) tt)"
@@ -2255,41 +2253,24 @@ next
           using set_node_i by auto
         have "sorted_alt (Node (ls@[(l,a)]) r)"
           unfolding sorted_alt.simps
-        using Up_i sorted_node_i assms proof(safe)
+          using Up_i sorted_node_i assms 
+        proof(safe)
           show "sorted_wrt sub_sep_sm (ls @ [(l, a)])"
             unfolding sorted_wrt_split
-            apply (safe)
-               apply (simp_all)
-            using assms(3) sorted_alt.simps(2) sorted_alt_split_ls apply blast
-          proof
+          proof (safe)
             fix asub asep assume ls_split: "(asub,asep) \<in> set ls"
-            then show "asep < a" using set_lar assms
+            then have "asep < a" using set_lar assms
               by (metis UnE Un_iff Un_iff insert_absorb insert_iff insert_not_empty set_append some_child_sub(2) sorted_alt.simps(2) sorted_alt_split_ls)
-            show "\<forall>x \<in> set_btree l. asep < x"
-              using set_lar assms ls_split
-              proof -
-                { fix aa :: 'a
-                  have ff2: "asep \<in> set (seperators ls)"
-                    by (meson ls_split some_child_sub(2))
-                  have ff3: "\<And>a A aa Aa. (a::'a) \<notin> A \<or> a \<in> Set.insert aa (A \<union> Aa)"
-                    by blast
-                  have ff4: "sorted_alt (Node ls sub)"
-                    using assms(3) sorted_alt_split_ls by blast
-                  { assume "aa \<noteq> sep"
-                    moreover
-                    { assume "aa \<in> set_btree t"
-                      then have "\<exists>ps b. sorted_alt (Node ps b) \<and> aa \<in> set_btree b \<and> asep \<in> set (seperators ps)"
-                        using ff3 ff2 by (metis (no_types) Un_insert_right assms(3) set_seperators_split sup_bot.right_neutral) }
-                    ultimately have "(aa \<notin> set_btree l \<or> asep < aa) \<or> (\<exists>ps b. sorted_alt (Node ps b) \<and> aa \<in> set_btree b \<and> asep \<in> set (seperators ps))"
-                      using ff4 ff2 set_lar(1) by blast
-                    then have "aa \<notin> set_btree l \<or> asep < aa"
-                      using sorted_alt.simps(2) by blast }
-                  then have "aa \<notin> set_btree l \<or> asep < aa"
-                    using ff2 assms(3) sorted_alt_split_ls by blast }
-                then show ?thesis
-                  by blast
-              qed
+            moreover have "\<forall>x \<in> set_btree l. asep < x"
+            proof
+              fix x assume "x \<in> set_btree l"
+              then have "x \<in> set_btree sub \<union> set_btree t \<union> {sep}"
+                using set_lar by auto
+              then show "asep < x" using assms ls_split
+                by (metis Un_iff set_seperators_split singletonD some_child_sub(2) sorted_alt.simps(2) sorted_alt_split_ls)
             qed
+            ultimately show "sub_sep_sm (asub, asep) (l, a)" by simp
+          qed (simp_all add: sub_sorted_lr)
           next
             fix lsub lsep assume "(lsub, lsep) \<in> set (ls @ [(l, a)])"
             then have "(lsub, lsep) \<in> set ls \<or> (lsub,lsep) = (l,a)"
@@ -2316,18 +2297,119 @@ next
           using False Up_i local.Nil sub_node t_node by auto
       qed
     next
-      case (Cons r list)
+      case (Cons r rs)
       then obtain rsub rsep where r_split[simp]:"r = (rsub,rsep)" by (cases r)
-      then obtain rts rt where rsub_split[simp]: "rsub = Node rts rt"
+      then obtain rts rt where rsub_node[simp]: "rsub = Node rts rt"
         using assms Cons height_Leaf Suc by (cases rsub) simp
       then have
         "set_up_i (node_i k (mts@(mt,sep)#rts) rt) = set_btree (Node (mts@(mt,sep)#rts) rt)"
         using node_i_set by (simp del: node_i.simps)
-      then show ?thesis 
-        by (cases "node_i k (mts@(mt,sep)#rts) rt")
-           (auto simp add: t_node sub_node set_btree_split False Cons)
+      also have "\<dots> = set_btree sub \<union> set_btree rsub \<union> {sep}"
+        using  sub_node rsub_node by auto
+      finally have set_node_i: "set_up_i (node_i k (mts@(mt,sep)#rts) rt) = set_btree sub \<union> set_btree rsub \<union> {sep}"
+        by simp
+
+      have "sorted_alt (Node (mts@(mt,sep)#rts) rt)" unfolding sorted_alt.simps
+        using assms(3) sub_node Cons
+      proof (safe)
+        show "sorted_wrt sub_sep_sm (mts @ (mt, sep) # rts)"
+          unfolding sorted_wrt_split
+        proof(safe)
+          show "sorted_wrt sub_sep_sm mts" "sorted_wrt sub_sep_sm rts"
+            using assms sub_node assms(3) local.Cons by auto
+        next
+          fix a b assume "(a, b) \<in> set mts"
+          then show "sub_sep_sm (a, b) (mt, sep)"
+            using subtree_in_subtrees 
+            by (metis (no_types) Un_iff assms(3) list.set_intros(1) seperators_in_set set_append some_child_sub(2) sorted_alt.simps(2) sub_node sub_sep_cons.simps sub_sep_sm.simps subsetD)
+        next
+          fix a b assume "(a, b) \<in> set rts"
+          then have "sep < b"
+            using assms sub_sorted_lr(3)
+            by (metis list.set_intros(1) local.Cons r_split rsub_node seperators_in_set some_child_sub(1) some_child_sub(2) sorted_wrt_sorted_left subsetD)
+          moreover have "\<forall>y \<in> set_btree a. sep < y"
+            using assms sub_sorted_lr(3)
+            by (metis \<open>(a, b) \<in> set rts\<close> list.set_intros(1) local.Cons r_split rsub_node sorted_r_forall sub_sep_sm.simps subtree_sub_sm(2))
+          ultimately show "sub_sep_sm (mt, sep) (a, b)"
+            by simp
+        qed
+      next
+        fix a b assume "(a, b) \<in> set (mts @ (mt, sep) # rts)"
+        show "sub_sep_cons (a,b)"
+          by (metis (no_types, lifting) Cons_eq_appendI UnE UnI2 \<open>(a, b) \<in> set (mts @ (mt, sep) # rts)\<close> assms(3) in_set_conv_decomp_first list.set_intros(1) local.Cons r_split rsub_node set_ConsD set_append set_btree_split(2) sorted_alt.simps(2) sub_node sub_sep_cons.simps subtree_in_subtrees)
+      next
+        fix x assume "x \<in> set_btree rt"
+        then have x_in_t: "x \<in> set_btree rsub" by simp
+        fix sepa assume "sepa \<in> set (seperators (mts @ (mt, sep) # rts))"
+        then have "sepa \<in> set (seperators mts) \<or> sepa = sep \<or> sepa \<in> set (seperators rts)"
+          using set_seperators_split by auto
+        then show "sepa < x" using x_in_t
+          apply (elim disjE)
+            apply (metis Un_iff assms(3) dual_order.strict_trans list.set_intros(1) local.Cons r_split seperators_in_set set_append some_child_sub(1) sorted_alt.simps(2) sorted_wrt_append sorted_wrt_sorted_left sub_node sub_sep_cons.simps subsetD)
+            using \<open>x \<in> set_btree rt\<close> assms(3)  sub_sorted_lr(3)  local.Cons by auto
+      qed auto
+      then have
+        sorted_node_i: "sorted_up_i (node_i k (mts@(mt,sep)#rts) rt)"
+        using node_i_sorted by blast
+      then show ?thesis
+      proof(cases "node_i k (mts@(mt,sep)#rts) rt")
+        case (T_i u)
+        have "sorted_alt (Node (ls@(u,rsep)#rs) t)"
+          unfolding sorted_alt.simps
+        proof (safe)
+          show "sorted_wrt sub_sep_sm (ls @ (u, rsep) # rs)"
+            unfolding sorted_wrt_split
+          proof (safe)
+            fix a b assume "(a,b) \<in> set ls"
+            then show "sub_sep_sm (a, b) (u, rsep)"
+              unfolding sub_sep_sm.simps
+              apply (safe)
+              apply (metis (no_types, lifting) \<open>(a, b) \<in> set ls\<close> assms(3) local.Cons r_split sorted_alt_sorted sorted_inorder_subsepsm sorted_wrt_split2 sub_sep_sm.simps sub_sep_sm_trans)
+              apply (metis (no_types, lifting) T_i UnE \<open>(a, b) \<in> set ls\<close> set_node_i assms(3) less_trans local.Cons r_split set_up_i.simps(1) singletonD sorted_alt_sorted sorted_inorder_subsepsm sorted_wrt_split2 sub_sep_sm.simps)
+             done
+           next
+             fix a b assume "(a,b) \<in> set rs"
+             then show "sub_sep_sm (u, rsep) (a, b)"
+               using local.Cons sub_sorted_lr(3) by auto
+           next
+             show "sorted_wrt sub_sep_sm ls" "sorted_wrt sub_sep_sm rs"
+               using sub_sorted_lr Cons by auto
+           qed
+         next
+           fix a b assume "(a, b) \<in> set (ls @ (u, rsep) # rs)"
+           then have "(a,b) \<in> set ls \<or> (a,b) \<in> set rs \<or> (a,b) = (u,rsep)"
+             by auto
+           then show "sub_sep_cons (a,b)"
+            using local.Cons sub_sorted_lr proof(elim disjE)
+            assume "(a,b) = (u,rsep)"
+            show "sub_sep_cons (a,b)"
+              unfolding sub_sep_cons.simps
+            proof
+              have "\<forall>x \<in> set_btree sub. x < sep" using assms by auto
+              fix x assume "x \<in> set_btree a"
+              then have "x \<in> set_btree rsub \<or> x = sep \<or> x \<in> set_btree sub"
+                using \<open>(a,b) = (u,rsep)\<close> T_i set_node_i by auto
+              then show "x < b"           
+                using sub_sorted_lr Cons \<open>\<forall>x \<in> set_btree sub. x < sep\<close> 
+                \<open>(a, b) = (u, rsep)\<close> assms(3) local.Cons sorted_wrt_split2 by auto
+            qed
+          qed auto
+        next
+          show "\<And>sep x. sep \<in> set (seperators (ls @ (u, rsep) # rs)) \<Longrightarrow> x \<in> set_btree t \<Longrightarrow> sep < x"
+            using  assms Cons by auto (* this is slow *)
+          show "\<And>x. x \<in> set (subtrees (ls @ (u, rsep) # rs)) \<Longrightarrow> sorted_alt x"
+            using assms Cons sorted_node_i T_i by auto (* this is slow *)
+          show "sorted_alt t" using assms by auto
+        qed
+        then show ?thesis
+          using t_node T_i Cons sub_node False
+          by (auto simp del: sorted_alt.simps node_i.simps)
+      next
+        case (Up_i x21 x22 x23)
+        then show ?thesis sorry
+      qed
     qed
-  qed (simp add: t_node sub_node assms)
+  qed simp
 qed
 
 lemma reduce_root_order: "\<lbrakk>k > 0; almost_order k t\<rbrakk> \<Longrightarrow> root_order k (reduce_root t)"

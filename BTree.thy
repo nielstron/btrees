@@ -149,8 +149,14 @@ lemma some_child_sub:
 (* idea: we show that if any element is in the set_btree_inorder of a tree, then it must be in the list or in the subtree given by btree_list_choose,
 show the latter by case distinction on the compare of btree_list *)
 
-lemma set_btree_induct: "x \<in> set_btree (Node ts t) \<Longrightarrow> x \<in> set (seperators ts) \<or> (\<exists>sub \<in> set (subtrees ts). x \<in> set_btree sub) \<or> x \<in> set_btree t"
+lemma set_btree_list_induct: "x \<in> set_btree_list ts = (x \<in> set (seperators ts) \<or> (\<exists>sub \<in> set (subtrees ts). x \<in> set_btree sub))"
   by (induction ts) auto
+
+lemma set_btree_induct: "x \<in> set_btree (Node ts t) = (x \<in> set (seperators ts) \<or> (\<exists>sub \<in> set (subtrees ts). x \<in> set_btree sub) \<or> x \<in> set_btree t)"
+  by (induction ts) auto
+
+
+
 
 
 lemma seperators_in_set: "set (seperators ts) \<subseteq> set_btree (Node ts t)"

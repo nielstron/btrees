@@ -428,5 +428,71 @@ qed auto
 lemma sorted_alt_eq: "sorted (inorder t) = sorted_alt t"
   using sorted_alt_sorted sorted_sorted_alt by blast
 
+(* TODO textbook proof about size of a tree = number of nodes *)
+
+find_theorems sum_list
+thm Ex_list_of_length
+thm map_replicate_const
+thm length_map
+
+lemma sum_list_replicate: "sum_list (replicate n c) = n*c"
+  apply(induction n)
+   apply(auto)
+  done
+
+(* we want a different counting method,
+  namely only the number of nodes in a tree *)
+fun size_btree::"'a btree \<Rightarrow> nat" where
+"size_btree Leaf = 0" |
+"size_btree (Node ts t) = sum_list (map size_btree (subtrees ts)) + (size_btree t) + 1"
+
+find_theorems "height Leaf"
+
+(* maximum number of nodes *)
+fun full_tree::"nat \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a btree" where
+"full_tree k c 0 = Leaf"|
+"full_tree k c (Suc n) = (Node (replicate (2*k) ((full_tree k c n),c)) (full_tree k c n))"
+
+value "size_btree (full_tree 1 (1::nat) 1)"
+value "map size_btree (map (full_tree 2 (1::nat)) [0,1,2,3,4])"
+value "map (\<lambda>x. ((5::nat)^(x)-1) div 4) [0,1,2,3,4]"
+
+lemma "\<lbrakk>k > 0; order k t; bal t\<rbrakk> \<Longrightarrow> size_btree t \<le> ((2*k+1)^(height t) - 1) div 2*k"
+proof(induction t rule: size_btree.induct)
+  case (2 ts t)
+  then have "sum_list (map size_btree (subtrees ts)) \<le> sum_list (map (\<lambda>x.((2*k+1)^(height t)-1) div 2*k) (subtrees ts))"
+    by (simp add: sum_list_mono)
+  also have "\<dots> = sum_list (replicate (length ts) (((2*k+1)^(height t)-1) div 2*k))"
+    using map_replicate_const[of "((2*k+1)^(height t)-1) div 2*k" "subtrees ts"] length_map
+    by simp
+  also have "\<dots> \<le> (2*k)*(((2*k+1)^(height t)-1) div 2*k)"
+    using sum_list_replicate "2.prems"(2) by simp
+  also have "\<dots> = ((2*k+1)^(height t)-1)"
+    sorry
+  also have "\<dots> = 2*k * (2*k+1)^(height t) - 2*k"
+    by (simp add: right_diff_distrib')
+  finally have "sum_list (map size_btree (subtrees ts)) \<le> (2*k)*((2*k+1)^(height t)) - 2*k"
+    by simp
+  moreover have "size_btree t \<le> (2*k+1)^(height t) - 1"
+    using 2 by simp
+  ultimately have "size_btree (Node ts t) \<le> (2*k)*((2*k+1)^(height t)) - 2*k + ((2*k+1)^(height t) - 1) + 1"
+    unfolding size_btree.simps
+    by linarith
+  also have "\<dots>  \<le> (2*k)*((2*k+1)^(height t)) + ((2*k+1)^(height t) - 1) + 1 - 2*k"
+  proof -
+    have "(2*k)*((2*k+1)^(height t)) \<ge> 2*k" by simp
+    then show ?thesis using Nat.add_diff_assoc by linarith
+  qed
+  also have "\<dots> = (2*k+1)^(height t + 1) - 2*k"
+    by simp
+  also have "\<dots> < (2*k+1)^(height t + 1) - 1"
+    using "2.prems"(1) 
+    using \<open>2 * k * (2 * k + 1) ^ height t + ((2 * k + 1) ^ height t - 1) + 1 - 2 * k = (2 * k + 1) ^ (height t + 1) - 2 * k\<close> \<open>2 * k * (2 * k + 1) ^ height t - 2 * k + ((2 * k + 1) ^ height t - 1) + 1 \<le> 2 * k * (2 * k + 1) ^ height t + ((2 * k + 1) ^ height t - 1) + 1 - 2 * k\<close> by linarith
+  finally show ?case using height_bal_tree "2.prems"(3)
+    by fastforce
+qed simp
+
+
+(* maximum number of nodes *)
 
 end

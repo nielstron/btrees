@@ -30,7 +30,7 @@ lemma [termination_simp]:"(x, (a, b) # x22) = split_fun t y \<Longrightarrow>
 
 subsection "isin Function"
 
-fun isin:: "('a::linorder) btree \<Rightarrow> 'a \<Rightarrow> bool" where
+fun isin:: "'a btree \<Rightarrow> 'a \<Rightarrow> bool" where
  "isin (Leaf) y = False" |
  "isin (Node t l) y = (case split_fun t y of (_,r) \<Rightarrow> (case r of (sub,sep)#_ \<Rightarrow> (if y = sep then True else isin sub y) | [] \<Rightarrow> isin l y))"
 
@@ -207,7 +207,7 @@ else (
 )"
 
 
-fun ins where
+fun ins:: "nat \<Rightarrow> 'a \<Rightarrow> 'a btree \<Rightarrow> 'a up_i" where
 "ins k x Leaf = (Up_i Leaf x Leaf)" |
 "ins k x (Node ts t) = (case split_fun ts x of
  (ls,(sub,sep)#rs) \<Rightarrow> 
@@ -226,11 +226,11 @@ fun ins where
 )"
 
 
-fun tree_i where
+fun tree_i::"'a up_i \<Rightarrow> 'a btree" where
 "tree_i (T_i sub) = sub" |
 "tree_i (Up_i l a r) = (Node [(l,a)] r)"
 
-fun insert where
+fun insert::"nat \<Rightarrow> 'a \<Rightarrow> 'a btree \<Rightarrow> 'a btree" where
   "insert k x t = tree_i (ins k x t)"
 
 (* proofs *)
@@ -2861,9 +2861,20 @@ lemma linear_split_req:
   and "(case r of [] \<Rightarrow> True | ((psub, psep)#rs) \<Rightarrow> (p \<le> psep \<and> (\<forall>sep \<in> set (seperators rs). p < sep)))"
   using assms linear_split_sm linear_split_gr by fastforce+
 
+definition "linear_insert = split_fun.insert linear_split"
+
 interpretation btree_linear_search: split_fun "linear_split"
   by (simp add: linear_split_req linear_split_append split_fun_def)
 
+(* TODO some examples to show that the implementation works and lemmas make sense *)
+
+lemmas [code] = btree_linear_search.insert
+
+value "Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf"
+value "root_order 10 (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"
+value "bal (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"
+thm btree_linear_search.insert.simps
+value "btree_linear_search.insert 5 10 (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"
 
 
 end

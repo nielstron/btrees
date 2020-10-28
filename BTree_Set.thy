@@ -14,15 +14,15 @@ datatype 'a up_i = T_i "'a btree" | Up_i "'a btree" 'a "'a btree"
 locale split_fun =
   fixes split_fun ::  "(('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> (('a btree\<times>'a) list \<times> ('a btree\<times>'a) list)"
   (* fixes a number of comparisons done by split_fun, we assume it does neither fetch nor write pages *)
-  fixes t_split_fun ::  "(('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> nat"
+  (*fixes t_split_fun ::  "(('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> nat"*)
   (* and a worst case runtime of t_split_fun on a list of length n *)
-  fixes t_split_fun_wc :: "nat \<Rightarrow> nat"
+  (*fixes t_split_fun_wc :: "nat \<Rightarrow> nat"*)
   (* idea: our only requirement for split_fun are the following two + the append requirement*)
   assumes split_fun_req:
    "\<lbrakk>split_fun xs p = (ls,rs)\<rbrakk> \<Longrightarrow> ls @ rs = xs"
    "\<lbrakk>split_fun xs p = (ls,rs); sorted (seperators xs)\<rbrakk> \<Longrightarrow> \<forall>sep \<in> set (seperators ls). p > sep"
    "\<lbrakk>split_fun xs p = (ls,rs); sorted (seperators xs)\<rbrakk> \<Longrightarrow> (case rs of [] \<Rightarrow> True | ((psub, psep)#rs) \<Rightarrow> (p \<le> psep \<and> (\<forall>sep \<in> set (seperators rs). p < sep)))"
-   assumes t_split_fun_req: "length ts \<le> n \<Longrightarrow> t_split_fun ts x \<le> t_split_fun_wc n"
+  (*assumes t_split_fun_req: "length ts \<le> n \<Longrightarrow> t_split_fun ts x \<le> t_split_fun_wc n"*)
 begin
 
 
@@ -55,14 +55,10 @@ fun isin:: "'a btree \<Rightarrow> 'a \<Rightarrow> bool" where
  "isin (Leaf) y = False" |
  "isin (Node ts t) y = (case split_fun ts y of (_,r) \<Rightarrow> (case r of (sub,sep)#_ \<Rightarrow> (if y = sep then True else isin sub y) | [] \<Rightarrow> isin t y))"
 
-fun t_isin:: "'a btree \<Rightarrow> 'a \<Rightarrow> nat" where
- "t_isin (Leaf) y = 0" |
- "t_isin (Node ts t) y = t_split_fun ts y + 1 + (case split_fun ts y of (_,r) \<Rightarrow> (case r of (sub,sep)#_ \<Rightarrow> 1 + (if y = sep then 0 else t_isin sub y) | [] \<Rightarrow> t_isin t y))"
-
 (* proofs *)
 (* showing that isin implies the set containment is easy *)
 
-lemma isin_implied_in_set: "isin n x \<Longrightarrow> x \<in> set_btree n"
+lemma isin_impl_set: "isin n x \<Longrightarrow> x \<in> set_btree n"
 proof(induction n x rule: isin.induct)
   case (2 ts t x)
   then obtain ls rs where list_split[simp]: "split_fun ts x = (ls,rs)" by auto
@@ -183,7 +179,7 @@ proof (cases rs)
 qed simp
   
 
-lemma isin_set: "sorted_alt t \<Longrightarrow> x \<in> set_btree t \<Longrightarrow> isin t x"
+lemma set_impl_isin: "sorted_alt t \<Longrightarrow> x \<in> set_btree t \<Longrightarrow> isin t x"
 proof (induction t x rule: isin.induct)
   case (2 ts t x)
   obtain ls rs where list_split: "split_fun ts x = (ls,rs)"
@@ -223,14 +219,22 @@ proof (induction t x rule: isin.induct)
   qed
 qed auto
 
-lemma "sorted_alt t \<Longrightarrow> isin t y = (y \<in> set_btree t)"
-  using isin_set isin_implied_in_set
+lemma isin_set: "sorted_alt t \<Longrightarrow> isin t y = (y \<in> set_btree t)"
+  using isin_impl_set set_impl_isin
   by fastforce
 
 (* TODO time proof *)
 
+(*
+fun t_isin:: "'a btree \<Rightarrow> 'a \<Rightarrow> nat" where
+ "t_isin (Leaf) y = 0" |
+ "t_isin (Node ts t) y = t_split_fun ts y + 1 + (case split_fun ts y of (_,r) \<Rightarrow> (case r of (sub,sep)#_ \<Rightarrow> 1 + (if y = sep then 0 else t_isin sub y) | [] \<Rightarrow> t_isin t y))"
+
+
 lemma "\<lbrakk>k > 0; order k t; bal t\<rbrakk> \<Longrightarrow> t_isin t x \<le> (height t)*(2+(t_split_fun_wc (2*k)))"
   oops
+*)
+
 
 subsection "insert Function"
 
@@ -319,9 +323,6 @@ lemma drop_not_empty: "xs \<noteq> [] \<Longrightarrow> drop (length xs div 2) x
 lemma split_half_not_empty: "length xs \<ge> 1 \<Longrightarrow> \<exists>ls sub sep rs. split_half xs = (ls,(sub,sep)#rs)"
   using drop_not_empty
   by (metis (no_types, hide_lams) drop0 drop_eq_Nil eq_snd_iff hd_Cons_tl le_trans not_one_le_zero split_half.simps)
-
-lemma split_half_append_id: "split_half xs = (ls,rs) \<Longrightarrow> xs = ls@rs"
-  by auto
 
 
 lemma in_subtrees_drop: "set (subtrees (drop n xs)) \<subseteq> set (subtrees xs)"
@@ -946,11 +947,6 @@ lemma sorted_wrt_split: "sorted_wrt sub_sep_sm (l@(a,(b::('a::linorder)))#r) =
   using sorted_wrt_append by fastforce
 
 
-lemma sorted_r_indep: "sorted_wrt sub_sep_sm ((a,b)#rs) \<Longrightarrow> sorted_wrt sub_sep_sm ((x,b)#rs)"
-  apply(cases rs)
-   apply(auto)
-  done
-
 
 lemma sorted_r_forall: "sorted_wrt P (a#rs) \<Longrightarrow> \<forall>y \<in> set rs. P a y"
   by simp
@@ -1403,11 +1399,6 @@ fun almost_order where
    order k t
 )"
 
-
-lemma root_order_up_impl_almost_order: "\<lbrakk>k > 0; root_order k t\<rbrakk> \<Longrightarrow> almost_order k t"
-  apply(cases t)
-   apply(auto)
-  done
 
 lemma rebalance_middle_tree_height:
   assumes "height t = height sub"
@@ -2937,6 +2928,11 @@ lemma delete_sorted: "\<lbrakk>k > 0; bal t; root_order k t; sorted_alt t\<rbrak
   using del_sorted
   by (simp add: reduce_root_sorted)
 
+(* preparation for set specification *)
+
+fun invar where "invar k t = (bal t \<and> root_order k t \<and> sorted_alt t)"
+
+definition "empty_btree = Leaf"
 
 (* TODO runtime wrt runtime of split_fun *)
 
@@ -2949,9 +2945,47 @@ for split fun is 0 *)
  height \<Rightarrow> interesting *)
 
 (* TODO simpler induction schemes /less boilerplate isabelle/src/HOL/ex/Induction_Schema *)
-
+unused_thms
 end
 
+
+
+locale Impl = split_fun + 
+fixes k :: nat
+assumes k: "k > 0"
+begin 
+
+(* Set spec *)
+
+interpretation S: Set
+where empty = empty_btree and isin = isin and insert = "insert k" and delete = "delete k"
+and set = set_btree and invar = "invar k"
+proof (standard, goal_cases)
+  case (2 s x)
+  then show ?case
+    by (simp add: isin_set)
+next
+  case (3 s x)
+  then show ?case using insert_set
+    by simp
+next
+  case (4 s x)
+  then show ?case using delete_set k
+    by auto
+next
+  case (6 s x)
+  then show ?case using insert_order insert_sorted insert_bal k
+    by auto
+next
+  case (7 s x)
+  then show ?case using delete_order delete_sorted delete_bal k
+    by auto
+qed (simp add: empty_btree_def)+
+
+
+thm S.set_specs
+
+end
 
 
 (*TODO: at some point this better be replaced with something binary search like *)
@@ -3020,8 +3054,12 @@ lemma linear_split_req:
 
 definition "linear_insert = insert linear_split"
 
-interpretation btree_linear_search: split_fun "linear_split"
+interpretation btree_linear_search: split_fun linear_split
   by (simp add: linear_split_req linear_split_append split_fun_def)
+
+interpretation btree_linear_search_set: Impl linear_split 5
+  by (simp add: Impl.intro btree_linear_search.split_fun_axioms Impl_axioms.intro)
+
 
 (* TODO some examples to show that the implementation works and lemmas make sense *)
 find_theorems sorted_wrt

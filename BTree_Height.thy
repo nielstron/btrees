@@ -2,15 +2,14 @@ theory BTree_Height
   imports BTree Main
 begin
 
-(* TODO textbook proof about size of a tree = number of nodes *)
+section "Maximum and minimum height"
 
-find_theorems sum_list
-thm Ex_list_of_length
-thm map_replicate_const
-thm length_map
+text "Textbooks usually provide some proofs relating the maxmimum and minimum height of the BTree
+for a given number of nodes. We therefore introduce this counting and show the respective proofs."
 
-thm ring_class.ring_distribs
 
+text "The default size function does not suit our needs in this case.
+ We would like to count the number of nodes in the tree only, not regarding the number of keys."
 
 (* we want a different counting method,
   namely only the number of nodes in a tree *)
@@ -21,14 +20,8 @@ fun size_btree::"'a btree \<Rightarrow> nat" where
 find_theorems "height Leaf"
 
 (* maximum number of nodes for given height *)
+subsection "Maximum number of nodes for a given height"
 
-fun full_tree::"nat \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a btree" where
-"full_tree k c 0 = Leaf"|
-"full_tree k c (Suc n) = (Node (replicate (2*k) ((full_tree k c n),c)) (full_tree k c n))"
-
-value "size_btree (full_tree 1 (1::nat) 1)"
-value "map size_btree (map (full_tree 2 (1::nat)) [0,1,2,3,4])"
-value "map (\<lambda>x. ((5::nat)^(x)-1) div 4) [0,1,2,3,4]"
 
 lemma sum_list_replicate: "sum_list (replicate n c) = n*c"
 apply(induction n)
@@ -41,12 +34,8 @@ lemma sum_list_distrib: "sum_list (map f xs) * (c::nat) = sum_list (map (\<lambd
   done
 
 
-thm distrib_right
-lemma "a \<ge> b \<Longrightarrow> (a::nat) - (b::nat) + (c::nat) = a + c - b"
-
-
-
-lemma size_height_upper_bound: "\<lbrakk>k > 0; order k t; bal t\<rbrakk> \<Longrightarrow> size_btree t * (2*k) \<le> (2*k+1)^(height t) - 1"
+lemma size_height_upper_bound: 
+  "\<lbrakk>order k t; bal t\<rbrakk> \<Longrightarrow> size_btree t * (2*k) \<le> (2*k+1)^(height t) - 1"
 proof(induction t rule: size_btree.induct)
   case (2 ts t)
   let ?sub_height = "((2 * k + 1) ^ height t - 1)"
@@ -60,10 +49,10 @@ proof(induction t rule: size_btree.induct)
   also have "\<dots> = (length ts)*(?sub_height)"
     using sum_list_replicate by simp
   also have "\<dots> \<le> (2*k)*(?sub_height)"
-    using "2.prems"(2)
+    using "2.prems"(1)
     by simp
   finally have "sum_list (map size_btree (subtrees ts))*(2*k) \<le> ?sub_height*(2*k)"
-    by (simp add: "2.prems"(1))
+    by simp
   moreover have "(size_btree t)*(2*k) \<le> ?sub_height"
     using 2 by simp
   ultimately have "(size_btree (Node ts t))*(2*k) \<le> 
@@ -79,26 +68,29 @@ proof(induction t rule: size_btree.induct)
   also have "\<dots> = (2*k+1)^(Suc(height t)) - 1"
     by simp
   finally show ?case
-    by (metis "2.prems"(3) height_bal_tree)
+    by (metis "2.prems"(2) height_bal_tree)
 qed simp
 
+text "To verify our lower bound is sharp, we compare it to the height of artificially constructed
+full trees."
+
+fun full_tree::"nat \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a btree" where
+"full_tree k c 0 = Leaf"|
+"full_tree k c (Suc n) = (Node (replicate (2*k) ((full_tree k c n),c)) (full_tree k c n))"
+
+value "let k = (2::nat) in map (\<lambda>x. size_btree x * 2*k) (map (full_tree k (1::nat)) [0,1,2,3,4])"
+value "let k = (2::nat) in map (\<lambda>x. ((2*k+(1::nat))^(x)-1)) [0,1,2,3,4]"
+
 (* maximum number of nodes *)
+subsection "Maximum height for a given number of nodes"
 
-fun slim_tree::"nat \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a btree" where
-"slim_tree k c 0 = Leaf"|
-"slim_tree k c (Suc n) = (Node (replicate k ((slim_tree k c n),c)) (slim_tree k c n))"
-
-value "size_btree (slim_tree 1 (1::nat) 1)"
-value "map size_btree (map (slim_tree 2 (1::nat)) [0,1,2,3,4])"
-value "map (\<lambda>x. ((3::nat)^(x)-1) div 2) [0,1,2,3,4]"
-
-lemma size_height_lower_bound: "\<lbrakk>k > 0; order k t; bal t\<rbrakk> \<Longrightarrow> ((k+1)^(height t) - 1) \<le> size_btree t * k"
+lemma size_height_lower_bound: 
+  "\<lbrakk>order k t; bal t\<rbrakk> \<Longrightarrow> ((k+1)^(height t) - 1) \<le> size_btree t * k"
 proof(induction t rule: size_btree.induct)
   case (2 ts t)
-case (2 ts t)
   let ?sub_height = "((k + 1) ^ height t - 1)"
   have "k*(?sub_height) \<le> (length ts)*(?sub_height)"
-    using "2.prems"(2)
+    using "2.prems"(1)
     by simp
   also have "\<dots> = sum_list (replicate (length ts) ?sub_height)"
     using sum_list_replicate by simp
@@ -110,7 +102,7 @@ case (2 ts t)
   also have "\<dots> = sum_list (map size_btree (subtrees ts)) * k"
     using sum_list_distrib[of size_btree "subtrees ts" k] by simp
   finally have "sum_list (map size_btree (subtrees ts))*k \<ge> ?sub_height*k"
-    by (simp add: "2.prems"(1))
+    by simp
   moreover have "(size_btree t)*k \<ge> ?sub_height"
     using 2 by simp
   ultimately have "(size_btree (Node ts t))*k \<ge> 
@@ -128,7 +120,19 @@ case (2 ts t)
   also have "\<dots> = (k+1)^(Suc(height t)) - 1"
     by simp
   finally show ?case
-    by (metis "2.prems"(3) height_bal_tree)
+    by (metis "2.prems"(2) height_bal_tree)
 qed simp
+
+(* TODO results for root_order/bal *)
+
+text "To verify our upper bound is sharp, we compare it to the height of artificially constructed
+minimally filled (=slim) trees."
+
+fun slim_tree::"nat \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a btree" where
+"slim_tree k c 0 = Leaf"|
+"slim_tree k c (Suc n) = (Node (replicate k ((slim_tree k c n),c)) (slim_tree k c n))"
+
+value "let k = (2::nat) in map (\<lambda>x. size_btree x * k) (map (slim_tree k (1::nat)) [0,1,2,3,4])"
+value "let k = (2::nat) in map (\<lambda>x. ((k+1::nat)^(x)-1)) [0,1,2,3,4]"
 
 end

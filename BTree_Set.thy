@@ -975,6 +975,7 @@ proof -
     by auto
 qed
 
+find_theorems sorted_wrt
 
 lemma sorted_wrt_split2: "sorted_wrt sub_sep_sm (l@(a,(b::('a::linorder)))#(c,d)#r) =
    (sorted_wrt sub_sep_sm l \<and>
@@ -2690,19 +2691,6 @@ proof -
 qed
 
 
-lemma last_sep_max:
-  assumes "sorted (seperators ts)"
-and "\<forall>x \<in> set ts. sub_sep_cons x"
-and "ts = ls@[(sub,sep)]"
-shows "\<forall>x \<in> set_btree_list ls \<union> set_btree sub. x < sep"
-proof -
-  from assms(1,3) have "\<forall>x \<in> set (seperators ls). x < sep"
-    using sorted_l_forall by fastforce
-  then show ?thesis
-    using sorted_last_tree_max
-    using assms(2) assms(3) by fastforce
-qed
-
 
 lemma split_max_max: "\<lbrakk>split_max k t = (sub,sep); sorted_alt t; nonempty_lasttreebal t; t \<noteq> Leaf\<rbrakk>
 \<Longrightarrow> \<forall>x \<in> set_btree sub. x < sep"
@@ -2934,21 +2922,18 @@ fun invar where "invar k t = (bal t \<and> root_order k t \<and> sorted_alt t)"
 
 definition "empty_btree = Leaf"
 
-(* TODO runtime wrt runtime of split_fun *)
+(* TODO (opt) runtime wrt runtime of split_fun *)
 
 (* we are interested in a) number of comparisons b) number of fetches c) number of writes *)
 (* a) is dependent on t_split_fun, the remainder is not (we assume the number of fetches and writes
 for split fun is 0 *)
 
-(* TODO (opt) proof of max/min filling/height of btree (is this related to ins/del functions at all?)
- filling \<Rightarrow> follows directly from order constraints 
- height \<Rightarrow> interesting *)
 
 (* TODO simpler induction schemes /less boilerplate isabelle/src/HOL/ex/Induction_Schema *)
-unused_thms
+
 end
 
-
+text "We show that BTrees of order k > 0 fulfill the Set specifications."
 
 locale Impl = split_fun + 
 fixes k :: nat
@@ -2982,11 +2967,9 @@ next
     by auto
 qed (simp add: empty_btree_def)+
 
-
-thm S.set_specs
-
 end
 
+text "Finally we show that the split_fun axioms are feasible by providing an example split function"
 
 (*TODO: at some point this better be replaced with something binary search like *)
 fun linear_split_help:: "(('a::linorder) btree\<times>'a) list \<Rightarrow> _ \<Rightarrow> (_ btree\<times>_) list \<Rightarrow>  ((_ btree\<times>_) list \<times> (_ btree\<times>_) list)" where

@@ -938,72 +938,18 @@ qed simp
 
 thm btree.set
 thm sorted_wrt_append
+lemma remove_section_sorted:
+  assumes "sorted_alt (Node (ls@x#rs) t)"
+  shows "sorted_alt (Node (ls@rs) t)"
+  unfolding sorted_alt.simps
+  apply(safe)
+  apply (metis (no_types, lifting) assms list.set_intros(2) sorted_alt.simps(2) sorted_wrt_Cons sorted_wrt_append)
+  apply (metis Un_iff assms list.set_intros(2) set_append sorted_alt.simps(2))
+  using assms by auto
 
-lemma sorted_wrt_split: "sorted_wrt sub_sep_sm (l@(a,(b::('a::linorder)))#r) =
-   (sorted_wrt sub_sep_sm l \<and>
-    sorted_wrt sub_sep_sm r \<and>
-(\<forall>x \<in> set l. sub_sep_sm x (a,b)) \<and>
-(\<forall>x \<in> set r. sub_sep_sm (a,b) x))"
-  using sorted_wrt_append by fastforce
-
-
-
-lemma sorted_r_forall: "sorted_wrt P (a#rs) \<Longrightarrow> \<forall>y \<in> set rs. P a y"
-  by simp
-
-lemma sorted_l_forall: "sorted_wrt P (ls@[a]) \<Longrightarrow> \<forall>y \<in> set ls. P y a"
-  by (simp add: sorted_wrt_append)
-
-
-lemma sub_sep_sm_trans:
- "\<lbrakk>sub_sep_sm (a::(('a::linorder) btree \<times> 'a)) b; sub_sep_sm b c\<rbrakk> \<Longrightarrow> sub_sep_sm a c"
-proof -
-  assume assms: "sub_sep_sm a b" "sub_sep_sm b c"
-  obtain suba sepa where "a = (suba,sepa)" by (cases a)
-  obtain subb sepb where "b = (subb,sepb)" by (cases b)
-  obtain subc sepc where "c = (subc,sepc)" by (cases c)
-  from assms have "sepa < sepb"
-    by (simp add: \<open>a = (suba, sepa)\<close> \<open>b = (subb, sepb)\<close>)
-  also have "\<dots> < sepc"
-    using \<open>b = (subb, sepb)\<close> \<open>c = (subc, sepc)\<close> assms(2)
-    by auto
-  moreover have "\<forall>x \<in> set_btree subc. sepa < x"
-    using \<open>b = (subb, sepb)\<close> \<open>c = (subc, sepc)\<close> assms(2) calculation(1)
-    by auto
-  ultimately show "sub_sep_sm a c" 
-    using \<open>a = (suba, sepa)\<close> \<open>c = (subc, sepc)\<close>
-    by auto
-qed
-
-find_theorems sorted_wrt
-
-lemma sorted_wrt_split2: "sorted_wrt sub_sep_sm (l@(a,(b::('a::linorder)))#(c,d)#r) =
-   (sorted_wrt sub_sep_sm l \<and>
-    sorted_wrt sub_sep_sm r \<and>
-(\<forall>x \<in> set l. sub_sep_sm x (a,b)) \<and>
-(\<forall>x \<in> set r. sub_sep_sm (c,d) x) \<and>
-sub_sep_sm (a,b) (c,d))"
-proof -
-  have "sorted_wrt sub_sep_sm (l@(a,(b::('a::linorder)))#(c,d)#r) =
-    (sorted_wrt sub_sep_sm l \<and> sorted_wrt sub_sep_sm ((a,b)#(c,d)#r) \<and> (\<forall>x \<in> set l. \<forall>y \<in> set ((a,b)#(c,d)#r). sub_sep_sm x y))"
-    using sorted_wrt_append by blast
-  also have "\<dots> = (sorted_wrt sub_sep_sm l \<and> sorted_wrt sub_sep_sm r \<and> sorted_wrt sub_sep_sm ((a,b)#[(c,d)]) \<and> (\<forall>x \<in> set r. sub_sep_sm (a,b) x \<and> sub_sep_sm (c,d) x) \<and> (\<forall>x \<in> set l. \<forall>y \<in> set ((a,b)#(c,d)#r). sub_sep_sm x y))"
-    using sorted_wrt_append by auto
-  also have "\<dots> = (sorted_wrt sub_sep_sm l \<and> sorted_wrt sub_sep_sm r \<and> sub_sep_sm (a,b) (c,d) \<and> (\<forall>x \<in> set r. sub_sep_sm (a,b) x \<and> sub_sep_sm (c,d) x) \<and> (\<forall>x \<in> set l. sub_sep_sm x (a,b) \<and> sub_sep_sm x (c,d) \<and> (\<forall>y \<in> set r. sub_sep_sm x y)))"
-    by auto
-  also have "\<dots> = (
-    sorted_wrt sub_sep_sm l \<and>
-    sorted_wrt sub_sep_sm r \<and>
-    (\<forall>x \<in> set l. sub_sep_sm x (a,b)) \<and>
-    (\<forall>x \<in> set r. sub_sep_sm (c,d) x) \<and>
-    sub_sep_sm (a,b) (c,d)
-  )"
-    using sub_sep_sm_trans by blast
-  finally show ?thesis by simp
-qed
 
 (* sorted of ins *)
-lemma ins_sorted: "sorted_alt t \<Longrightarrow> sorted_up_i (ins k x t)"
+lemma ins_sorted: "sorted_alt t \<Longrightarrow> sorted_up_i (ins k (x::('a::linorder)) t)"
 proof (induction k x t rule: ins.induct)
   case (2 k x ts t)
   then obtain ls rs where list_split: "split_fun ts x = (ls,rs)"
@@ -1145,8 +1091,9 @@ proof (induction k x t rule: ins.induct)
               by auto
            qed
          then show "sorted_wrt sub_sep_sm (ls@(a,sep)#list)"
-           using sorted_wrt_split sub_lists_sorted(1) sub_lists_sorted(2)
-           by auto
+           unfolding sorted_wrt_split
+           using sorted_wrt_split sub_lists_sorted
+           by fastforce
         next
           fix suby sepy
           assume assms: "(suby, sepy) \<in> set (ls @ (a, sep) # list)"
@@ -1262,7 +1209,8 @@ proof (induction k x t rule: ins.induct)
             using sorted_r_forall sub_lists_sorted(2)
             by auto
           ultimately show "sorted_wrt sub_sep_sm (ls @ (l, a) # (r, sep) # list)"
-            using sorted_wrt_split2 sorted_wrt_append sub_lists_sorted(1) sub_lists_sorted(2)
+            unfolding sorted_wrt_split2
+            using sorted_wrt_append sub_lists_sorted(1) sub_lists_sorted(2)
             by fastforce
         qed
         then show ?thesis using 2 a_split list_split Cons False Up_i
@@ -2306,7 +2254,10 @@ next
     "\<forall>x \<in> set ls. sub_sep_cons x"
     "\<forall>x \<in> set rs. sub_sep_cons x"
     "sub_sep_cons (sub,sep)"
-    using assms(3) sorted_wrt_split by auto
+    using assms(3) sorted_wrt_split
+    unfolding sorted_alt.simps
+    unfolding sorted_wrt_split
+    by auto
   then show ?thesis
   using assms t_node sub_node proof (cases "length mts \<ge> k \<and> length tts \<ge> k")
     case False
@@ -2728,45 +2679,6 @@ proof (induction k t arbitrary: sub sep rule: split_max.induct)
   qed
 qed simp
 
-lemma remove_section_sorted:
-  assumes "sorted_alt (Node (ls@x#rs) t)"
-  shows "sorted_alt (Node (ls@rs) t)"
-  unfolding sorted_alt.simps
-  apply(safe)
-  apply (metis (no_types, lifting) assms list.set_intros(2) sorted_alt.simps(2) sorted_wrt_Cons sorted_wrt_append)
-  apply (metis Un_iff assms list.set_intros(2) set_append sorted_alt.simps(2))
-  using assms by auto
-
-lemma replace_subtree_sorted_wrt:
-  assumes "sorted_wrt sub_sep_sm (ls@(sub,(sep::'a::linorder))#rs)"
-and "set_btree sub2 \<subseteq> set_btree sub"
-shows "sorted_wrt sub_sep_sm (ls@(sub2,sep)#rs)"
-  using assms sorted_wrt_split by fastforce
-
-lemma replace_subtree_sorted_wrt2:
-  assumes "sorted_wrt sub_sep_sm (ls@(sub,(sep::'a::linorder))#rs)"
-and "set_btree sub2 \<subseteq> set_btree sub"
-and "sep2 \<in> set_btree sub"
-and "sub_sep_cons (sub,sep)"
-shows "sorted_wrt sub_sep_sm (ls@(sub2,sep2)#rs)"
-  unfolding sorted_wrt_split[of ls sub2 sep2 rs]
-  apply(safe)
-  using assms(1) sorted_wrt_split apply blast
-  using assms(1) sorted_wrt_split apply blast
-   apply (metis (mono_tags) assms(1) assms(2) assms(3) in_mono sorted_wrt_split sub_sep_sm.simps)
-  using assms(1) assms(3) assms(4) sorted_wrt_split
-  by fastforce
-
-lemma replace_subtree_sorted:
-  assumes "sorted_alt ((Node (ls@(sub,sep)#rs) t)::('a::linorder) btree)"
-    and "set_btree sub2 \<subseteq> set_btree sub"
-  shows "sorted_alt (Node (ls@(sub2,sep)#rs) t)"
-  unfolding sorted_alt.simps
-  using assms
-  apply(safe)
-  using replace_subtree_sorted_wrt sorted_alt_sorted sorted_inorder_subsepsm apply blast
-  oops (* maybe show cleaning everything up *)
-
 
 lemma del_sorted: "\<lbrakk>k > 0; root_order k t; bal t; sorted_alt t\<rbrakk> \<Longrightarrow> sorted_alt (del k x t)"
 proof (induction k x t rule: del.induct)
@@ -2809,7 +2721,8 @@ proof (induction k x t rule: del.induct)
       ultimately have "sorted_alt (Node (ls@(del k x sub,sep)#rs) t)"
         unfolding sorted_alt.simps
         apply(safe)
-        using replace_subtree_sorted_wrt node_sorted_split apply auto[1]
+        using replace_subtree_sorted_wrt node_sorted_split
+            apply (metis Diff_subset sorted_alt.simps(2))
            apply (metis (no_types, lifting) DiffD1 Un_iff insert_iff list.simps(15) node_sorted_split(1) set_append sorted_alt.simps(2) sub_sep_cons.simps)
           apply (metis node_sorted_split(1) seperators_split sorted_alt.simps(2))
          apply (metis Un_iff insert_iff node_sorted_split(1) sorted_alt.simps(2) subtrees_split)
@@ -3053,6 +2966,7 @@ value "root_order 10 (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"
 value "bal (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"
 thm btree_linear_search.insert.simps
 value "btree_linear_search.insert 5 10 (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"
+
 
 
 end

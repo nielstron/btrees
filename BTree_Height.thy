@@ -39,7 +39,8 @@ lemma size_height_upper_bound:
 proof(induction t rule: size_btree.induct)
   case (2 ts t)
   let ?sub_height = "((2 * k + 1) ^ height t - 1)"
-  have "sum_list (map size_btree (subtrees ts)) * (2*k) = sum_list (map (\<lambda>t. size_btree t * (2 * k)) (subtrees ts))"
+  have "sum_list (map size_btree (subtrees ts)) * (2*k) =
+        sum_list (map (\<lambda>t. size_btree t * (2 * k)) (subtrees ts))"
     using sum_list_distrib[of size_btree "subtrees ts" "2*k"] by simp
   also have "\<dots> \<le> sum_list (map (\<lambda>x.?sub_height) (subtrees ts))"
     using 2 by (simp add: sum_list_mono)
@@ -123,8 +124,6 @@ proof(induction t rule: size_btree.induct)
     by (metis "2.prems"(2) height_bal_tree)
 qed simp
 
-(* TODO results for root_order/bal *)
-
 text "To verify our upper bound is sharp, we compare it to the height of artificially constructed
 minimally filled (=slim) trees."
 
@@ -134,5 +133,49 @@ fun slim_tree::"nat \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a btree" w
 
 value "let k = (2::nat) in map (\<lambda>x. size_btree x * k) (map (slim_tree k (1::nat)) [0,1,2,3,4])"
 value "let k = (2::nat) in map (\<lambda>x. ((k+1::nat)^(x)-1)) [0,1,2,3,4]"
+
+(* TODO results for root_order/bal *)
+text "Since BTrees have special roots, we need to show the overall size seperately"
+
+lemma size_root_height_lower_bound:
+  assumes "root_order k t"
+    and "bal t"
+  shows "2*((k+1)^(height t - 1) - 1) \<le> size_btree t * k"
+proof (cases t)
+case Leaf
+  then show ?thesis by simp
+next
+  case (Node ts t)
+  let ?sub_height = "((k + 1) ^ height t - 1)"
+  from Node have "?sub_height \<le> length ts * ?sub_height"
+    using assms
+    by (simp add: Suc_leI)
+  also have "\<dots> = sum_list (replicate (length ts) ?sub_height)"
+    using sum_list_replicate
+    by simp
+  also have "\<dots> = sum_list (map (\<lambda>x. ?sub_height) (subtrees ts))"
+    using map_replicate_const[of ?sub_height "subtrees ts"] length_map
+    by simp
+  also have "\<dots> \<le> sum_list (map (\<lambda>t. size_btree t * k) (subtrees ts))"
+    using Node
+      sum_list_mono[of "subtrees ts" "\<lambda>x. (k+1)^(height t) - 1" "\<lambda>x. size_btree x * k"]
+      size_height_lower_bound assms
+    by fastforce
+  also have "\<dots> = sum_list (map size_btree (subtrees ts)) * k"
+    using sum_list_distrib[of size_btree "subtrees ts" k] by simp
+  finally have "sum_list (map size_btree (subtrees ts))*k \<ge> ?sub_height"
+    by simp
+  
+  moreover have "(size_btree t)*k \<ge> ?sub_height"
+    using Node assms size_height_lower_bound
+    by auto
+  ultimately have "(size_btree (Node ts t))*k \<ge> 
+        ?sub_height
+        + ?sub_height"
+    unfolding size_btree.simps add_mult_distrib
+    by linarith
+  then show ?thesis
+    using Node assms(2) height_bal_tree by fastforce
+qed
 
 end

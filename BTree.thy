@@ -7,14 +7,7 @@ subsection "General structure and concepts definition"
 
 text "General structure:  nat values in the leafs and nat/tree node internal node list (nat always larger than every element in the corresponding subtree)"
 (* definition heavily based on Tree234_Set, Pair structure from popl10 (malecha)/mtps08*)
-(* TODO should all basic definitions be more abstract and use later refinements for implementations *)
-(* TODO to keep the list as pairs, the type for the btrees may be changed to linorder with TOP
- alternative: sep is the element *smaller* than all all elements in the respective tree - problem: how to descend into the correct subtree?
- *)
 
-
-(* TODO more abstract idea: inside each Btree node is some abstract implementation of a sorted list (i.e. a BST),
-   providing access to a function that returns the element with closest smaller key than a given key*)
 
 datatype 'a btree = Leaf | Node "('a btree * 'a) list" "'a btree"
 
@@ -54,7 +47,7 @@ instance ..
 
 end
 
-lemma height_Leaf: "height (t::_ btree) = 0 \<longleftrightarrow> t = Leaf"
+lemma height_Leaf: "height t = 0 \<longleftrightarrow> t = Leaf"
   by (induction t) (auto)
 
 (* not sure if required but appearently already present for coding equivalence *)
@@ -73,6 +66,7 @@ lemma seperators_split:
 lemma subtrees_split:
   "set (subtrees (l@(a,b)#r)) = set (subtrees l) \<union> set (subtrees r) \<union> {a}"
   by auto
+
 
 
 lemma fold_max_max: "max (a::(_::linorder)) (fold max bs b) = fold max bs (max a b)"
@@ -174,6 +168,7 @@ fun bal:: "'a btree \<Rightarrow> bool" where
 lemma bal_all_subtrees_equal: "bal (Node ts t) \<Longrightarrow> (\<forall>s1 \<in> set (subtrees ts). \<forall>s2 \<in> set (subtrees ts). height s1 = height s2)"
   by (metis BTree.bal.simps(2))
 
+
 find_theorems fold max
 
 lemma fold_max_set: "\<forall>x \<in> set t. x = f \<Longrightarrow> fold max t f = f"
@@ -184,8 +179,6 @@ lemma fold_max_set: "\<forall>x \<in> set t. x = f \<Longrightarrow> fold max t 
 lemma height_bal_tree: "bal (Node ts t) \<Longrightarrow> height (Node ts t) = Suc (height t)"
   by (simp add: fold_max_set)
 
-lemma subtrees_set: "set (subtrees (ls@a#rs)) = set (subtrees ls) \<union> set (subtrees rs) \<union> {fst a}"
-  by auto
 
 lemma bal_split: "bal (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> bal (Node (ls@rs) t)"
 proof -
@@ -195,17 +188,47 @@ proof -
     "\<forall>sub \<in> set (subtrees (ls@(sub,sep)#rs)). height t = height sub \<and> bal sub"
     using bal.simps(2) by blast+
   moreover have "\<forall>sub \<in> set (subtrees ls) \<union> set (subtrees rs). height t = height sub \<and> bal sub"
-    using subtrees_set
+    using subtrees_split
     by (simp add: calculation)
   ultimately show "bal (Node (ls@rs) t)" by auto
 qed
+
+
+lemma bal_split2: 
+  assumes "bal (Node (ls@rs) t)"
+  shows "bal (Node rs t)"
+    and "height (Node rs t) = height (Node (ls@rs) t)"
+proof -
+  show "bal (Node rs t)"
+    using assms by auto
+  then show "height (Node rs t) = height (Node (ls@rs) t)"
+    using height_bal_tree assms
+    by metis
+qed
+
+lemma bal_split3:
+  assumes "bal (Node (ls@(a,b)#rs) t)"
+  shows "bal (Node ls a)"
+    and "height (Node ls a) = height (Node (ls@(a,b)#rs) t)"
+proof -
+  from assms have "\<forall>x \<in> set (subtrees ls). height x = height t"
+    using subtrees_split by force
+  then show "bal (Node ls a)"
+    using assms by auto
+  moreover have "height a = height t"
+    using assms by auto
+  ultimately show "height (Node ls a) = height (Node (ls@(a,b)#rs) t)"
+    using assms height_bal_tree
+    by metis
+qed
+
 
 lemma bal_height: "bal (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> height (Node (ls@(sub,sep)#rs) t) = height (Node (ls@rs) t)"
   using height_bal_tree bal_split by metis
 
 lemma bal_substitute: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height t = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
   unfolding bal.simps
-  by (metis Un_iff fst_conv singletonD subtrees_set)
+  by (metis Un_iff singletonD subtrees_split)
 
 lemma bal_substitute2: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height a = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
   using bal_substitute
@@ -381,6 +404,15 @@ lemma replace_subtree_sorted_wrt2:
   by (metis assms(1) assms(3) assms(4) dual_order.strict_trans sorted_r_forall sorted_wrt_append sub_sep_cons.simps sub_sep_sm.simps)
 
 
+lemma remove_section_sorted:
+  assumes "sorted_alt (Node (ls@x#rs) t)"
+  shows "sorted_alt (Node (ls@rs) t)"
+  unfolding sorted_alt.simps
+  apply(safe)
+  apply (metis (no_types, lifting) assms list.set_intros(2) sorted_alt.simps(2) sorted_wrt_Cons sorted_wrt_append)
+  apply (metis Un_iff assms list.set_intros(2) set_append sorted_alt.simps(2))
+  using assms by auto
+
 lemma sorted_alt_sorted: "sorted_alt t \<Longrightarrow> sorted (inorder t)"
 proof(induction t)
   case (Node ts t)
@@ -530,5 +562,7 @@ apply(induction t)
 
 lemma sorted_alt_eq: "sorted (inorder t) = sorted_alt t"
   using sorted_alt_sorted sorted_sorted_alt by blast
+find_theorems bal height
+
 
 end

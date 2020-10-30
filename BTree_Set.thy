@@ -575,61 +575,54 @@ qed simp
 
 thm bal.simps
 
-fun bal_up_i where
-"bal_up_i (T_i t) = bal t" |
-"bal_up_i (Up_i l a r) = (height l = height r \<and> bal l \<and> bal r)"
-
 
 fun height_up_i where
 "height_up_i (T_i t) = height t" |
 "height_up_i (Up_i l a r) = max (height l) (height r)"
 
 
+lemma height_list_split: "height_up_i (Up_i (Node ls a) b (Node rs t)) = height (Node (ls@(a,b)#rs) t) "
+  by (auto simp add: fold_max_max max.commute)
+
+lemma node_i_height: "height_up_i (node_i k ts t) = height (Node ts t)"
+proof(cases "length ts \<le> 2*k")
+  case False
+  then obtain ls sub sep rs where
+    split_half_ts: "split_half ts = (ls, (sub, sep) # rs)"
+    by (meson node_i_cases)
+  then have "Up_i (Node (take (length ts div 2) ts) (sub)) sep (Node rs t) = node_i k ts t"
+    using False by simp
+  then show ?thesis
+    using split_half_ts
+    by (metis append_take_drop_id height_list_split snd_conv split_half.simps)
+qed simp
+
+
+fun bal_up_i where
+"bal_up_i (T_i t) = bal t" |
+"bal_up_i (Up_i l a r) = (height l = height r \<and> bal l \<and> bal r)"
+
+lemma bal_list_split: "bal (Node (ls@(a,b)#rs) t) \<Longrightarrow> bal_up_i (Up_i (Node ls a) b (Node rs t))"
+  unfolding bal_up_i.simps
+  by (metis bal_split bal_split2 bal_split3 height_bal_tree)
+
 lemma node_i_bal:
   assumes "\<forall>x \<in> set (subtrees ts). bal x"
     and "bal t"
   and "\<forall>x \<in> set (subtrees ts). height t = height x"
 shows "bal_up_i (node_i k ts t)"
-proof(cases "length ts \<le> 2* k")
+proof(cases "length ts \<le> 2*k")
   case False
-  then obtain ls sub sep rs where split_half_ts: 
-    "take (length ts div 2) ts = ls"
-    "drop (length ts div 2) ts = (sub,sep)#rs" 
-    using split_half_not_empty
-    by fastforce
-  then have "\<forall>s \<in> set (subtrees ((sub,sep)#rs)). height s = height t"
-    using in_subtrees_drop assms
-    by (metis subsetD)
-  then have bal_r: "bal (Node rs t)"
-    unfolding bal.simps using assms split_half_ts
-    by (metis Cons_nth_drop_Suc drop_eq_Nil in_subtrees_drop le_less_linear list.discI list.inject subset_code(1))
-
-
-  have "height t = height sub"
-    by (simp add: \<open>\<forall>s\<in>set (subtrees ((sub, sep) # rs)). height s = height t\<close>)
-  then have bal_l: "bal (Node ls sub)"
-    unfolding bal.simps using assms
-    by (metis in_set_dropD in_subtrees_take insert_iff list.set(2) split_half_ts some_child_sub(1) subset_code(1))
-
-  have "height (Node ls sub) = Suc (height t)"
-    using bal_l \<open>height t = height sub\<close> height_bal_tree
-    by auto
-  moreover have "height (Node rs t) = Suc (height t)"
-    using bal_r height_bal_tree by blast
-  ultimately have "bal_up_i (Up_i (Node ls sub) sep (Node rs t))"
-    using bal_r bal_l by simp
+  then obtain ls sub sep rs where
+    split_half_ts: "split_half ts = (ls, (sub, sep) # rs)"
+    by (meson node_i_cases)
+  then have "Up_i (Node (take (length ts div 2) ts) (sub)) sep (Node rs t) = node_i k ts t"
+    using False by simp
   then show ?thesis
-    using False split_half_ts
-    by simp
+    using split_half_ts
+    by (metis append_take_drop_id assms(1) assms(2) assms(3) bal.simps(2) bal_list_split snd_conv split_half.simps)
 qed (simp add: assms)
-
-
-lemma height_list_drop_eq: "ls@(a,b)#rs = ts \<Longrightarrow> height_up_i (Up_i (Node ls a) b (Node rs t)) = height (Node ts t) "
-  by (auto simp add: fold_max_max max.commute)
-
-lemma node_i_height: "height_up_i (node_i k ts t) = height (Node ts t)"
-  apply(auto split: list.splits simp del: height_btree.simps)
-  by (metis append_take_drop_id height_up_i.simps(2) height_list_drop_eq)
+  
 
 
 lemma ins_height: "height_up_i (ins k x t) = height t"
@@ -711,8 +704,8 @@ qed simp
 
 (* the below proof is overly complicated as a number of lemmas regarding height are missing *)
 lemma ins_bal: "bal t \<Longrightarrow> bal_up_i (ins k x t)"
-proof(induction t)
-  case (Node ts t)
+proof(induction k x t rule: ins.induct)
+  case (2 k x ts t)
   then obtain ls rs where split_res: "split_fun ts x = (ls, rs)"
     by (meson surj_pair)
   then have split_app: "ls@rs = ts"
@@ -726,20 +719,19 @@ proof(induction t)
     proof (cases "ins k x t")
       case (T_i a)
       then have "bal (Node ls a)" unfolding bal.simps
-        by (metis BTree.bal.simps(2) Node.IH(2) Node.prems append_Nil2 bal_up_i.simps(1) height_up_i.simps(1) ins_height Nil split_app)
+        by (metis "2.IH"(1) "2.prems" append_Nil2 bal.simps(2) bal_up_i.simps(1) height_up_i.simps(1) ins_height local.Nil split_app split_res)
       then show ?thesis 
-        using Nil T_i Node split_res
+        using Nil T_i 2 split_res
         by simp
     next
       case (Up_i l a r)
       then have 
         "(\<forall>x\<in>set (subtrees (ls@[(l,a)])). bal x)"
-        "bal r"
         "(\<forall>x\<in>set (subtrees ls). height r = height x)"
-        using Node Up_i Nil split_res split_app
+        using 2 Up_i Nil split_res split_app
         by simp_all (metis height_up_i.simps(2) ins_height max_def)
       then show ?thesis unfolding ins.simps
-        using Up_i Nil Node split_res
+        using Up_i Nil 2 split_res
         by (simp del: node_i.simps add: node_i_bal)
     qed
   next
@@ -748,32 +740,30 @@ proof(induction t)
     then show ?thesis
     proof (cases "x = sep")
       case True
-      then show ?thesis using a_prod Node split_res Cons by simp
+      then show ?thesis
+        using a_prod 2 split_res Cons by simp
     next
       case False
-      then have "bal_up_i (ins k x sub)" using Node split_res
-        by (metis BTree.bal.simps(2) a_prod Cons prod_set_simps(1) singletonI some_child_sub(1) split_fun_set(1))
+      then have "bal_up_i (ins k x sub)" using 2 split_res
+        by (metis BTree.bal.simps(2) a_prod Cons some_child_sub(1) split_fun_set(1))
       show ?thesis
       proof (cases "ins k x sub")
         case (T_i x1)
-        then have "bal x1" "height x1 = height t"
-          using Node T_i \<open>bal_up_i (ins k x sub)\<close>
-          by simp (metis Node.prems BTree.bal.simps(2) T_i a_prod height_up_i.simps(1) ins_height Cons some_child_sub(1) split_fun_set(1) split_res)
+        then have  "height x1 = height t"
+          by (metis "2.prems" BTree.bal.simps(2) T_i a_prod height_up_i.simps(1) ins_height Cons some_child_sub(1) split_fun_set(1) split_res)
         then show ?thesis
-          using split_app Cons T_i Node split_res a_prod
+          using split_app Cons T_i 2 split_res a_prod
           by auto
       next
         case (Up_i l a r)
           (* The only case where explicit reasoning is required - likely due to the insertion of 2 elements in the list *)
-        then have "bal t"
-          using Node by auto
-        moreover have
+        then have
           "\<forall>x \<in> set (subtrees (ls@(l,a)#(r,sep)#list)). bal x"
-          using Up_i split_app Cons Node \<open>bal_up_i (ins k x sub)\<close> by auto
+          using Up_i split_app Cons 2 \<open>bal_up_i (ins k x sub)\<close> by auto
         moreover have "\<forall>x \<in> set (subtrees (ls@(l,a)#(r,sep)#list)). height x = height t"
-          using False Up_i split_app Cons Node \<open>bal_up_i (ins k x sub)\<close> ins_height split_res a_prod
-          by simp_all (metis Node.prems bal.simps(2) bal_split fst_conv height_up_i.simps(2) image_Un set_append set_map split_fun_set(1) subtrees.simps sup.idem sup_nat_def)
-        ultimately show ?thesis using Up_i Cons Node split_res a_prod
+          using False Up_i split_app Cons 2 \<open>bal_up_i (ins k x sub)\<close> ins_height split_res a_prod
+          by simp_all (metis "2.prems" bal.simps(2) bal_split fst_conv height_up_i.simps(2) image_Un set_append set_map split_fun_set(1) subtrees.simps sup.idem sup_nat_def)
+        ultimately show ?thesis using Up_i Cons 2 split_res a_prod
           by (simp del: node_i.simps add: node_i_bal)
       qed
     qed
@@ -791,6 +781,9 @@ thm BTree.set_btree_induct
 lemma set_drop_take: "set l = set (drop n l) \<union> set (take n l)"
   by (metis append_take_drop_id set_append sup_commute)
 
+lemma up_i_set: "set_btree (Node (ls@(sub,sep)#rs) t) = set_up_i (Up_i (Node ls sub) sep (Node rs t))"
+  by auto
+
 lemma node_i_set: "set_up_i (node_i k ts t) = set_btree (Node ts t)"
 proof (cases "length ts \<le> 2*k")
   case False
@@ -799,11 +792,9 @@ proof (cases "length ts \<le> 2*k")
     "drop (length ts div 2) ts = (sub,sep)#rs" 
     using split_half_not_empty
     by fastforce
-  then have "set_btree (Node ts t) = (\<Union>x \<in> set ((sub,sep)#rs) \<union> set ls. \<Union> (set_btree ` Basic_BNFs.fsts x) \<union> Basic_BNFs.snds x) \<union> set_btree t"
-    using split_half_ts
-    by (metis (mono_tags, lifting) btree.simps(15) set_drop_take)
-  also have "\<dots> = set_up_i (Up_i (Node ls sub) sep (Node rs t))"
-    by auto
+  then have "set_btree (Node ts t) = set_up_i (Up_i (Node ls sub) sep (Node rs t))"
+    using up_i_set
+    by (metis append_take_drop_id)
   also have "\<dots> = set_up_i (node_i k ts t)"
     using False split_half_ts
     by simp
@@ -917,6 +908,31 @@ lemma sorted_alt_split_ls: "sorted_alt (Node (ls@(sub,sep)#rs) t) \<Longrightarr
    apply(auto)
   done
 
+lemma up_i_sorted:
+  assumes "sorted_alt (Node (ls@(sub,(sep::('a::linorder)))#rs) t)"
+  shows "sorted_up_i (Up_i (Node ls sub) sep (Node rs t))"
+  unfolding sorted_up_i.simps
+proof (safe)
+  have "sorted_wrt sub_sep_sm ((sub,sep)#rs)"
+    using assms sorted_alt.simps(2) sorted_wrt_append by blast
+  then have
+      "\<forall>r \<in> set (subtrees rs). \<forall>x \<in> set_btree r. sep < x"
+      "\<forall>r \<in> set (seperators rs). sep < r"
+      by (auto simp add: sorted_wrt_sorted_left)
+  moreover have "\<forall>r \<in> set_btree t. sep < r"
+    using assms by auto
+  ultimately show "\<And>x. x \<in> set_btree (Node rs t) \<Longrightarrow> sep < x"
+    using set_btree_induct by auto
+next
+  show "sorted_alt (Node rs t)" "sorted_alt (Node ls sub)"
+    using sorted_alt_split_rs sorted_alt_split_ls assms append_take_drop_id
+    by metis+
+next
+  show "sub_sep_cons (Node ls sub, sep)"
+    unfolding sub_sep_cons.simps
+    using sorted_wrt_sorted_right2[of ls sub sep rs] assms
+    by simp
+qed
 
 
 lemma node_i_sorted:
@@ -930,28 +946,9 @@ proof(cases "length ts \<le> 2*k")
     "drop (length ts div 2) ts = (sub,sep)#rs" 
     using split_half_not_empty
     by fastforce
-  then have sorted_list_drop: "sorted_wrt sub_sep_sm ((sub,sep)#rs)"
-    by (metis sorted_wrt_drop assms sorted_alt.simps(2))
-
-  have "sorted_up_i (Up_i (Node ls sub) sep (Node rs t))"
-    unfolding sorted_up_i.simps
-  proof (safe)
-    from sorted_list_drop have
-      "\<forall>r \<in> set (subtrees rs). \<forall>x \<in> set_btree r. sep < x"
-      "\<forall>r \<in> set (seperators rs). sep < r"
-      by (auto simp add: sorted_wrt_sorted_left)
-    moreover have "\<forall>r \<in> set_btree t. sep < r"
-      by (metis assms list.set_intros(1) set_drop_subset some_child_sub(2) sorted_alt.simps(2) split_half_ts(2) subset_code(1))
-    ultimately show "\<And>x. x \<in> set_btree (Node rs t) \<Longrightarrow> sep < x"
-      using set_btree_induct by auto
-  next
-    show "sorted_alt (Node rs t)" "sorted_alt (Node ls sub)"
-      using split_half_ts sorted_alt_split_rs sorted_alt_split_ls assms append_take_drop_id
-      by metis+
-  next
-    show "sub_sep_cons (Node ls sub, sep)"
-      by (metis (no_types, lifting) append_take_drop_id assms split_half_ts sorted_alt.simps(2) sorted_wrt_sorted_right2 sub_sep_cons.simps)
-  qed
+  then have "sorted_up_i (Up_i (Node ls sub) sep (Node rs t))"
+    using up_i_sorted assms
+    by (metis append_take_drop_id)
   then show ?thesis
     using False split_half_ts
     by simp
@@ -959,14 +956,7 @@ qed simp
 
 thm btree.set
 thm sorted_wrt_append
-lemma remove_section_sorted:
-  assumes "sorted_alt (Node (ls@x#rs) t)"
-  shows "sorted_alt (Node (ls@rs) t)"
-  unfolding sorted_alt.simps
-  apply(safe)
-  apply (metis (no_types, lifting) assms list.set_intros(2) sorted_alt.simps(2) sorted_wrt_Cons sorted_wrt_append)
-  apply (metis Un_iff assms list.set_intros(2) set_append sorted_alt.simps(2))
-  using assms by auto
+
 
 
 (* sorted of ins *)
@@ -986,7 +976,7 @@ proof (induction k x t rule: ins.induct)
       by simp
     show ?thesis
     proof (cases "ins k x t")
-      case (T_i a) (* braucht evtl eine schönere formulierung für die sortierung/mengen von baum*sep listen *)
+      case (T_i a)
       then have "sorted_alt a"
         using ins_sorted by simp
       moreover have "\<forall>y \<in> set_btree a. \<forall> sep \<in> set (seperators ls). sep < y"
@@ -1002,54 +992,60 @@ proof (induction k x t rule: ins.induct)
         by (simp add: T_i list_split Nil)
     next
       case (Up_i l a r)
-      
-      have "\<forall>b \<in> set ls. sub_sep_sm b (l, a)"
-      proof
-        fix b assume "b \<in> set ls"
-        obtain sub_l sep_l where "b = (sub_l, sep_l)"
-          by (cases b)
-        then have "sep_l < x"
-          using 2 \<open>b \<in> set ls\<close> list_split sorted_wrt_list_sorted split_fun_req(2)
-          by fastforce
-        moreover have "\<forall>y \<in> set_btree t. sep_l < y"
-          using 2 \<open>b = (sub_l, sep_l)\<close> \<open>b \<in> set ls\<close> list_split Nil split_fun_set_l
-          by auto
-        moreover have "set_btree l \<union> {a} \<subseteq> set_btree t \<union> {x}"
-          by (metis Up_i ins_set insert_absorb2 set_up_i.simps(2) singleton_insert_inj_eq sup.mono sup_ge1)
-        ultimately show "sub_sep_sm b (l,a)"
-          using \<open>b = (sub_l, sep_l)\<close> by auto
-      qed
-      then have "sorted_wrt sub_sep_sm (ls@[(l,a)])"
-        using sorted_wrt_append ls_sorted by fastforce
-      moreover have "sorted_alt r"
+      have "sorted_alt (Node (ls@[(l,a)]) r)"
+        unfolding sorted_alt.simps
+      proof (safe)
+        show "sorted_wrt sub_sep_sm (ls@[(l,a)])"
+          unfolding sorted_wrt_split
+        proof(safe)    
+          fix b assume "b \<in> set ls"
+          obtain sub_l sep_l where "b = (sub_l, sep_l)"
+            by (cases b)
+          then have "sep_l < x"
+            using 2 \<open>b \<in> set ls\<close> list_split sorted_wrt_list_sorted split_fun_req(2)
+            by fastforce
+          moreover have "\<forall>y \<in> set_btree t. sep_l < y"
+            using 2 \<open>b = (sub_l, sep_l)\<close> \<open>b \<in> set ls\<close> list_split Nil split_fun_set_l
+            by auto
+          moreover have "set_btree l \<union> {a} \<subseteq> set_btree t \<union> {x}"
+            by (metis Up_i ins_set insert_absorb2 set_up_i.simps(2) singleton_insert_inj_eq sup.mono sup_ge1)
+          ultimately show "sub_sep_sm b (l,a)"
+            using \<open>b = (sub_l, sep_l)\<close> by auto
+        next
+          show "sorted_wrt sub_sep_sm ls"
+            using ls_sorted by simp
+        qed simp_all
+      next
+        show "sorted_alt r"
         using ins_sorted Up_i
         by auto
-      moreover have 
-        "\<forall>x \<in> set (subtrees (ls@[(l,a)])). sorted_alt x"
-        "\<forall>y \<in> set (ls@[(l,a)]). sub_sep_cons y"
-        using ls_sorted ins_sorted Up_i by auto
-      moreover have "\<forall>z \<in> set (seperators (ls@[(l,a)])). \<forall>y \<in> set_btree r. z < y"
+    next
+      fix z y assume "z \<in> set (seperators (ls@[(l,a)]))" "y \<in> set_btree r"
+      then have "z \<in> set (seperators ls) \<or> z = a"
+        by auto
+      then show "z < y"
       proof
-        fix z assume "z \<in> set (seperators (ls@[(l,a)]))"
-        then have "z \<in> set (seperators ls) \<or> z = a" by auto
-        then show "\<forall>y \<in> set_btree r. z < y"
-        proof
-          assume "z \<in> set (seperators ls)"
-          then have "z < x"
-            using split_fun_req sorted_wrt_list_sorted "2.prems" list_split by fastforce
-          moreover have "\<forall>y \<in> set_btree t. z < y"
-            using \<open>z \<in> set (seperators ls)\<close> ls_sorted sorted_alt.simps(2) by blast
-          moreover have "set_btree r \<subseteq> set_btree t \<union> {x}"
-            by (metis Up_i ins_set le_supI1 set_up_i.simps(2) sup_ge2)
-          ultimately show "\<forall>y \<in> set_btree r. z < y"
-            by blast
-        next
-          assume "z = a"
-          then show "\<forall>y \<in> set_btree r. z < y"
-            using ins_sorted Up_i by simp
-        qed
+        assume "z \<in> set (seperators ls)"
+        then have "z < x"
+          using split_fun_req sorted_wrt_list_sorted "2.prems" list_split by fastforce
+        moreover have "\<forall>y \<in> set_btree t. z < y"
+          using \<open>z \<in> set (seperators ls)\<close> ls_sorted sorted_alt.simps(2) by blast
+        moreover have "set_btree r \<subseteq> set_btree t \<union> {x}"
+          by (metis Up_i ins_set le_supI1 set_up_i.simps(2) sup_ge2)
+        ultimately show "z < y"
+          using \<open>y \<in> set_btree r\<close> by blast
+      next
+        assume "z = a"
+        then show "z < y"
+          using ins_sorted Up_i \<open>y \<in> set_btree r\<close> by simp
       qed
-      ultimately have "sorted_alt (Node (ls@[(l,a)]) r)" by simp
+    next
+      show
+        "\<And>aa b. (aa, b) \<in> set (ls @ [(l, a)]) \<Longrightarrow> sub_sep_cons (aa, b)"
+        "\<And>x. x \<in> set (subtrees (ls @ [(l, a)])) \<Longrightarrow> sorted_alt x "
+        using ls_sorted ins_sorted Up_i
+        by auto
+    qed
       then show ?thesis
         using 2 Up_i list_split Nil  node_i_sorted[of "ls@[(l,a)]" r]
         by (simp del: node_i.simps)
@@ -1283,13 +1279,17 @@ lemma insert_set: "set_btree t \<union> {x} = set_btree (insert k x t)"
   using ins_set
   by (simp add: tree_i_set)
 
-(* TODO how to specify the height invariant for the whole tree? *)
 
-
-(* deletion *)
+section "Deletion"
 
 thm list.simps
 
+text "The following deletion method is inspired by Bauer (70) and Fielding (??).
+Rather than stealing only a single node from the neighbour,
+the neighbour is fully merged with the potentially underflowing node.
+If the resulting node is still larger than allowed, the merged node is split
+again, using the rules known from insertion splits.
+If the resulting node has admissable size, it is simply kept in the tree."
 
 fun rebalance_middle_tree where
 "rebalance_middle_tree k ls Leaf sep rs Leaf = (
@@ -1313,12 +1313,18 @@ fun rebalance_middle_tree where
         Node (ls@(l,a)#(r,rsep)#rs) (Node tts tt))
 ))"
 
+text "All trees are merged with the right neighbour on underflow.
+Obviously for the last tree this would not work since it has no right neighbour.
+Therefore this tree, as the only exception, is merged with the left neighbour.
+However since we it does not make a difference, we treat the situation
+as if the second to last tree underflowed."
 
 fun rebalance_last_tree where
 "rebalance_last_tree k ts t = (
 case last ts of (sub,sep) \<Rightarrow>
    rebalance_middle_tree k (butlast ts) sub sep [] t
 )"
+
 
 fun split_max where
 "split_max k (Node ts t) = (case t of Leaf \<Rightarrow> (
@@ -1393,7 +1399,7 @@ next
       then have "height_up_i (node_i k (mts@(mt,sep)#tts) tt) = height (Node (mts@(mt,sep)#tts) tt)"
         using node_i_height by blast
       also have "\<dots> = max (height t) (height sub)"
-        by (metis assms(1) height_up_i.simps(2) height_list_drop_eq sub_node t_node)
+        by (metis assms(1) height_up_i.simps(2) height_list_split sub_node t_node)
       finally have height_max: "height_up_i (node_i k (mts @ (mt, sep) # tts) tt) = max (height t) (height sub)" by simp
       then show ?thesis
         proof (cases "node_i k (mts@(mt,sep)#tts) tt")
@@ -1423,7 +1429,7 @@ next
       then have "height_up_i (node_i k (mts@(mt,sep)#rts) rt) = height (Node (mts@(mt,sep)#rts) rt)"
         using node_i_height by blast
       also have "\<dots> = max (height rsub) (height sub)"
-        by (metis r_node height_up_i.simps(2) height_list_drop_eq max.commute sub_node)
+        by (metis r_node height_up_i.simps(2) height_list_split max.commute sub_node)
       finally have height_max: "height_up_i (node_i k (mts @ (mt, sep) # rts) rt) = max (height rsub) (height sub)" by simp
       then show ?thesis
       proof (cases "node_i k (mts@(mt,sep)#rts) rt")
@@ -1896,7 +1902,7 @@ proof (cases t)
       have "height_up_i (node_i k (mts@(mt,sep)#tts) tt) = height (Node (mts@(mt,sep)#tts) tt)"
         using node_i_height by blast
       also have "\<dots> = Suc (height tt)"
-        by (metis height_bal_tree height_up_i.simps(2) height_list_drop_eq max.idem sub_heights(1) sub_heights(3) sub_node t_node)
+        by (metis height_bal_tree height_up_i.simps(2) height_list_split max.idem sub_heights(1) sub_heights(3) sub_node t_node)
       also have "\<dots> = height t"
         using height_bal_tree sub_heights(3) t_node by fastforce
       finally have "height_up_i (node_i k (mts@(mt,sep)#tts) tt) = height t" by simp
@@ -1915,7 +1921,7 @@ proof (cases t)
       have "height_up_i (node_i k (mts@(mt,sep)#rts) rt) = height (Node (mts@(mt,sep)#rts) rt)"
         using node_i_height by blast
       also have "\<dots> = Suc (height rt)"
-        by (metis Un_iff  \<open>height rsub = height t\<close> assms bal.simps(2) bal_split height_bal_tree height_up_i.simps(2) height_list_drop_eq list.set_intros(1) Cons max.idem r_node r_split set_append some_child_sub(1) sub_heights(1) sub_node)
+        by (metis Un_iff  \<open>height rsub = height t\<close> assms bal.simps(2) bal_split height_bal_tree height_up_i.simps(2) height_list_split list.set_intros(1) Cons max.idem r_node r_split set_append some_child_sub(1) sub_heights(1) sub_node)
       also have "\<dots> = height rsub"
         using height_bal_tree r_node rsub_height(2) by fastforce
       finally have 1: "height_up_i (node_i k (mts@(mt,sep)#rts) rt) = height rsub" by simp

@@ -1325,6 +1325,12 @@ case last ts of (sub,sep) \<Rightarrow>
    rebalance_middle_tree k (butlast ts) sub sep [] t
 )"
 
+text "Rather than deleting the minimal key from the right subtree,
+we remove the maximal key of the left subtree.
+This is due to the fact that the last tree can easily be accessed
+and the left neighbour is way easier to access than the right neighbour."
+ 
+
 
 fun split_max where
 "split_max k (Node ts t) = (case t of Leaf \<Rightarrow> (
@@ -1579,8 +1585,8 @@ proof(induction k x t rule: del.induct)
     next
       case sep_x_Leaf
       then have "height (Node ts t) = height (Node (ls@rs) t)"
-        using bal_height
-        using "2.prems"(3) a_split list_split Cons split_fun_req(1) by fastforce
+        using bal_split(2) "2.prems"(3) a_split list_split Cons split_fun_req(1)
+        by fastforce
       then show ?thesis
         using a_split list_split Cons sep_x_Leaf 2 by auto
     next

@@ -11,6 +11,9 @@ text "General structure:  nat values in the leafs and nat/tree node internal nod
 
 datatype 'a btree = Leaf | Node "('a btree * 'a) list" "'a btree"
 
+type_synonym 'a btree_list =  "('a btree * 'a) list"
+type_synonym 'a btree_pair =  "('a btree * 'a)"
+
 fun inorder :: "'a btree \<Rightarrow> 'a list" where
 "inorder Leaf = []" |
 "inorder (Node ts t) = (foldr (@) (map (\<lambda> (sub, sep). inorder sub @ [sep]) ts) []) @ inorder t"
@@ -71,7 +74,7 @@ lemma subtrees_split:
 
 lemma fold_max_max: "max (a::(_::linorder)) (fold max bs b) = fold max bs (max a b)"
   apply(induction bs arbitrary: a b)
-  apply(auto simp add: max.left_commute)
+   apply(auto simp add: max.left_commute)
   done
 
 lemma max_sep_fold_max: "max (fold max as (a::(_::linorder))) (fold max bs b) = (fold max (as@a#bs) b)"
@@ -147,17 +150,21 @@ lemma some_child_sub:
 (* idea: we show that if any element is in the set_btree_inorder of a tree, then it must be in the list or in the subtree given by btree_list_choose,
 show the latter by case distinction on the compare of btree_list *)
 
-lemma set_btree_list_induct: "x \<in> set_btree_list ts = (x \<in> set (seperators ts) \<or> (\<exists>sub \<in> set (subtrees ts). x \<in> set_btree sub))"
+lemma set_btree_list_induct:
+  "x \<in> set_btree_list ts = (x \<in> set (seperators ts) \<or> (\<exists>sub \<in> set (subtrees ts). x \<in> set_btree sub))"
   by (induction ts) auto
 
-lemma set_btree_induct: "x \<in> set_btree (Node ts t) = (x \<in> set (seperators ts) \<or> (\<exists>sub \<in> set (subtrees ts). x \<in> set_btree sub) \<or> x \<in> set_btree t)"
+lemma set_btree_induct:
+  "x \<in> set_btree (Node ts t) = (x \<in> set (seperators ts) \<or> (\<exists>sub \<in> set (subtrees ts). x \<in> set_btree sub) \<or> x \<in> set_btree t)"
   by (induction ts) auto
 
 
-lemma seperators_in_set: "set (seperators ts) \<subseteq> set_btree (Node ts t)"
+lemma seperators_in_set:
+  "set (seperators ts) \<subseteq> set_btree (Node ts t)"
   by auto
 
-lemma subtrees_in_set: "s \<in> set (subtrees ts) \<Longrightarrow> set_btree s \<subseteq> set_btree (Node ts t)"
+lemma subtrees_in_set:
+  "s \<in> set (subtrees ts) \<Longrightarrow> set_btree s \<subseteq> set_btree (Node ts t)"
   by auto
 
 
@@ -180,17 +187,23 @@ lemma height_bal_tree: "bal (Node ts t) \<Longrightarrow> height (Node ts t) = S
   by (simp add: fold_max_set)
 
 
-lemma bal_split: "bal (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> bal (Node (ls@rs) t)"
+lemma bal_split: 
+  assumes "bal (Node (ls@(sub,sep)#rs) t)"
+  shows "bal (Node (ls@rs) t)"
+    and "height (Node (ls@(sub,sep)#rs) t) = height (Node (ls@rs) t)"
 proof -
-  assume "bal (Node (ls@(sub,sep)#rs) t)"
-  then have
+  from assms have
     "bal t"
     "\<forall>sub \<in> set (subtrees (ls@(sub,sep)#rs)). height t = height sub \<and> bal sub"
     using bal.simps(2) by blast+
   moreover have "\<forall>sub \<in> set (subtrees ls) \<union> set (subtrees rs). height t = height sub \<and> bal sub"
     using subtrees_split
     by (simp add: calculation)
-  ultimately show "bal (Node (ls@rs) t)" by auto
+  ultimately show
+    "bal (Node (ls@rs) t)"
+    by auto
+  then show "height (Node (ls@(sub,sep)#rs) t) = height (Node (ls@rs) t)"
+    using height_bal_tree assms by metis
 qed
 
 
@@ -223,9 +236,6 @@ proof -
 qed
 
 
-lemma bal_height: "bal (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> height (Node (ls@(sub,sep)#rs) t) = height (Node (ls@rs) t)"
-  using height_bal_tree bal_split by metis
-
 lemma bal_substitute: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height t = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
   unfolding bal.simps
   by (metis Un_iff singletonD subtrees_split)
@@ -244,7 +254,12 @@ lemma bal_substitute3: "bal (Node (ls@(a,b)#rs) t) \<Longrightarrow> bal (Node (
 (* alt2: use range [k,2*k] allowing for valid btrees from k=1 onwards *)
 fun order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
 "order k Leaf = True" |
-"order k (Node ts t) = ((length ts \<ge> k  \<and> length ts \<le> 2*k) \<and> (\<forall>sub \<in> set (subtrees ts). order k sub) \<and> order k t)"
+"order k (Node ts t) = (
+  (length ts \<ge> k)  \<and>
+  (length ts \<le> 2*k) \<and>
+  (\<forall>sub \<in> set (subtrees ts). order k sub) \<and>
+  order k t
+)"
 
 
 (* the invariant for the root of the btree *)
@@ -308,12 +323,13 @@ find_theorems sorted_wrt "(@)"
 
 (* this works only for linear orders *)
 lemma sorted_wrt_sorted_right2: "
-sorted_wrt sub_sep_sm (ls@(sub,(sep::('a::linorder)))#rs) \<Longrightarrow> (\<forall>x \<in> set (ls@(sub,sep)#rs). sub_sep_cons x) \<Longrightarrow>
+sorted_wrt sub_sep_sm ((ls@(sub,sep)#rs)::('a::linorder) btree_list) \<Longrightarrow> (\<forall>x \<in> set (ls@(sub,sep)#rs). sub_sep_cons x) \<Longrightarrow>
  (\<forall>x \<in> set_btree (Node ls sub). x < sep)"
   apply (auto simp add: sorted_wrt_append)
   by (meson UnI1 dual_order.strict_trans sub_sep_cons.simps sub_sep_sm.simps)
 
-lemma sorted_pair_list: "(sorted (inorder sub) \<and> (\<forall>x \<in> set_btree_inorder sub. x < sep)) = sorted((inorder sub) @ [sep])"
+lemma sorted_pair_list:
+ "(sorted (inorder sub) \<and> (\<forall>x \<in> set_btree_inorder sub. x < sep)) = sorted((inorder sub) @ [sep])"
   unfolding set_btree_inorder_def using sorted_snoc_iff
   by auto
 
@@ -335,55 +351,27 @@ lemma sorted_l_forall: "sorted_wrt P (ls@[a]) \<Longrightarrow> \<forall>y \<in>
 
 
 lemma sub_sep_sm_trans:
- "\<lbrakk>sub_sep_sm (a::(('a::linorder) btree \<times> 'a)) b; sub_sep_sm b c\<rbrakk> \<Longrightarrow> sub_sep_sm a c"
-proof -
-  assume assms: "sub_sep_sm a b" "sub_sep_sm b c"
-  obtain suba sepa where "a = (suba,sepa)" by (cases a)
-  obtain subb sepb where "b = (subb,sepb)" by (cases b)
-  obtain subc sepc where "c = (subc,sepc)" by (cases c)
-  from assms have "sepa < sepb"
-    by (simp add: \<open>a = (suba, sepa)\<close> \<open>b = (subb, sepb)\<close>)
-  also have "\<dots> < sepc"
-    using \<open>b = (subb, sepb)\<close> \<open>c = (subc, sepc)\<close> assms(2)
-    by auto
-  moreover have "\<forall>x \<in> set_btree subc. sepa < x"
-    using \<open>b = (subb, sepb)\<close> \<open>c = (subc, sepc)\<close> assms(2) calculation(1)
-    by auto
-  ultimately show "sub_sep_sm a c" 
-    using \<open>a = (suba, sepa)\<close> \<open>c = (subc, sepc)\<close>
-    by auto
-qed
+ "\<lbrakk>sub_sep_sm (a::('a::linorder) btree_pair) b; sub_sep_sm b c\<rbrakk> \<Longrightarrow> sub_sep_sm a c"
+  apply(cases a)
+  apply(cases b)
+  apply(cases c)
+  apply(auto)
+  done
 
 find_theorems sorted_wrt
 
-lemma sorted_wrt_split2: "sorted_wrt sub_sep_sm (l@(a,(b::('a::linorder)))#(c,d)#r) =
+lemma sorted_wrt_split2: "sorted_wrt sub_sep_sm ((l@(a,b)#(c,d)#r)::('a::linorder) btree_list) =
    (sorted_wrt sub_sep_sm l \<and>
     sorted_wrt sub_sep_sm r \<and>
 (\<forall>x \<in> set l. sub_sep_sm x (a,b)) \<and>
 (\<forall>x \<in> set r. sub_sep_sm (c,d) x) \<and>
 sub_sep_sm (a,b) (c,d))"
-proof -
-  have "sorted_wrt sub_sep_sm (l@(a,(b::('a::linorder)))#(c,d)#r) =
-    (sorted_wrt sub_sep_sm l \<and> sorted_wrt sub_sep_sm ((a,b)#(c,d)#r) \<and> (\<forall>x \<in> set l. \<forall>y \<in> set ((a,b)#(c,d)#r). sub_sep_sm x y))"
-    using sorted_wrt_append by blast
-  also have "\<dots> = (sorted_wrt sub_sep_sm l \<and> sorted_wrt sub_sep_sm r \<and> sorted_wrt sub_sep_sm ((a,b)#[(c,d)]) \<and> (\<forall>x \<in> set r. sub_sep_sm (a,b) x \<and> sub_sep_sm (c,d) x) \<and> (\<forall>x \<in> set l. \<forall>y \<in> set ((a,b)#(c,d)#r). sub_sep_sm x y))"
-    using sorted_wrt_append by auto
-  also have "\<dots> = (sorted_wrt sub_sep_sm l \<and> sorted_wrt sub_sep_sm r \<and> sub_sep_sm (a,b) (c,d) \<and> (\<forall>x \<in> set r. sub_sep_sm (a,b) x \<and> sub_sep_sm (c,d) x) \<and> (\<forall>x \<in> set l. sub_sep_sm x (a,b) \<and> sub_sep_sm x (c,d) \<and> (\<forall>y \<in> set r. sub_sep_sm x y)))"
-    by auto
-  also have "\<dots> = (
-    sorted_wrt sub_sep_sm l \<and>
-    sorted_wrt sub_sep_sm r \<and>
-    (\<forall>x \<in> set l. sub_sep_sm x (a,b)) \<and>
-    (\<forall>x \<in> set r. sub_sep_sm (c,d) x) \<and>
-    sub_sep_sm (a,b) (c,d)
-  )"
-    using sub_sep_sm_trans by blast
-  finally show ?thesis by simp
-qed
+  unfolding sorted_wrt_append
+  by fastforce
 
 
 lemma replace_subtree_sorted_wrt:
-  assumes "sorted_wrt sub_sep_sm (ls@(sub,(sep::'a::linorder))#rs)"
+  assumes "sorted_wrt sub_sep_sm ((ls@(sub,sep)#rs)::('a::linorder) btree_list)"
     and "set_btree sub2 \<subseteq> set_btree sub"
   shows "sorted_wrt sub_sep_sm (ls@(sub2,sep)#rs)"
   unfolding sorted_wrt_split
@@ -391,7 +379,7 @@ lemma replace_subtree_sorted_wrt:
   
 
 lemma replace_subtree_sorted_wrt2:
-  assumes "sorted_wrt sub_sep_sm (ls@(sub,(sep::'a::linorder))#rs)"
+  assumes "sorted_wrt sub_sep_sm ((ls@(sub,sep)#rs)::('a::linorder) btree_list)"
     and "set_btree sub2 \<subseteq> set_btree sub"
     and "sep2 \<in> set_btree sub"
     and "sub_sep_cons (sub,sep)"
@@ -400,8 +388,8 @@ lemma replace_subtree_sorted_wrt2:
   apply(safe)
   using assms(1) sorted_wrt_split apply blast
   using assms(1) sorted_wrt_split apply blast
-   apply (metis (no_types, lifting) assms(1) assms(2) assms(3) sorted_wrt_split sub_sep_sm.simps subset_eq)
-  by (metis assms(1) assms(3) assms(4) dual_order.strict_trans sorted_r_forall sorted_wrt_append sub_sep_cons.simps sub_sep_sm.simps)
+   apply (metis (no_types, lifting) assms(1,2,3) sorted_wrt_split sub_sep_sm.simps subset_eq)
+  by (metis assms(1,3,4) dual_order.strict_trans sorted_r_forall sorted_wrt_append sub_sep_cons.simps sub_sep_sm.simps)
 
 
 lemma remove_section_sorted:
@@ -411,7 +399,8 @@ lemma remove_section_sorted:
   apply(safe)
   apply (metis (no_types, lifting) assms list.set_intros(2) sorted_alt.simps(2) sorted_wrt_Cons sorted_wrt_append)
   apply (metis Un_iff assms list.set_intros(2) set_append sorted_alt.simps(2))
-  using assms by auto
+  using assms
+  by auto
 
 lemma sorted_alt_sorted: "sorted_alt t \<Longrightarrow> sorted (inorder t)"
 proof(induction t)
@@ -562,7 +551,7 @@ apply(induction t)
 
 lemma sorted_alt_eq: "sorted (inorder t) = sorted_alt t"
   using sorted_alt_sorted sorted_sorted_alt by blast
-find_theorems bal height
+
 
 
 end

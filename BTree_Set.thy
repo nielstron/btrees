@@ -277,29 +277,27 @@ fun ins:: "nat \<Rightarrow> 'a \<Rightarrow> 'a btree \<Rightarrow> 'a up_i" wh
   )
 )"
 
-fun ins2 where
-"ins2 k x Leaf = Leaf" |
-"ins2 k x (Node ts Leaf) = ins2 k x Leaf" |
-"ins2 k x (Node ts t) = ins2 k x t"
-
 
 
 thm ins.induct
-thm ins2.induct
-(* idea include facts like ls = ts for certain branches *)
+(* idea include facts like ls = ts for certain branches
+   open question: does this reduce the size of the proofs?
+ *)
 lemma ins_induct:
 "(\<And>k x. P k x Leaf) \<Longrightarrow>
-(\<And>k x ts ls t. split_fun rs x = (ls,[]) \<Longrightarrow> ts = ls \<Longrightarrow> P k x t \<Longrightarrow> P k x (Node ts t)) \<Longrightarrow> 
-(\<And>k x ts ls sub sep rs a. split_fun ts x = (ls,(sub,sep)#rs) \<Longrightarrow> ts = (ls@(sub,sep)#rs) \<Longrightarrow> sep \<noteq> x \<Longrightarrow> P k x sub \<Longrightarrow> P k x (Node ts t)) \<Longrightarrow>
-(\<And>k x ts ls sub sep rs a. split_fun ts x = (ls,(sub,sep)#rs) \<Longrightarrow> ts = (ls@(sub,sep)#rs) \<Longrightarrow> sep = x \<Longrightarrow> P k x (Node ts t)) \<Longrightarrow>
+(\<And>k x ts ls t. split_fun ts x = (ls,[]) \<Longrightarrow> P k x t \<Longrightarrow> P k x (Node ts t)) \<Longrightarrow> 
+(\<And>k x ts ls t sub sep rs. split_fun ts x = (ls,(sub,sep)#rs) \<Longrightarrow> sep \<noteq> x \<Longrightarrow> P k x sub \<Longrightarrow> P k x (Node ts t)) \<Longrightarrow>
+(\<And>k x ts ls t sub sep rs. split_fun ts x = (ls,(sub,sep)#rs) \<Longrightarrow> sep = x \<Longrightarrow> P k x (Node ts t)) \<Longrightarrow>
 P k x t"
-  sorry
+  apply(induction_schema)
+  oops
 
 
 lemma ins_order: 
    "order k t \<Longrightarrow> order_up_i k (ins k x t)"
-  apply(induction k x t rule: ins_induct)
-oops
+apply(induction k x t rule: ins_induct)
+  oops
+
 
 fun tree_i::"'a up_i \<Rightarrow> 'a btree" where
 "tree_i (T_i sub) = sub" |
@@ -604,7 +602,7 @@ fun bal_up_i where
 
 lemma bal_list_split: "bal (Node (ls@(a,b)#rs) t) \<Longrightarrow> bal_up_i (Up_i (Node ls a) b (Node rs t))"
   unfolding bal_up_i.simps
-  by (metis bal_split bal_split2 bal_split3 height_bal_tree)
+  by (metis bal_split(1) bal_split2 bal_split3 height_bal_tree)
 
 lemma node_i_bal:
   assumes "\<forall>x \<in> set (subtrees ts). bal x"

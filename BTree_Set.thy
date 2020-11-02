@@ -2896,6 +2896,33 @@ for split fun is 0 *)
 
 (* TODO simpler induction schemes /less boilerplate isabelle/src/HOL/ex/Induction_Schema *)
 
+(* Alternative Set spec *)
+
+interpretation S: Set
+where empty = empty_btree and isin = isin and insert = "insert (Suc k)" and delete = "delete (Suc k)"
+and set = set_btree and invar = "invar (Suc k)"
+proof (standard, goal_cases)
+  case (2 s x)
+  then show ?case
+    by (simp add: isin_set)
+next
+  case (3 s x)
+  then show ?case using insert_set
+    by simp
+next
+  case (4 s x)
+  then show ?case using delete_set
+    by auto
+next
+  case (6 s x)
+  then show ?case using insert_order insert_sorted insert_bal
+    by auto
+next
+  case (7 s x)
+  then show ?case using delete_order delete_sorted delete_bal
+    by auto
+qed (simp add: empty_btree_def)+
+
 end
 
 text "We show that BTrees of order k > 0 fulfill the Set specifications."

@@ -94,10 +94,10 @@ lemma fold_max_append: "fold max bs (max (a::(_::linorder)) b) = fold max (bs@[a
   done
 
 lemma height_btree_order:
-  "height (Node (ls@[(sub,x)]) t) = height (Node ((sub,x)#ls) t)"
-  apply(induction ls arbitrary: sub x t)
-  apply(simp_all add: fold_max_max)
-  by (metis (mono_tags, hide_lams) fold_max_max fold_simps(2) max.commute)
+  "height (Node (ls@[a]) t) = height (Node (a#ls) t)"
+  apply(induction ls arbitrary: a t)
+  apply(simp_all add: fold_max_max max.left_commute)
+  done
 
 lemma height_btree_swap: 
   "height (Node ((sub,x)#ls) t) = max (height (Node ls t)) (Suc (height sub))"
@@ -313,6 +313,10 @@ lemma sorted_wrt_list_sorted: "sorted_wrt sub_sep_sm xs \<Longrightarrow> sorted
 
 
 lemma sorted_wrt_sorted_left: "sorted_wrt sub_sep_sm ((sub, sep)#xs) \<Longrightarrow> t \<in> set (subtrees xs) \<Longrightarrow> \<forall>x \<in> set_btree t. x > sep"
+  by (induction xs) (auto)
+
+
+lemma sorted_wrt_sorted_left2: "sorted_wrt sub_sep_sm ((sub, sep)#xs) \<Longrightarrow> x \<in> set (seperators xs) \<Longrightarrow> x > sep"
   by (induction xs) (auto)
 
 (* the below is independent of the inter-pair sorting *)

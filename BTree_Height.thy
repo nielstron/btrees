@@ -28,11 +28,6 @@ apply(induction n)
  apply(auto simp add: ring_class.ring_distribs(2))
   done
 
-lemma sum_list_distrib: "sum_list (map f xs) * (c::nat) = sum_list (map (\<lambda>x. f x * c) xs)"
-  apply(induction xs)
-   apply(auto simp add: add_mult_distrib)
-  done
-
 
 lemma size_height_upper_bound: 
   "\<lbrakk>order k t; bal t\<rbrakk> \<Longrightarrow> size_btree t * (2*k) \<le> (2*k+1)^(height t) - 1"
@@ -41,7 +36,7 @@ proof(induction t rule: size_btree.induct)
   let ?sub_height = "((2 * k + 1) ^ height t - 1)"
   have "sum_list (map size_btree (subtrees ts)) * (2*k) =
         sum_list (map (\<lambda>t. size_btree t * (2 * k)) (subtrees ts))"
-    using sum_list_distrib[of size_btree "subtrees ts" "2*k"] by simp
+    using sum_list_mult_const by metis
   also have "\<dots> \<le> sum_list (map (\<lambda>x.?sub_height) (subtrees ts))"
     using 2 by (simp add: sum_list_mono)
   also have "\<dots> = sum_list (replicate (length ts) ?sub_height)"

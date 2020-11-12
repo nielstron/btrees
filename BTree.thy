@@ -2,11 +2,120 @@ theory BTree
   imports Main "HOL-Data_Structures.Cmp"  "HOL-Data_Structures.Set_Specs"
 begin
 
+hide_const (open) Sorted_Less.sorted
+
+abbreviation "sorted_less \<equiv> Sorted_Less.sorted"
+
 
 subsection "General structure and concepts definition"
 
 text "General structure:  nat values in the leafs and nat/tree node internal node list (nat always larger than every element in the corresponding subtree)"
 (* definition heavily based on Tree234_Set, Pair structure from popl10 (malecha)/mtps08*)
+
+(*
+
+   struct {
+     key keys[10];
+     node *nodes[11];
+   } node;
+
+   struct {
+    key *keys;
+    node **nodes;
+   }
+   
+   
+   'a list     'a set
+   
+   R xs s \<longleftrightarrow> s=set xs \<and> distinct xs
+   
+   member :: 'a \<Rightarrow> 'a list \<Rightarrow> bool     
+   (\<in>) ::    'a \<Rightarrow> 'a set \<Rightarrow> bool
+   
+             ((=) \<rightarrow> R   \<rightarrow> (=)) member (\<in>)
+   
+   
+   
+   (=) xi x,  R si s  \<Longrightarrow> (=) (member xi si) ((\<in>) x s)
+   
+   
+   (A \<rightarrow> B) f g \<longleftrightarrow> \<forall>x y. A x y \<longrightarrow> B (f x) (g y)
+   
+   
+   
+   R tree_ptr tree
+   
+   
+   \<box> - empty heap
+   
+   ptr \<mapsto> x  - heap where ptr points to x
+   
+   
+   A * B - combined heap described by A and B, parts are DISJOINT
+   
+   p\<^sub>1 \<mapsto> x * p\<^sub>2 \<mapsto> y
+   
+   
+   
+   \<forall>s F. (P ** F) s \<longrightarrow> \<exists>s'. run c s = SUCCESS r s' \<and> (Q r ** F) s'
+   
+   {P} c {\<lambda>r. Q r}
+   
+   
+   \<up>\<phi> \<equiv> if \<phi> then \<box> else false
+   
+   
+   'a M  =  heap \<Rightarrow> SUCC 'a heap | FAIL
+   
+   load :: 'a ptr \<Rightarrow> 'a M
+   store :: 'a ptr \<Rightarrow> 'a \<Rightarrow> unit M
+   
+   { p \<mapsto> x } load p {\<lambda>r. \<up>(r=x) ** p \<mapsto> x }
+   
+   { p \<mapsto> y } store p x {\<lambda>_. p \<mapsto> x }
+   
+   
+   {P} c {Q} \<Longrightarrow> {P**F} c {Q**F}
+   
+
+   return :: 'a \<Rightarrow> 'a M
+   return x = \<lambda>h. SUCC x h       {\<box>} return x {\<lambda>r. r=x}
+      
+   (;) :: 'a M \<Rightarrow> ('a \<Rightarrow> 'b M) \<Rightarrow> 'b M
+   (x\<leftarrow>m; f x) s = case m s of FAIL \<Rightarrow> FAIL
+                             | SUCC x s' \<Rightarrow> f x s'   
+   
+
+   f x \<equiv> ... f ...                                
+   
+   f \<equiv> rec ( \<lambda>f x. if x<1 then return 0 else f (x-1) )
+   
+   wf <
+   \<And>x f t. (\<forall>x' t'. {P ** V t' ** t'<t} f x' {Q}) \<Longrightarrow> {P ** V t} F f x {Q}
+   --------------------------------
+   {P} rec F x {Q}
+   
+   
+   assn_list R [] [] = \<box>
+   assn_list R (x:xs) (y:ys) = R x y ** assn_list xs ys
+   assn_list _ _ _ = false
+   
+   p\<mapsto>\<^sub>a[x\<^sub>1,...,x\<^sub>n] = p+0 \<mapsto> x\<^sub>1 ** ... ** p+(n-1) \<mapsto> x\<^sub>n
+   
+   assn_array R p xs = \<exists>xs'. p\<mapsto>\<^sub>axs' ** assn_list R xs' xs
+   
+   
+   R :: 
+   
+   R p t
+   
+     R null Leaf
+     
+     R p (Node ts t) = p \<mapsto> (tsi,ti) ** R ti t ** assn_array (\<lambda>(subi,sepi) (sub,sep). R subi sub ** sepi=sep) ts tsi
+   
+     
+
+*)
 
 
 datatype 'a btree = Leaf | Node "('a btree * 'a) list" "'a btree"
@@ -94,10 +203,10 @@ lemma fold_max_append: "fold max bs (max (a::(_::linorder)) b) = fold max (bs@[a
   done
 
 lemma height_btree_order:
-  "height (Node (ls@[(sub,x)]) t) = height (Node ((sub,x)#ls) t)"
-  apply(induction ls arbitrary: sub x t)
-  apply(simp_all add: fold_max_max)
-  by (metis (mono_tags, hide_lams) fold_max_max fold_simps(2) max.commute)
+  "height (Node (ls@[a]) t) = height (Node (a#ls) t)"
+  apply(induction ls arbitrary: a t)
+  apply(simp_all add: fold_max_max max.left_commute)
+  done
 
 lemma height_btree_swap: 
   "height (Node ((sub,x)#ls) t) = max (height (Node ls t)) (Suc (height sub))"
@@ -304,15 +413,19 @@ fun sorted_alt where
 "sorted_alt Leaf = True" |
 "sorted_alt (Node ts t) = (sorted_wrt sub_sep_sm ts \<and> (\<forall>x \<in> set ts. sub_sep_cons x) \<and> (\<forall>sep \<in> set (seperators ts). \<forall>y \<in> set_btree t. sep < y) \<and> (\<forall>sub \<in> set (subtrees ts). sorted_alt sub) \<and> sorted_alt t)"
 
-value "sorted (inorder (Node [(Node [(Node [] Leaf, a\<^sub>1)] Leaf, a\<^sub>2)] Leaf))"
+value "sorted_less (inorder (Node [(Node [(Node [] Leaf, a\<^sub>1)] Leaf, a\<^sub>2)] Leaf))"
 value "sorted_alt (Node [(Node [(Node [] Leaf, a\<^sub>1)] Leaf, a\<^sub>2)] Leaf)"
 
 
-lemma sorted_wrt_list_sorted: "sorted_wrt sub_sep_sm xs \<Longrightarrow> sorted (seperators xs)"
+lemma sorted_wrt_list_sorted: "sorted_wrt sub_sep_sm xs \<Longrightarrow> sorted_less (seperators xs)"
   by (induction xs) (auto)
 
 
 lemma sorted_wrt_sorted_left: "sorted_wrt sub_sep_sm ((sub, sep)#xs) \<Longrightarrow> t \<in> set (subtrees xs) \<Longrightarrow> \<forall>x \<in> set_btree t. x > sep"
+  by (induction xs) (auto)
+
+
+lemma sorted_wrt_sorted_left2: "sorted_wrt sub_sep_sm ((sub, sep)#xs) \<Longrightarrow> x \<in> set (seperators xs) \<Longrightarrow> x > sep"
   by (induction xs) (auto)
 
 (* the below is independent of the inter-pair sorting *)
@@ -329,7 +442,7 @@ sorted_wrt sub_sep_sm ((ls@(sub,sep)#rs)::('a::linorder) btree_list) \<Longright
   by (meson UnI1 dual_order.strict_trans sub_sep_cons.simps sub_sep_sm.simps)
 
 lemma sorted_pair_list:
- "(sorted (inorder sub) \<and> (\<forall>x \<in> set_btree_inorder sub. x < sep)) = sorted((inorder sub) @ [sep])"
+ "(sorted_less (inorder sub) \<and> (\<forall>x \<in> set_btree_inorder sub. x < sep)) = sorted_less((inorder sub) @ [sep])"
   unfolding set_btree_inorder_def using sorted_snoc_iff
   by auto
 
@@ -402,10 +515,10 @@ lemma remove_section_sorted:
   using assms
   by auto
 
-lemma sorted_alt_sorted: "sorted_alt t \<Longrightarrow> sorted (inorder t)"
+lemma sorted_alt_sorted: "sorted_alt t \<Longrightarrow> sorted_less (inorder t)"
 proof(induction t)
   case (Node ts t)
-  then have "\<lbrakk>sorted_alt (Node ts t)\<rbrakk> \<Longrightarrow> sorted (inorder (Node ts t))"
+  then have "\<lbrakk>sorted_alt (Node ts t)\<rbrakk> \<Longrightarrow> sorted_less (inorder (Node ts t))"
   proof (induction ts)
     case (Cons a list)
     then have Cons_help: 
@@ -415,14 +528,14 @@ proof(induction t)
       by (simp_all)
     then have "sorted_alt (Node list t)" using Cons
       by simp
-    then have Cons_sorted: "sorted (inorder (Node list t))"
+    then have Cons_sorted: "sorted_less (inorder (Node list t))"
       using Cons.IH Cons.prems(2) Node.IH(2) by auto
 
     from Cons obtain sub sep where pair_a: "a = (sub,sep)"
       by (cases a)
     then have "sorted_alt sub" using Node Cons
       by simp
-    then have "sorted (inorder sub)" using Node Cons pair_a
+    then have "sorted_less (inorder sub)" using Node Cons pair_a
       by force
 
     from pair_a have "\<forall>x \<in> set (seperators list). sep < x"
@@ -436,19 +549,19 @@ proof(induction t)
       by (simp add: set_btree_inorder_set_btree)
     then have sep_sm: "\<forall>x \<in> set (inorder (Node list t)). sep < x"
       unfolding set_btree_inorder_def by auto
-    then have "sorted (sep # inorder (Node list t))"
+    then have "sorted_less (sep # inorder (Node list t))"
       using Cons_sorted sorted_Cons_iff by blast
     moreover have "\<forall>y \<in> set (inorder sub). \<forall>x \<in> set (inorder (Node list t)). y < x"
       using Cons_help sep_sm pair_a Cons
       by (metis comp_apply dual_order.strict_trans list.set_intros(1) set_btree_inorder_def set_btree_inorder_set_btree sorted_alt.simps(2) sub_sep_cons.simps)
-    ultimately have "sorted (inorder sub @ sep # inorder (Node list t))"
-      using sorted_wrt_append[of "(<)" "inorder sub" "sep # inorder (Node list t)"] \<open>sorted (inorder (Node list t))\<close>
-      by (metis Cons.prems(1) \<open>sorted (inorder sub)\<close> list.set_intros(1) pair_a set_btree_inorder_set_btree sorted_alt.simps(2) sorted_mid_iff sorted_pair_list sub_sep_cons.simps)
-    then have "sorted ((inorder sub @ [sep]) @ inorder (Node list t))"
+    ultimately have "sorted_less (inorder sub @ sep # inorder (Node list t))"
+      using sorted_wrt_append[of "(<)" "inorder sub" "sep # inorder (Node list t)"] \<open>sorted_less (inorder (Node list t))\<close>
+      by (metis Cons.prems(1) \<open>sorted_less (inorder sub)\<close> list.set_intros(1) pair_a set_btree_inorder_set_btree sorted_alt.simps(2) sorted_mid_iff sorted_pair_list sub_sep_cons.simps)
+    then have "sorted_less ((inorder sub @ [sep]) @ inorder (Node list t))"
       by simp
-    then have "sorted ((\<lambda>(sub, sep). BTree.inorder sub @ [sep]) a @ foldr (@) (map (\<lambda>(sub, sep). BTree.inorder sub @ [sep]) list) [] @ inorder t)"
+    then have "sorted_less ((\<lambda>(sub, sep). BTree.inorder sub @ [sep]) a @ foldr (@) (map (\<lambda>(sub, sep). BTree.inorder sub @ [sep]) list) [] @ inorder t)"
       by (simp add: pair_a)
-    then have "sorted (foldr (@) (map (\<lambda>(sub, sep). BTree.inorder sub @ [sep]) (a#list)) [] @ inorder t)" 
+    then have "sorted_less (foldr (@) (map (\<lambda>(sub, sep). BTree.inorder sub @ [sep]) (a#list)) [] @ inorder t)" 
       by simp
     then show ?case by simp
   qed auto
@@ -456,44 +569,44 @@ proof(induction t)
 qed auto
 
 lemma sorted_inorder_subtrees:
- "sorted (inorder_list ts) \<Longrightarrow> \<forall>x \<in> set (subtrees ts). sorted (inorder x)"
+ "sorted_less (inorder_list ts) \<Longrightarrow> \<forall>x \<in> set (subtrees ts). sorted_less (inorder x)"
 proof(induction ts)
   case (Cons a ts)
   then obtain sub sep where "a = (sub,sep)"
     by (cases a)
-  then have "sorted (inorder sub)"
+  then have "sorted_less (inorder sub)"
     using Cons by (simp add: sorted_wrt_append)
   moreover have "set (subtrees (a#ts)) = set (subtrees ts) \<union> {sub}"
     using \<open>a = (sub,sep)\<close> by auto
-  moreover have "sorted (inorder_list ts)"
+  moreover have "sorted_less (inorder_list ts)"
     unfolding inorder_list.simps
     using Cons.prems sorted_wrt_append by fastforce
   ultimately show ?case using Cons
     by auto
 qed auto
 
-lemma sorted_inorder_last: "sorted (inorder (Node ts t)) \<Longrightarrow> sorted (inorder t)"
+lemma sorted_inorder_last: "sorted_less (inorder (Node ts t)) \<Longrightarrow> sorted_less (inorder t)"
   by (simp add: sorted_wrt_append)
 
-lemma sorted_inorder_subcons: "sorted (inorder_list ts) \<Longrightarrow> \<forall>x \<in> set ts. sub_sep_cons x"
+lemma sorted_inorder_subcons: "sorted_less (inorder_list ts) \<Longrightarrow> \<forall>x \<in> set ts. sub_sep_cons x"
 proof(induction ts)
   case (Cons a ts)
   then obtain sub sep where "a = (sub,sep)"
     by (cases a)
-  then have "sorted (inorder sub @ [sep])"
+  then have "sorted_less (inorder sub @ [sep])"
     using Cons by (simp add: sorted_wrt_append)
   then have "sub_sep_cons (sub,sep)"
     unfolding sub_sep_cons.simps
     using set_btree_inorder_set_btree sorted_pair_list
     by fastforce
-  moreover have "sorted (inorder_list ts)"
+  moreover have "sorted_less (inorder_list ts)"
     unfolding inorder_list.simps
     using Cons.prems sorted_wrt_append by fastforce
   ultimately show ?case using Cons         
     using \<open>a = (sub,sep)\<close> by auto
 qed auto
 
-lemma sorted_inorder_fold: "sorted (inorder (Node ts t)) \<Longrightarrow> (\<forall>x \<in> set (inorder_list ts). \<forall>y \<in> set_btree_inorder t. x < y)"
+lemma sorted_inorder_fold: "sorted_less (inorder (Node ts t)) \<Longrightarrow> (\<forall>x \<in> set (inorder_list ts). \<forall>y \<in> set_btree_inorder t. x < y)"
   apply(induction ts)
    apply (simp add: set_btree_inorder_def sorted_Cons_iff sorted_wrt_append)+
   by blast
@@ -503,19 +616,19 @@ lemma seperators_subset: "set (seperators xs) \<subseteq> set (inorder_list xs)"
    apply(auto)
   done
 
-lemma sorted_inorder_seps: "sorted (inorder (Node ts t)) \<Longrightarrow> (\<forall>sep \<in> set (seperators ts). \<forall>y \<in> set_btree_inorder t. sep < y)"
+lemma sorted_inorder_seps: "sorted_less (inorder (Node ts t)) \<Longrightarrow> (\<forall>sep \<in> set (seperators ts). \<forall>y \<in> set_btree_inorder t. sep < y)"
   using sorted_inorder_fold seperators_subset by fastforce
 
-lemma sorted_inorder_impl_list: "sorted (inorder (Node ts t)) \<Longrightarrow> sorted (inorder_list ts)"
+lemma sorted_inorder_impl_list: "sorted_less (inorder (Node ts t)) \<Longrightarrow> sorted_less (inorder_list ts)"
   by (simp add: sorted_wrt_append)
 
 
-lemma sorted_inorder_subsepsm: "sorted (inorder (Node ts t)) \<Longrightarrow> sorted_wrt sub_sep_sm ts"
+lemma sorted_inorder_subsepsm: "sorted_less (inorder (Node ts t)) \<Longrightarrow> sorted_wrt sub_sep_sm ts"
 proof (induction ts)
   case (Cons x list)
   then obtain sub sep where x_pair: "x = (sub, sep)" by (cases x)
   then have list_split: "inorder (Node (x#list) t) = inorder sub @ sep # inorder (Node list t)" unfolding inorder.simps by auto
-  then have "sorted (inorder (Node list t))" 
+  then have "sorted_less (inorder (Node list t))" 
     using  Cons.prems sorted_cons
     by (simp add: list_split sorted_wrt_append)
   then have sorted_wrt_rec: "sorted_wrt sub_sep_sm list" using Cons by auto
@@ -535,9 +648,9 @@ proof (induction ts)
 qed auto
   
 
-find_theorems sorted inorder
+find_theorems sorted_less inorder
 
-lemma sorted_sorted_alt: "sorted (inorder t) \<Longrightarrow> sorted_alt t"
+lemma sorted_sorted_alt: "sorted_less (inorder t) \<Longrightarrow> sorted_alt t"
 apply(induction t)
   apply(simp)
   unfolding sorted_alt.simps
@@ -549,7 +662,7 @@ apply(induction t)
     using sorted_inorder_last apply blast
  done
 
-lemma sorted_alt_eq: "sorted (inorder t) = sorted_alt t"
+lemma sorted_alt_eq: "sorted_less (inorder t) = sorted_alt t"
   using sorted_alt_sorted sorted_sorted_alt by blast
 
 

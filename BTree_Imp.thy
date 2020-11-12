@@ -1,11 +1,16 @@
 theory BTree_Imp
-  imports "Separation_Logic_Imperative_HOL.Sep_Main"
+  imports
+    "Separation_Logic_Imperative_HOL.Sep_Main"
+    Imperative_Loops
+    BTree_Set
 begin
 
-datatype 'a btree = Leaf | Node "('a btree * 'a) list" "'a btree"
 
-datatype 'a btnode = Btnode "('a btnode ref option*'a) array" "'a
-btnode ref option"
+term sorted
+
+
+datatype 'a btnode = Btnode "('a btnode ref option*'a) array" "'a btnode ref option"
+
 
 text \<open>Encoding to natural numbers, as required by Imperative/HOL\<close>
 (* Sollte auch mit deriving gehen *)
@@ -20,52 +25,112 @@ instance btnode :: (heap) heap
   apply (metis btnode_encode.elims from_nat_to_nat fst_conv snd_conv)
   ..
 
-  
-context fixes A :: "'a \<Rightarrow> 'b \<Rightarrow> assn"
-begin
-  fun list_assn where
-    "list_assn [] [] = emp"
-  | "list_assn (x#xs) (y#ys) = A x y * list_assn xs ys"  
-  | "list_assn _ _ = false"
-end
-
-
-lemma list_assn_cong[fundef_cong]:
-  "\<lbrakk> xs=xs'; ys=ys'; \<And>x y. \<lbrakk> x\<in>set xs; y\<in>set ys \<rbrakk> \<Longrightarrow> A x y = A' x y \<rbrakk> \<Longrightarrow>
-list_assn A xs ys = list_assn A' xs' ys'"
-  apply (induction xs ys arbitrary: xs' ys' rule: list_assn.induct)
-  apply auto
-  done
-  
-thm map_cong
-
-
-
-fun prod_assn (infixr "\<times>\<^sub>a" 80) where
-  "prod_assn A B (a,b) (ai,bi) = A a ai * B b bi"
-
-  
-lemma prod_assn_cong[fundef_cong]:
-  "\<lbrakk> p=p'; pi=pi'; A (fst p) (fst pi) = A' (fst p) (fst pi); B (snd p)
-(snd pi) = B' (snd p) (snd pi) \<rbrakk> 
-    \<Longrightarrow> (A\<times>\<^sub>aB) p pi = (A'\<times>\<^sub>aB') p' pi'" 
-    apply (cases p; cases pi)
-    by auto
-  
-  
-abbreviation "id_assn x y \<equiv> \<up>(x=y)"
-
     
 fun R where
-"R None Leaf = emp" |
-"R (Some a) (Node ts t) = 
+"R Leaf None = emp" |
+"R (Node ts t) (Some a) = 
  (\<exists>\<^sub>A tsi ti xsi. 
       a \<mapsto>\<^sub>r Btnode tsi ti 
-    * R ti t 
+    * R t ti 
     * tsi \<mapsto>\<^sub>a xsi
-    * list_assn (R \<times>\<^sub>a id_assn) xsi ts
+    * list_assn (R \<times>\<^sub>a id_assn) ts xsi
     )" |
 "R _ _ = false"
 
 
+find_consts name: while
+
+term split_fun
+
+definition split :: "('a::heap \<times> 'b::{heap,linorder}) array \<Rightarrow> 'b \<Rightarrow> nat Heap"
+where
+"split a p \<equiv> do {
+  l \<leftarrow> Array.len a;
+  
+  i\<leftarrow>heap_WHILET 
+    (\<lambda>i. if i<l then do {
+      (_,s) \<leftarrow> Array.nth a i;
+      return (s<p)
+    } else return False) 
+    (\<lambda>i. return (i+1)) 
+    0;
+       
+  return i
+}"
+
+lemma split_rule: "< a \<mapsto>\<^sub>a xs * true > split a p <\<lambda>i. a\<mapsto>\<^sub>a xs * \<up>(i\<le>length xs \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<length xs \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
+  unfolding split_def
+  
+  supply R = heap_WHILET_rule''[where 
+    R = "measure (\<lambda>i. length xs - i)"
+    and I = "\<lambda>i. a\<mapsto>\<^sub>a xs * \<up>(i\<le>length xs \<and> (\<forall>j<i. snd (xs!j) < p))"
+    and b = "\<lambda>i. i<length xs \<and> snd (xs!i) < p"
+  ]
+  
+  apply (sep_auto decon: R simp: less_Suc_eq) []
+  done
+  
+  
+  
+definition "abs_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
+
+definition "some_relation xs \<equiv> \<lambda>(as,bs) i. as=take i xs \<and> bs = drop i xs"
+
+lemma "<
+    a \<mapsto>\<^sub>a tsi 
+  * list_assn (A \<times>\<^sub>a id_assn) ts tsi
+  * true> 
+    split a p 
+  <\<lambda>i. 
+    a\<mapsto>\<^sub>a tsi 
+    * list_assn (A \<times>\<^sub>a id_assn) ts tsi
+    * \<up>( some_relation ts (abs_split ts p) i)>\<^sub>t"
+  apply (sep_auto heap: split_rule)
+
+  sorry
+  
+  
+  
+  
+  oops
+  apply (sep_auto) []
+  apply (sep_auto) []
+  apply (sep_auto simp: less_Suc_eq) []
+  apply (rule ent_refl)
+  apply (sep_auto) []
+  
+    
+  thm sep_decon_rules
+  apply (sep_auto heap: R simp: less_Suc_eq)
+  find_theorems "_ < Suc _" "(\<or>)"
+  
+  oops
+  apply (vcg (ss) heap: R)
+  apply (sep_auto) []
+  apply (sep_auto) []
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply simp  
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  
+  
+
+
 end
+
+
+
+
+
+
+end
+>>>>>>> lammich_121120

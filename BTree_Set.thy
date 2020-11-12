@@ -52,17 +52,21 @@ lemma subtree_smaller: "subr \<in> set (subtrees xs) \<Longrightarrow>
 
 locale split_fun =
   fixes split_fun ::  "(('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> (('a btree\<times>'a) list \<times> ('a btree\<times>'a) list)"
-  (* fixes a number of comparisons done by split_fun, we assume it does neither fetch nor write pages *)
-  (*fixes t_split_fun ::  "(('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> nat"*)
-  (* and a worst case runtime of t_split_fun on a list of length n *)
-  (*fixes t_split_fun_wc :: "nat \<Rightarrow> nat"*)
-  (* idea: our only requirement for split_fun are the following two + the append requirement*)
+    (* fixes a number of comparisons done by split_fun, we assume it does neither fetch nor write pages *)
+    (*fixes t_split_fun ::  "(('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> nat"*)
+    (* and a worst case runtime of t_split_fun on a list of length n *)
+    (*fixes t_split_fun_wc :: "nat \<Rightarrow> nat"*)
+    (* idea: our only requirement for split_fun are the following two + the append requirement*)
   assumes split_fun_req:
-   "\<lbrakk>split_fun xs p = (ls,rs)\<rbrakk> \<Longrightarrow> ls @ rs = xs"
-   "\<lbrakk>split_fun xs p = (ls,rs); sorted (seperators xs)\<rbrakk> \<Longrightarrow> \<forall>sep \<in> set (seperators ls). p > sep"
-   "\<lbrakk>split_fun xs p = (ls,rs); sorted (seperators xs)\<rbrakk> \<Longrightarrow> (case rs of [] \<Rightarrow> True | ((psub, psep)#rs) \<Rightarrow> (p \<le> psep \<and> (\<forall>sep \<in> set (seperators rs). p < sep)))"
-  (*assumes t_split_fun_req: "length ts \<le> n \<Longrightarrow> t_split_fun ts x \<le> t_split_fun_wc n"*)
+    "\<lbrakk>split_fun xs p = (ls,rs)\<rbrakk> \<Longrightarrow> ls @ rs = xs"
+    "\<lbrakk>split_fun xs p = (ls,rs); sorted_less (seperators xs)\<rbrakk> \<Longrightarrow> \<forall>sep \<in> set (seperators ls). p > sep"
+    "\<lbrakk>split_fun xs p = (ls,rs); sorted_less (seperators xs)\<rbrakk> \<Longrightarrow> case rs of 
+      [] \<Rightarrow> True 
+    | ((psub, psep)#rs) \<Rightarrow> (p \<le> psep \<and> (\<forall>sep \<in> set (seperators rs). p < sep))"
+    (*assumes t_split_fun_req: "length ts \<le> n \<Longrightarrow> t_split_fun ts x \<le> t_split_fun_wc n"*)
 begin
+
+thm split_fun_req
 
 
 lemma split_fun_length_l: "split_fun ts x = (l,[]) \<Longrightarrow> length l = length ts"
@@ -130,7 +134,7 @@ qed simp
 
 (* from the split_fun axioms, we may follow the isin requirements *)
 lemma split_fun_seperator_match:
-  assumes "sorted (seperators xs)" 
+  assumes "sorted_less (seperators xs)" 
     and "x \<in> set (seperators xs)" 
     and "split_fun xs x = (ls,rs)"
   shows "snd (hd rs) = x"
@@ -202,7 +206,7 @@ lemma split_fun_last_empty:
   assumes "x \<in> set_btree t"
     and "(\<forall>sep \<in> set (seperators ts). \<forall>y \<in> set_btree t. sep < y)"
     and "\<forall>x \<in> set ts. sub_sep_cons x"
-    and "sorted (seperators ts)"
+    and "sorted_less (seperators ts)"
     and "split_fun ts x = (ls,rs)"
   shows "rs = []"
 proof (cases rs)
@@ -263,6 +267,14 @@ lemma isin_set: "sorted_alt t \<Longrightarrow> isin t y = (y \<in> set_btree t)
   using isin_impl_set set_impl_isin
   by fastforce
 
+(*
+
+  R t s \<longleftrightarrow> invar k t \<and> s = set_btree t
+
+  isin, (\<in>) : R \<rightarrow> (=) \<rightarrow> (=)
+*)  
+  
+  
 (* TODO time proof *)
 
 (*
@@ -883,7 +895,7 @@ proof(induction k x t rule: ins.induct)
 qed simp
 
 
-(* sorted invariant *)
+(* sorted_less invariant *)
 
 thm sorted_alt.simps
 
@@ -1043,7 +1055,7 @@ next
 qed
 
 
-(* sorted of ins *)
+(* sorted_less of ins *)
 lemma ins_sorted: "sorted_alt t \<Longrightarrow> sorted_up_i (ins k (x::('a::linorder)) t)"
 proof (induction k x t rule: ins.induct)
   case (2 k x ts t)
@@ -2949,9 +2961,34 @@ fun linear_split_help:: "(('a::linorder) btree\<times>'a) list \<Rightarrow> _ \
 fun linear_split:: "(('a::linorder) btree\<times>'a) list \<Rightarrow> _ \<Rightarrow> ((_ btree\<times>_) list \<times> (_ btree\<times>_) list)" where
 "linear_split xs x = linear_split_help xs x []"
 
+(* linear split is similar to well known functions, therefore a quick proof can be done *)
+
+lemma linear_split_alt: "linear_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
+proof -
+
+  have "linear_split_help xs x prev = (prev @ takeWhile (\<lambda>(_, s). s < x) xs, dropWhile (\<lambda>(_, s). s < x) xs)"
+    for prev
+    apply (induction xs arbitrary: prev)
+    apply auto
+    done
+  thus ?thesis by auto
+qed
 
 
+interpretation btree_linear_search: split_fun linear_split
+  apply unfold_locales
+  unfolding linear_split_alt
+  apply (auto simp: split: list.splits)
+  subgoal
+    by (meson case_prodD set_takeWhileD)
+  subgoal
+    by (metis case_prod_conv hd_dropWhile le_less_linear list.sel(1) list.simps(3))
+  subgoal
+    by (metis (mono_tags, lifting) case_prod_unfold hd_dropWhile le_less_linear less_le_trans list.sel(1) list.simps(3) snd_conv sorted_r_forall sorted_wrt_append sorted_wrt_map takeWhile_dropWhile_id)
+  done
 
+
+(* however we can also explicitly derive the locale requirements *)
 
 lemma some_child_sm: "linear_split_help t y xs = (l,(sub,sep)#ts) \<Longrightarrow> y \<le> sep"
   apply(induction t y xs arbitrary: l sub sep ts rule: linear_split_help.induct)
@@ -2965,14 +3002,14 @@ lemma linear_split_append: "linear_split_help xs p ys = (l,r) \<Longrightarrow> 
    apply(simp_all)
   by (metis Pair_inject)
 
-lemma linear_split_sm: "\<lbrakk>linear_split_help xs p ys = (l,r); sorted (seperators (ys@xs)); \<forall>sep \<in> set (seperators ys). p > sep\<rbrakk> \<Longrightarrow> \<forall>sep \<in> set (seperators l). p > sep"
+lemma linear_split_sm: "\<lbrakk>linear_split_help xs p ys = (l,r); sorted_less (seperators (ys@xs)); \<forall>sep \<in> set (seperators ys). p > sep\<rbrakk> \<Longrightarrow> \<forall>sep \<in> set (seperators l). p > sep"
   apply(induction xs p ys arbitrary: l r rule: linear_split_help.induct)
    apply(simp_all)
   by (metis prod.inject)+
 
 value "linear_split [(Leaf, 2)] (1::nat)"
 
-lemma linear_split_gr: "\<lbrakk>linear_split_help xs p ys = (l,r); sorted (seperators (ys@xs)); \<forall>(sub,sep) \<in> set ys. p > sep\<rbrakk> \<Longrightarrow> 
+lemma linear_split_gr: "\<lbrakk>linear_split_help xs p ys = (l,r); sorted_less (seperators (ys@xs)); \<forall>(sub,sep) \<in> set ys. p > sep\<rbrakk> \<Longrightarrow> 
 (case r of [] \<Rightarrow> True | ((psub, psep)#rs) \<Rightarrow> p \<le> psep \<and> (\<forall>sep \<in> set (seperators rs). p < sep))"
 proof(induction xs p ys arbitrary: l r rule: linear_split_help.induct)
   case (2 sub sep xs x prev)
@@ -2984,12 +3021,12 @@ proof(induction xs p ys arbitrary: l r rule: linear_split_help.induct)
   then have 21: "x \<le> psep" using  btree_choose_lr Cons some_child_sm by blast
   moreover from 2 Cons have "\<forall>(sub,sep) \<in> set list. x < sep"
   proof -
-    have "sorted (seperators (l@r))" using linear_split_append btree_choose_lr
+    have "sorted_less (seperators (l@r))" using linear_split_append btree_choose_lr
       by (metis "2.prems"(2))
-    then have "sorted ((seperators l)@(seperators r))" by simp
-    then have "sorted (seperators r)" using sorted_wrt_append by auto
-    then have "sorted (seperators ((psub,psep)#list))" using a_head Cons by blast
-    then have "sorted (psep#(seperators list))" by auto
+    then have "sorted_less ((seperators l)@(seperators r))" by simp
+    then have "sorted_less (seperators r)" using sorted_wrt_append by auto
+    then have "sorted_less (seperators ((psub,psep)#list))" using a_head Cons by blast
+    then have "sorted_less (psep#(seperators list))" by auto
     then have "\<forall>(sub,sep) \<in> set list. sep > psep"
       by (metis case_prodI2 some_child_sub(2) sorted_wrt_Cons)
     then show ?thesis
@@ -3003,7 +3040,7 @@ qed simp
 
 lemma linear_split_req:
   assumes  "linear_split xs p = (l,r)"
-    and "sorted (seperators xs)"
+    and "sorted_less (seperators xs)"
   shows "\<forall>sep \<in> set (seperators l). p > sep"
   and "(case r of [] \<Rightarrow> True | ((psub, psep)#rs) \<Rightarrow> (p \<le> psep \<and> (\<forall>sep \<in> set (seperators rs). p < sep)))"
   using assms linear_split_sm linear_split_gr by fastforce+
@@ -3015,9 +3052,6 @@ unused_thms
 interpretation btree_linear_search: split_fun linear_split
   by (simp add: linear_split_req linear_split_append split_fun_def)
 
-interpretation btree_linear_search_set: Impl linear_split 5
-  by (simp add: Impl.intro btree_linear_search.split_fun_axioms Impl_axioms.intro)
-
 
 
 (* TODO some examples to show that the implementation works and lemmas make sense *)
@@ -3028,7 +3062,8 @@ value "Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf"
 value "root_order 10 (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"
 value "bal (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"
 thm btree_linear_search.insert.simps
-value "btree_linear_search.insert 5 10 (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"
+(* BREAKS: no code generated *)
+(*value "btree_linear_search.insert 5 10 (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"*)
 
 
 

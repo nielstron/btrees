@@ -74,7 +74,7 @@ lemma split_rule: "< a \<mapsto>\<^sub>a xs * true > split a p <\<lambda>i. a\<m
   
 definition "abs_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
 
-definition "some_relation xs \<equiv> \<lambda>(as,bs) i. as=take i xs \<and> bs = drop i xs"
+definition "split_relation xs \<equiv> \<lambda>(as,bs) i. as=take i xs \<and> bs = drop i xs"
 
 lemma "<
     a \<mapsto>\<^sub>a tsi 

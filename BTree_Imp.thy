@@ -26,16 +26,16 @@ instance btnode :: (heap) heap
   ..
 
     
-fun R where
-"R Leaf None = emp" |
-"R (Node ts t) (Some a) = 
+fun btree_assn where
+"btree_assn Leaf None = emp" |
+"btree_assn (Node ts t) (Some a) = 
  (\<exists>\<^sub>A tsi ti xsi. 
       a \<mapsto>\<^sub>r Btnode tsi ti 
-    * R t ti 
+    * btree_assn t ti 
     * tsi \<mapsto>\<^sub>a xsi
-    * list_assn (R \<times>\<^sub>a id_assn) ts xsi
+    * list_assn (btree_assn \<times>\<^sub>a id_assn) ts xsi
     )" |
-"R _ _ = false"
+"btree_assn _ _ = false"
 
 
 find_consts name: while
@@ -76,6 +76,55 @@ definition "abs_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<l
 
 definition "split_relation xs \<equiv> \<lambda>(as,bs) i. as=take i xs \<and> bs = drop i xs"
 
+lemma index_to_elem_all: "(\<forall>j<length xs. P (xs!j)) = (\<forall>x \<in> set xs. P x)"
+  by (simp add: all_set_conv_nth)
+
+lemma index_to_elem: "n < length xs \<Longrightarrow> (\<forall>j<n. P (xs!j)) = (\<forall>x \<in> set (take n xs). P x)"
+  by (simp add: all_set_conv_nth)
+
+lemma abs_split_full: "\<forall>(_,s) \<in> set xs. s < p \<Longrightarrow> abs_split xs p = (xs,[])"
+  by (simp add: abs_split_def)
+
+lemma abs_split_split:
+  assumes "n < length xs" 
+    and "(\<forall>(_,s) \<in> set (take n xs). s < p)"
+    and " (case (xs!n) of (_,s) \<Rightarrow> \<not>(s < p))"
+  shows "abs_split xs p = (take n xs, drop n xs)"
+  using assms  apply (auto simp add: abs_split_def)
+   apply (metis (mono_tags, lifting) id_take_nth_drop old.prod.case takeWhile_eq_all_conv takeWhile_tail)
+  by (metis (no_types, lifting) Cons_nth_drop_Suc case_prod_conv dropWhile.simps(2) dropWhile_append2 id_take_nth_drop)
+
+
+
+lemma split_relation_length: "split_relation xs (ls,rs) (length xs) = (ls = xs \<and> rs = [])"
+  by (simp add: split_relation_def)
+
+thm index_to_elem_all[of ts "\<lambda>x. snd x < p"]
+
+lemma list_assn_all: "h \<Turnstile> (list_assn (\<up>\<circ>\<circ>P) xs ys) \<Longrightarrow> (\<forall>i<length xs. P (xs!i) (ys!i))"
+  apply(induct rule: list_assn.induct)
+     apply(auto simp add: less_Suc_eq_0_disj)
+  done
+
+(* simp? not sure if it always makes things more easy *)
+lemma list_assn_prod_map: "list_assn (A \<times>\<^sub>a B) xs ys = list_assn B (map snd xs) (map snd ys) * list_assn A (map fst xs) (map fst ys)"
+  apply(induct xs ys rule: list_assn.induct)
+     apply(auto simp add: ab_semigroup_mult_class.mult.left_commute ent_star_mono star_aci(2) star_assoc)
+  done
+
+
+
+lemma id_assn_pure: "id_assn = \<up>\<circ>\<circ>(=)"
+  by fastforce
+
+(* concrete *)
+lemma id_assn_list: "h \<Turnstile> list_assn id_assn xs ys \<Longrightarrow> (\<forall>i<length xs. (xs!i) = (ys!i))"
+  apply(simp add: id_assn_pure)
+  using list_assn_all[of "(=)" xs ys h] by metis
+
+
+
+
 lemma "<
     a \<mapsto>\<^sub>a tsi 
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
@@ -84,15 +133,78 @@ lemma "<
   <\<lambda>i. 
     a\<mapsto>\<^sub>a tsi 
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
-    * \<up>( some_relation ts (abs_split ts p) i)>\<^sub>t"
+    * \<up>( split_relation ts (abs_split ts p) i)>\<^sub>t"
   apply (sep_auto heap: split_rule)
+proof -
+  fix h assume heap_init: "h \<Turnstile> a \<mapsto>\<^sub>a tsi * list_assn (A \<times>\<^sub>a id_assn) ts tsi * true"
+  then have heap_state_split: "h \<Turnstile> a \<mapsto>\<^sub>a tsi * list_assn A (map fst ts) (map fst tsi) * true * list_assn id_assn (map snd ts) (map snd tsi)"
+    by (metis (no_types, lifting) assn_aci(10) list_assn_prod_map star_aci(2))
+  then have tsi_ts_eq_elems: "\<forall>j < length (map snd tsi). ((map snd tsi)!j) = ((map snd ts)!j)"
+      using heap_state_split
+      by (metis (mono_tags, lifting) id_assn_list list_assn_aux_ineq_len mod_starD)
+  
+  from heap_state_split have map_tsi_ts_eq: "length (map snd tsi) = length (map snd ts)"
+    by (metis list_assn_aux_ineq_len mod_pure_star_dist pure_false)
 
-  sorry
+  show full_thm: "\<forall>j<length tsi. snd (tsi ! j) < p \<Longrightarrow>
+       split_relation ts (abs_split ts p) (length tsi)"
+  proof -
+    assume sm_list: "\<forall>j<length tsi. snd (tsi ! j) < p"
+    then have "\<forall>j < length (map snd tsi). ((map snd tsi)!j) < p"
+      by simp
+    then have "\<forall>j<length (map snd ts). ((map snd ts)!j) < p"
+      using tsi_ts_eq_elems map_tsi_ts_eq by metis
+    then have "\<forall>(_,s) \<in> set ts. s < p"
+      by (metis case_prod_unfold in_set_conv_nth length_map nth_map)
+    then have "abs_split ts p = (ts, [])"
+      using abs_split_full[of ts p] by simp
+    then show "split_relation ts (abs_split ts p) (length tsi)"
+      using
+        \<open>length (map snd tsi) = length (map snd ts)\<close>
+         split_relation_length
+      by auto
+  qed
   
+  show part_thm: "\<And>x. x \<le> length tsi \<Longrightarrow>
+       \<forall>j<x. snd (tsi ! j) < p \<Longrightarrow>
+       p \<le> snd (tsi ! x) \<Longrightarrow> split_relation ts (abs_split ts p) x"
+  proof -
+    fix x assume "x \<le> length tsi"
+    then have "x = length tsi \<or> x < length tsi"
+      by auto
+    then show "\<forall>j<x. snd (tsi ! j) < p \<Longrightarrow>
+       p \<le> snd (tsi ! x) \<Longrightarrow> split_relation ts (abs_split ts p) x"
+    proof
+      show "\<forall>j<x. snd (tsi ! j) < p \<Longrightarrow>
+    p \<le> snd (tsi ! x) \<Longrightarrow> x = length tsi \<Longrightarrow> split_relation ts (abs_split ts p) x"
+        using full_thm
+        by blast
+    next
+      assume x_sm_len: "x < length tsi"
+      moreover assume sm_list: "\<forall>j<x. snd (tsi ! j) < p"
+      ultimately have "\<forall>j<x. ((map snd tsi) ! j) < p"
+       by auto
+    then have "\<forall>j<x. ((map snd ts)!j) < p"
+      using tsi_ts_eq_elems map_tsi_ts_eq x_sm_len
+      by auto
+    moreover have x_sm_len_ts: "x < length ts"
+      using map_tsi_ts_eq x_sm_len by auto
+    ultimately have "\<forall>(_,x) \<in> set (take x ts). x < p"
+      by (auto simp add: in_set_conv_nth  min.absorb2)+
+    moreover assume "p \<le> snd (tsi ! x)"
+    then have "case tsi!x of (_,s) \<Rightarrow> \<not>(s < p)"
+      by (simp add: case_prod_unfold x_sm_len)
+    then have "case ts!x of (_,s) \<Rightarrow> \<not>(s < p)"
+      using tsi_ts_eq_elems x_sm_len x_sm_len_ts by auto
+    ultimately have "abs_split ts p = (take x ts, drop x ts)"
+      using x_sm_len_ts abs_split_split[of x ts p]
+      by metis
+    then show "split_relation ts (abs_split ts p) x"
+      by (auto simp add: split_relation_def)
+  qed
+qed
   
-  
-  
-  oops
+(*
   apply (sep_auto) []
   apply (sep_auto) []
   apply (sep_auto simp: less_Suc_eq) []
@@ -122,7 +234,7 @@ lemma "<
   apply (vcg (ss))
   apply (vcg (ss))
   
-  
+*)
 
 
 end

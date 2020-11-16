@@ -84,6 +84,16 @@ lemma split_ismeq: "((a::nat) \<le> b \<and> X) = ((a < b \<and> X) \<or> (a = b
   
 definition "abs_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
 
+interpretation btree_abs_search: split_fun abs_split
+  apply unfold_locales
+  unfolding abs_split_def
+  apply (auto simp: split: list.splits)
+  subgoal
+    by (meson case_prodD set_takeWhileD)
+  subgoal
+    by (metis case_prod_conv hd_dropWhile le_less_linear list.sel(1) list.simps(3))
+  done
+
 definition "split_relation xs \<equiv> \<lambda>(as,bs) i. as=take i xs \<and> bs = drop i xs"
 
 lemma index_to_elem_all: "(\<forall>j<length xs. P (xs!j)) = (\<forall>x \<in> set xs. P x)"
@@ -141,7 +151,7 @@ lemma snd_map_help:
     "x < length tsi \<Longrightarrow> snd (tsi!x) = ((map snd tsi)!x)"
   by auto
 
-lemma "<
+lemma split_imp_abs_split: "<
     a \<mapsto>\<^sub>a tsi 
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
@@ -267,6 +277,55 @@ where
     }
 )"
 
+lemma isin_simps [simp, sep_dflt_simps]: 
+"isin None x = return False"
+"isin (Some a) x =
+     do {
+       node \<leftarrow> !a;
+       i \<leftarrow> split (kvs node) x;
+       tsl \<leftarrow> Array.len (kvs node);
+       if i = tsl then 
+         isin (last node) x
+       else do {
+         s \<leftarrow> Array.nth (kvs node) i;
+         if snd s = x then
+           return True
+         else
+           isin (fst s) x
+       }
+    }"
+  apply (subst isin.simps, simp)+
+  done
+
+lemma btree_assn_Leaf: "h \<Turnstile> btree_assn Leaf ti \<Longrightarrow> ti = None"
+  apply(cases ti)
+   apply(auto)
+  done
+
+
+lemma  "<btree_assn t ti * true > isin ti x <\<lambda>r. btree_assn t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
+proof(induct t x arbitrary: ti rule: btree_abs_search.isin.induct)
+  case (1 x)
+  then show ?case
+    apply (cases ti)
+     apply (auto simp add: return_cons_rule)
+    done
+next
+  case (2 ts t x)
+  then show ?case
+  proof (cases ti)
+    case (Some a)
+    then obtain node where "node = !a"
+      by simp
+    then show ?thesis 
+      
+      sorry
+  qed auto
+qed
+
+
+
+
 definition isin_while :: "('a::{heap,linorder}) btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
 where
 "isin_while p x \<equiv> do {
@@ -289,6 +348,9 @@ where
   return (snd r)
 }"
 
+lemma  "<btree_assn t ti * true > isin_while ti x <\<lambda>r. btree_assn t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
+  unfolding isin_while_def
+  sorry
 
 
 

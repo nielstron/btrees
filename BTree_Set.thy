@@ -2990,7 +2990,6 @@ proof -
   thus ?thesis by auto
 qed
 
-
 interpretation btree_linear_search: split_fun linear_split
   apply unfold_locales
   unfolding linear_split_alt

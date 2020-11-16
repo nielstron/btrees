@@ -10,7 +10,12 @@ term sorted
 
 
 datatype 'a btnode = Btnode "('a btnode ref option*'a) array" "'a btnode ref option"
+text \<open>Selector Functions\<close>
+primrec kvs :: "'a::heap btnode \<Rightarrow> ('a btnode ref option*'a) array" where
+  [sep_dflt_simps]: "kvs (Btnode ts _) = ts"
 
+primrec last :: "'a::heap btnode \<Rightarrow> 'a btnode ref option" where
+  [sep_dflt_simps]: "last (Btnode _ t) = t"
 
 text \<open>Encoding to natural numbers, as required by Imperative/HOL\<close>
 (* Sollte auch mit deriving gehen *)
@@ -69,7 +74,12 @@ lemma split_rule: "< a \<mapsto>\<^sub>a xs * true > split a p <\<lambda>i. a\<m
   
   apply (sep_auto decon: R simp: less_Suc_eq) []
   done
-  
+
+
+lemma split_ismeq: "((a::nat) \<le> b \<and> X) = ((a < b \<and> X) \<or> (a = b \<and> X))"
+  apply(cases "a < b")
+   apply auto
+  done
   
   
 definition "abs_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
@@ -122,8 +132,14 @@ lemma id_assn_list: "h \<Turnstile> list_assn id_assn xs ys \<Longrightarrow> (\
   apply(simp add: id_assn_pure)
   using list_assn_all[of "(=)" xs ys h] by metis
 
+lemma list_assn_len: "h \<Turnstile> list_assn A xs ys \<Longrightarrow> length xs = length ys"
+  using list_assn_aux_ineq_len by fastforce
 
-
+lemma snd_map_help:
+    "x \<le> length tsi \<Longrightarrow>
+       (\<forall>j<x. snd (tsi ! j) = ((map snd tsi)!j))"
+    "x < length tsi \<Longrightarrow> snd (tsi!x) = ((map snd tsi)!x)"
+  by auto
 
 lemma "<
     a \<mapsto>\<^sub>a tsi 
@@ -134,17 +150,16 @@ lemma "<
     a\<mapsto>\<^sub>a tsi 
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
     * \<up>( split_relation ts (abs_split ts p) i)>\<^sub>t"
-  apply (sep_auto heap: split_rule)
+  apply (sep_auto heap: split_rule
+ simp add: list_assn_prod_map split_ismeq)
 proof -
-  fix h assume heap_init: "h \<Turnstile> a \<mapsto>\<^sub>a tsi * list_assn (A \<times>\<^sub>a id_assn) ts tsi * true"
-  then have heap_state_split: "h \<Turnstile> a \<mapsto>\<^sub>a tsi * list_assn A (map fst ts) (map fst tsi) * true * list_assn id_assn (map snd ts) (map snd tsi)"
-    by (metis (no_types, lifting) assn_aci(10) list_assn_prod_map star_aci(2))
+  fix h assume heap_init: "h \<Turnstile> a \<mapsto>\<^sub>a tsi *list_assn id_assn (map snd ts) (map snd tsi) *
+       list_assn A (map fst ts) (map fst tsi) * true"
   then have tsi_ts_eq_elems: "\<forall>j < length (map snd tsi). ((map snd tsi)!j) = ((map snd ts)!j)"
-      using heap_state_split
-      by (metis (mono_tags, lifting) id_assn_list list_assn_aux_ineq_len mod_starD)
-  
-  from heap_state_split have map_tsi_ts_eq: "length (map snd tsi) = length (map snd ts)"
-    by (metis list_assn_aux_ineq_len mod_pure_star_dist pure_false)
+    by (metis (mono_tags, lifting) id_assn_list list_assn_aux_ineq_len mod_starD)
+
+  from heap_init have map_tsi_ts_eq: "length (map snd tsi) = length (map snd ts)"
+    by (metis list_assn_aux_ineq_len list_assn_len star_false_left star_false_right)
 
   show full_thm: "\<forall>j<length tsi. snd (tsi ! j) < p \<Longrightarrow>
        split_relation ts (abs_split ts p) (length tsi)"
@@ -161,29 +176,22 @@ proof -
     then show "split_relation ts (abs_split ts p) (length tsi)"
       using
         \<open>length (map snd tsi) = length (map snd ts)\<close>
-         split_relation_length
+        split_relation_length
       by auto
   qed
-  
-  show part_thm: "\<And>x. x \<le> length tsi \<Longrightarrow>
+  then show "\<forall>j<length tsi. snd (tsi ! j) < p \<Longrightarrow>
+       p \<le> snd (tsi ! length tsi) \<Longrightarrow>
+       split_relation ts (abs_split ts p) (length tsi)"
+    by simp
+
+  show part_thm: "\<And>x. x < length tsi \<Longrightarrow>
        \<forall>j<x. snd (tsi ! j) < p \<Longrightarrow>
        p \<le> snd (tsi ! x) \<Longrightarrow> split_relation ts (abs_split ts p) x"
   proof -
-    fix x assume "x \<le> length tsi"
-    then have "x = length tsi \<or> x < length tsi"
+    fix x assume x_sm_len: "x < length tsi"
+    moreover assume sm_list: "\<forall>j<x. snd (tsi ! j) < p"
+    ultimately have "\<forall>j<x. ((map snd tsi) ! j) < p"
       by auto
-    then show "\<forall>j<x. snd (tsi ! j) < p \<Longrightarrow>
-       p \<le> snd (tsi ! x) \<Longrightarrow> split_relation ts (abs_split ts p) x"
-    proof
-      show "\<forall>j<x. snd (tsi ! j) < p \<Longrightarrow>
-    p \<le> snd (tsi ! x) \<Longrightarrow> x = length tsi \<Longrightarrow> split_relation ts (abs_split ts p) x"
-        using full_thm
-        by blast
-    next
-      assume x_sm_len: "x < length tsi"
-      moreover assume sm_list: "\<forall>j<x. snd (tsi ! j) < p"
-      ultimately have "\<forall>j<x. ((map snd tsi) ! j) < p"
-       by auto
     then have "\<forall>j<x. ((map snd ts)!j) < p"
       using tsi_ts_eq_elems map_tsi_ts_eq x_sm_len
       by auto
@@ -203,7 +211,7 @@ proof -
       by (auto simp add: split_relation_def)
   qed
 qed
-  
+
 (*
   apply (sep_auto) []
   apply (sep_auto) []
@@ -236,13 +244,53 @@ qed
   
 *)
 
+(* probably need to assert circle-free ness of the references *)
+
+partial_function (heap) isin :: "('a::{heap,linorder}) btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
+where
+"isin p x = 
+  (case p of 
+     None \<Rightarrow> return False |
+     (Some a) \<Rightarrow> do {
+       node \<leftarrow> !a;
+       i \<leftarrow> split (kvs node) x;
+       tsl \<leftarrow> Array.len (kvs node);
+       if i = tsl then 
+         isin (last node) x
+       else do {
+         s \<leftarrow> Array.nth (kvs node) i;
+         if snd s = x then
+           return True
+         else
+           isin (fst s) x
+       }
+    }
+)"
+
+definition isin_while :: "('a::{heap,linorder}) btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
+where
+"isin_while p x \<equiv> do {
+  r \<leftarrow> heap_WHILET 
+    (\<lambda>p. return ((fst p = None) \<or> (snd p)))
+    (\<lambda>p. 
+      (case fst p of (Some a) \<Rightarrow> do {
+        node \<leftarrow> !a;
+        i \<leftarrow> split (kvs node) x;
+        tsl \<leftarrow> Array.len (kvs node);
+        if i = tsl then 
+         return ((last node), False)
+        else do {
+         s \<leftarrow> Array.nth (kvs node) i;
+         return (fst s, snd s = x)
+        }
+      }
+     )) 
+    (p, False);
+  return (snd r)
+}"
+
+
+
 
 end
 
-
-
-
-
-
-end
->>>>>>> lammich_121120

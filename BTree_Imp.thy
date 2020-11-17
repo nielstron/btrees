@@ -101,7 +101,7 @@ lemma index_to_elem_all: "(\<forall>j<length xs. P (xs!j)) = (\<forall>x \<in> s
 
 lemma index_to_elem: "n < length xs \<Longrightarrow> (\<forall>j<n. P (xs!j)) = (\<forall>x \<in> set (take n xs). P x)"
   by (simp add: all_set_conv_nth)
-
+                
 lemma abs_split_full: "\<forall>(_,s) \<in> set xs. s < p \<Longrightarrow> abs_split xs p = (xs,[])"
   by (simp add: abs_split_def)
 
@@ -265,15 +265,15 @@ where
        node \<leftarrow> !a;
        i \<leftarrow> split (kvs node) x;
        tsl \<leftarrow> Array.len (kvs node);
-       if i = tsl then 
-         isin (last node) x
-       else do {
+       if i < tsl then do {
          s \<leftarrow> Array.nth (kvs node) i;
-         if snd s = x then
+         let (sub,sep) = s in
+         if sep = x then
            return True
          else
-           isin (fst s) x
-       }
+           isin sub x
+       } else
+           isin (last node) x
     }
 )"
 
@@ -284,15 +284,15 @@ lemma isin_simps [simp, sep_dflt_simps]:
        node \<leftarrow> !a;
        i \<leftarrow> split (kvs node) x;
        tsl \<leftarrow> Array.len (kvs node);
-       if i = tsl then 
-         isin (last node) x
-       else do {
+       if i < tsl then do {
          s \<leftarrow> Array.nth (kvs node) i;
-         if snd s = x then
+         let (sub,sep) = s in
+         if sep = x then
            return True
          else
-           isin (fst s) x
-       }
+           isin sub x
+       } else
+           isin (last node) x
     }"
   apply (subst isin.simps, simp)+
   done
@@ -312,14 +312,15 @@ proof(induct t x arbitrary: ti rule: btree_abs_search.isin.induct)
     done
 next
   case (2 ts t x)
+
+  note IH = "2.hyps"
+
   then show ?case
-  proof (cases ti)
-    case (Some a)
-    then obtain node where "node = !a"
-      by simp
-    then show ?thesis 
-      
-      sorry
+    apply simp
+    apply(subst isin.simps)
+    apply (sep_auto heap: split_rule IH simp add: Let_def  split: prod.splits)
+    
+
   qed auto
 qed
 

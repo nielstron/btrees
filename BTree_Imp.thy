@@ -132,6 +132,56 @@ lemma list_assn_prod_map: "list_assn (A \<times>\<^sub>a B) xs ys = list_assn B 
      apply(auto simp add: ab_semigroup_mult_class.mult.left_commute ent_star_mono star_aci(2) star_assoc)
   done
 
+thm ex_assn_def
+           
+subsubsection \<open>Universal Quantification\<close>
+definition all_assn :: "('a \<Rightarrow> assn) \<Rightarrow> assn" (binder "\<forall>\<^sub>A" 11)
+  where "(\<forall>\<^sub>Ax. P x) \<equiv> Abs_assn (\<lambda>h. \<forall>x. h\<Turnstile>P x)"
+
+lemma all_assn_proper[simp, intro!]: 
+  "(\<And>x. proper (P x)) \<Longrightarrow> proper (\<lambda>h. \<forall>x. P x h)"
+  by (auto intro!: properI dest: properD1 simp: proper_iff)
+
+lemma all_assn_const[simp]: "(\<forall>\<^sub>Ax. c) = c" 
+  unfolding all_assn_def by auto
+
+thm Abs_assn_inverse
+
+(*issue: universal quantification is not via * but via \<and>\<^sub>A
+we would however need multiplicative universal quantification *)
+lemma all_distrib_star: "(\<forall>\<^sub>Ax. P x * Q) = (\<forall>\<^sub>Ax. P x) * Q"
+  unfolding all_assn_def times_assn_def
+  apply rule
+  apply (simp add: Abs_assn_inverse)
+  oops
+
+
+lemma all_distrib_and: "(\<forall>\<^sub>Ax. P x \<and>\<^sub>A Q) = (\<forall>\<^sub>Ax. P x) \<and>\<^sub>A Q"
+  unfolding all_assn_def inf_assn_def
+  apply rule
+  apply (simp add: Abs_assn_inverse)
+  done
+
+lemma all_distrib_or: "(\<forall>\<^sub>Ax. P x \<or>\<^sub>A Q) = (\<forall>\<^sub>Ax. P x) \<or>\<^sub>A Q"
+  unfolding all_assn_def sup_assn_def
+  apply rule
+  apply (auto simp add: Abs_assn_inverse)
+  done
+
+lemma all_join_and: "(\<forall>\<^sub>Ax. P x \<and>\<^sub>A (\<forall>\<^sub>Ax. Q x)) = (\<forall>\<^sub>Ax. P x \<and>\<^sub>A Q x)"
+  unfolding all_assn_def inf_assn_def
+  apply rule
+  apply (auto simp add: Abs_assn_inverse)
+  done
+
+lemma list_assn_access: "list_assn A as bs = (\<forall>\<^sub>A i. \<up>(i \<ge> length as) \<or>\<^sub>A ((A (as!i) (bs!i))))"
+  apply(induct rule: list_assn.induct )
+     apply(auto simp add: less_Suc_eq_0_disj)
+  using all_distrib_or[of "\<lambda>i. A ([]!i) ([]!i)" emp]
+  
+  sorry
+  
+
 
 
 lemma id_assn_pure: "id_assn = \<up>\<circ>\<circ>(=)"
@@ -307,14 +357,44 @@ lemma split_relation_list_assn_length:
   by (metis (mono_tags, lifting) assms leD list_assn_len old.prod.case)
 
 
+lemma split_relation_map: "split_relation as (ls,rs) i \<Longrightarrow> split_relation (map f as) (map f ls, map f rs) i"
+  apply(induction as arbitrary: ls rs i)
+   apply(auto simp add: split_relation_def take_map drop_Cons')
+   apply (metis list.simps(9) take_map)
+  done
+
+
+lemma split_relation_append: 
+  "split_relation as (ls,rs) i \<Longrightarrow> as = ls@rs"
+  "\<lbrakk>split_relation as (ls,rs) i; rs \<noteq> []\<rbrakk> \<Longrightarrow> length ls = i"
+  by (simp_all add: split_relation_def)
+
+lemma split_relation_access: "\<lbrakk>split_relation as (ls,rs) i; rs = r#rrs\<rbrakk> \<Longrightarrow> as!i = r"
+  using split_relation_append
+  by fastforce
+
+
 lemma split_relation_list_assn_length2:
   assumes "h \<Turnstile> list_assn (A \<times>\<^sub>a id_assn) as bs"
     and "i < length bs"
     and "split_relation as (ls,(suba,sepa)#rs) i"
     and "bs!i = (subb,sepb)"
-    and "sepa \<noteq> sepb"
-shows "False"
-  sorry
+  shows "sepa = sepb"
+proof -
+  from assms(3) have "split_relation (map snd as) (map snd ls,  (sepa#(map snd rs))) i"
+    using split_relation_map
+    by (metis (no_types, lifting) list.simps(9) snd_conv)
+  then have
+    "(map snd as)!i = sepa"
+    using split_relation_access
+    by metis
+  moreover from assms have "(map snd bs)!i = sepb"
+    by auto
+  moreover from assms have "h \<Turnstile> list_assn A (map fst as) (map fst bs) * list_assn id_assn (map snd as) (map snd bs)"
+    by (simp add: list_assn_prod_map star_aci(2))
+  ultimately show ?thesis
+    by (metis (mono_tags, lifting) assms(2) id_assn_list length_map list_assn_len mod_starD)
+qed
 
 
 
@@ -348,11 +428,11 @@ sepa="abssep" and sepb="x" and suba="abssub" and subb="sub"
           ]
       apply (simp) 
       by (meson mod_starD)
-    sorry
-    
-
-  qed auto
-qed
+    subgoal
+      sorry
+    subgoal
+      sorry
+    done
 
 
 

@@ -297,10 +297,26 @@ lemma isin_simps [simp, sep_dflt_simps]:
   apply (subst isin.simps, simp)+
   done
 
-lemma btree_assn_Leaf: "h \<Turnstile> btree_assn Leaf ti \<Longrightarrow> ti = None"
-  apply(cases ti)
-   apply(auto)
-  done
+
+lemma split_relation_list_assn_length:
+  assumes "h \<Turnstile> list_assn A as bs"
+    and "i < length bs"
+    and "split_relation as (ls,[]) i"
+  shows False
+  using split_relation_def drop_eq_Nil
+  by (metis (mono_tags, lifting) assms leD list_assn_len old.prod.case)
+
+
+lemma split_relation_list_assn_length2:
+  assumes "h \<Turnstile> list_assn (A \<times>\<^sub>a id_assn) as bs"
+    and "i < length bs"
+    and "split_relation as (ls,(suba,sepa)#rs) i"
+    and "bs!i = (subb,sepb)"
+    and "sepa \<noteq> sepb"
+shows "False"
+  sorry
+
+
 
 
 lemma  "<btree_assn t ti * true > isin ti x <\<lambda>r. btree_assn t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
@@ -318,7 +334,21 @@ next
   then show ?case
     apply simp
     apply(subst isin.simps)
-    apply (sep_auto heap: split_rule IH simp add: Let_def  split: prod.splits)
+    apply (sep_auto heap: split_imp_abs_split IH split!: list.splits)
+    subgoal for a tsi ti xsi i sub r ls h1 h2
+      using split_relation_list_assn_length
+      by (metis (no_types, lifting) mod_starD)
+    subgoal for a tsi ti xsi i sub r ls h1 h2 abssub abssep rs
+      using split_relation_list_assn_length2[where
+           as="ts" and
+           bs="xsi" and
+           i="i" and
+           ls="ls" and rs="rs" and
+sepa="abssep" and sepb="x" and suba="abssub" and subb="sub"
+          ]
+      apply (simp) 
+      by (meson mod_starD)
+    sorry
     
 
   qed auto

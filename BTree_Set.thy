@@ -113,7 +113,15 @@ subsection "isin Function"
 
 fun isin:: "'a btree \<Rightarrow> 'a \<Rightarrow> bool" where
  "isin (Leaf) y = False" |
- "isin (Node ts t) y = (case split_fun ts y of (_,r) \<Rightarrow> (case r of (sub,sep)#_ \<Rightarrow> (if y = sep then True else isin sub y) | [] \<Rightarrow> isin t y))"
+ "isin (Node ts t) y = (
+  case split_fun ts y of (_,rs) \<Rightarrow>
+   (case rs of
+   (sub,sep)#_ \<Rightarrow>
+    (if y = sep
+        then True
+        else isin sub y
+    )
+   | [] \<Rightarrow> isin t y))"
 
 (* proofs *)
 (* showing that isin implies the set containment is easy *)

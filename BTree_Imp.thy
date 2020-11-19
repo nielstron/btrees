@@ -102,6 +102,20 @@ lemma split_relation_alt:
   "split_relation as (ls,rs) i = (as = ls@rs \<and> i = length ls)"
   by (auto simp add: split_relation_def)
 
+
+
+lemma split_relation_map: "split_relation as (ls,rs) i \<Longrightarrow> split_relation (map f as) (map f ls, map f rs) i"
+  apply(induction as arbitrary: ls rs i)
+   apply(auto simp add: split_relation_def take_map drop_Cons')
+   apply (metis list.simps(9) take_map)
+  apply (simp add: drop_map)
+  done
+
+lemma split_relation_access: "\<lbrakk>split_relation as (ls,rs) i; rs = r#rrs\<rbrakk> \<Longrightarrow> as!i = r"
+  by (simp add: split_relation_alt)
+
+
+
 lemma index_to_elem_all: "(\<forall>j<length xs. P (xs!j)) = (\<forall>x \<in> set xs. P x)"
   by (simp add: all_set_conv_nth)
 
@@ -137,9 +151,6 @@ lemma list_assn_prod_map: "list_assn (A \<times>\<^sub>a B) xs ys = list_assn B 
   apply(induct xs ys rule: list_assn.induct)
      apply(auto simp add: ab_semigroup_mult_class.mult.left_commute ent_star_mono star_aci(2) star_assoc)
   done
-  
-
-
 
 lemma id_assn_pure: "id_assn = \<up>\<circ>\<circ>(=)"
   by fastforce
@@ -149,8 +160,6 @@ lemma id_assn_list: "h \<Turnstile> list_assn id_assn xs ys \<Longrightarrow> (\
   apply(simp add: id_assn_pure)
   using list_assn_all[of "(=)" xs ys h] by metis
 
-lemma list_assn_len: "h \<Turnstile> list_assn A xs ys \<Longrightarrow> length xs = length ys"
-  using list_assn_aux_ineq_len by fastforce
 
 lemma snd_map_help:
     "x \<le> length tsi \<Longrightarrow>
@@ -261,7 +270,6 @@ qed
   
 *)
 
-(* probably need to assert circle-free ness of the references *)
 
 partial_function (heap) isin :: "('a::{heap,linorder}) btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
 where
@@ -284,111 +292,8 @@ where
     }
 )"
 
-(*
-lemma isin_simps [simp, sep_dflt_simps]: 
-"isin None x = return False"
-"isin (Some a) x =
-     do {
-       node \<leftarrow> !a;
-       i \<leftarrow> split (kvs node) x;
-       tsl \<leftarrow> Array.len (kvs node);
-       if i < tsl then do {
-         s \<leftarrow> Array.nth (kvs node) i;
-         let (sub,sep) = s in
-         if sep = x then
-           return True
-         else
-           isin sub x
-       } else
-           isin (last node) x
-    }"
-  apply (subst isin.simps, simp)+
-  done
-*)
 
-lemma split_relation_list_assn_length:
-  assumes "h \<Turnstile> list_assn A as bs"
-    and "i < length bs"
-    and "split_relation as (ls,rs) i"
-  shows "rs \<noteq> []"
-  using split_relation_def drop_eq_Nil
-  by (metis (mono_tags, lifting) assms leD list_assn_len old.prod.case)
-
-thm list_assn_len
-
-lemma split_relation_map: "split_relation as (ls,rs) i \<Longrightarrow> split_relation (map f as) (map f ls, map f rs) i"
-  apply(induction as arbitrary: ls rs i)
-   apply(auto simp add: split_relation_def take_map drop_Cons')
-   apply (metis list.simps(9) take_map)
-  apply (simp add: drop_map)
-  done
-
-
-
-
-lemma split_relation_access: "\<lbrakk>split_relation as (ls,rs) i; rs = r#rrs\<rbrakk> \<Longrightarrow> as!i = r"
-  by (simp add: split_relation_alt)
-
-
-lemma split_relation_list_assn_length2:
-  assumes "h \<Turnstile> list_assn (A \<times>\<^sub>a id_assn) as bs"
-    and "i < length bs"
-    and "split_relation as (ls,(suba,sepa)#rs) i"
-    and "bs!i = (subb,sepb)"
-  shows "sepa = sepb"
-
-proof -
-  from assms(3) have "split_relation (map snd as) (map snd ls,  (sepa#(map snd rs))) i"
-    using split_relation_map
-    by (metis (no_types, lifting) list.simps(9) snd_conv)
-  then have
-    "(map snd as)!i = sepa"
-    using split_relation_access
-    by metis
-  moreover from assms have "(map snd bs)!i = sepb"
-    by auto
-  moreover from assms have "h \<Turnstile> list_assn A (map fst as) (map fst bs) * list_assn id_assn (map snd as) (map snd bs)"
-    by (simp add: list_assn_prod_map star_aci(2))
-  ultimately show "sepa = sepb"
-    by (metis (mono_tags, lifting) assms(2) id_assn_list length_map list_assn_len mod_starD)
-
-qed
-
-find_theorems "_ \<Longrightarrow> (_::assn) = _" 
-find_theorems "(\<exists>\<^sub>A _. _)"
-
-lemma list_assn_Cons_left: "list_assn A (x#xs) zs = (\<exists>\<^sub>A z zzs. A x z * list_assn A xs zzs * \<up>(zs = z#zzs))"
-  apply(cases zs)
-   apply(auto intro!: ent_iffI ent_ex_postI ent_ex_preI)
-  done
-
-
-lemma list_assn_append_left: "list_assn A (xs@ys) zs = (\<exists>\<^sub>A zs1 zs2. list_assn A xs zs1 * list_assn A ys zs2 * \<up>(zs = zs1@zs2))"
-  apply(induction xs arbitrary: zs)
-   apply(sep_auto simp add: list_assn_Cons_left intro!: ent_iffI)
-  apply(sep_auto simp add: list_assn_Cons_left intro!: ent_iffI)
-  done
-
-find_theorems "_ * (_ * _) = _ * _ * _"
-find_theorems 
-
-lemma list_assn_append_Cons_left: "list_assn A (xs@x#ys) zs = (\<exists>\<^sub>A zs1 z zs2. list_assn A xs zs1 * A x z * list_assn A ys zs2 * \<up>(zs = zs1@z#zs2))"
-  apply (sep_auto simp add: list_assn_Cons_left list_assn_append_left intro!: ent_iffI)
-  done
-
-lemma test_lemma: "xsi ! (length ls) = a \<Longrightarrow>
-       h \<Turnstile> list_assn A ls zs1 *
-            id_assn xsi (zs1 @ z # zs2) \<Longrightarrow>
-       z = a"
-  using list_assn_len by fastforce
-
-
-find_theorems "(\<Turnstile>)" "(*)"
-
-find_theorems "_ \<Longrightarrow>\<^sub>A  _"
-find_theorems "_ \<Longrightarrow>\<^sub>A \<exists>\<^sub>A_. _"
-
-lemma P_impl_Q_P: "P \<Longrightarrow> Q \<longrightarrow> P"
+lemma P_imp_Q_implies_P: "P \<Longrightarrow> (Q \<longrightarrow> P)"
   by simp
 
 lemma  "<btree_assn t ti * true > isin ti x <\<lambda>r. btree_assn t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
@@ -429,8 +334,8 @@ next
         apply(subst isin.simps)
         apply(sep_auto heap: split_imp_abs_split)
          apply(rule hoare_triple_preI)
-          apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
-         apply(rule hoare_triple_preI)
+         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
+        apply(rule hoare_triple_preI)
         apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
         done
     next
@@ -441,81 +346,37 @@ next
         using False apply simp
         apply(subst isin.simps)
         apply(sep_auto heap: split_imp_abs_split)
+          (*eliminate vacuous case*)
           apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!:  mod_starD list_assn_len)[]
+        (* simplify towards induction step *)
          apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
-        
-(* NOTE show that z = (suba, sepa) *)
+
+        (* NOTE show that z = (suba, sepa) *)
          apply(rule norm_pre_ex_rule)+
          apply(rule hoare_triple_preI)
         subgoal for p tsi ti xsi suba sepa zs1 z zs2 _
           apply(subgoal_tac "z = (suba, sepa)", simp)
            apply(sep_auto heap:"2.IH"(2)[of ls rs h rrs sub sep])
           using list_split Cons h_split apply simp_all
-          prefer 2
-           apply (metis (no_types, lifting) list_assn_aux_ineq_len list_assn_len nth_append_length star_false_left star_false_right)
-          apply(rule P_impl_Q_P)
+            (* proof that previous assumptions hold later *)
+          apply(rule P_imp_Q_implies_P)
           apply(rule ent_ex_postI[where ?x="tsi"])
           apply(rule ent_ex_postI[where ?x="ti"])
           apply(rule ent_ex_postI[where ?x="(zs1 @ (suba, sepa) # zs2)"])
           apply(rule ent_ex_postI[where ?x="zs1"])
           apply(rule ent_ex_postI[where ?x="z"])
           apply(rule ent_ex_postI[where ?x="zs2"])
-          apply sep_auto
+           apply sep_auto
+            (* prove subgoal_tac assumption *)
+           apply (metis (no_types, lifting) list_assn_aux_ineq_len list_assn_len nth_append_length star_false_left star_false_right)
           done
+        (* eliminate last vacuous case *)
         apply(rule hoare_triple_preI)
         apply(auto simp add: split_relation_def dest!: mod_starD list_assn_len)[]
         done
-      qed
     qed
   qed
-
-(*
-    apply(simp split: list.splits prod.splits)
-    apply(safe)
-    subgoal for ls
-      apply(subst isin.simps)
-      apply(sep_auto heap: split_imp_abs_split)
-      apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
-       apply(rule hoare_triple_preI)
-       apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
-      apply(sep_auto heap: "2.IH"(1)[of ls "[]"])
-      done
-    subgoal for ls _ sub sep rs
-      apply(subst isin.simps)
-      apply(sep_auto heap: split_imp_abs_split)
-        apply(auto simp add: split_relation_alt list_assn_Cons_left list_assn_append_left dest!: sym[of "[]"] mod_starD list_assn_len)[]
-      apply(sep_auto simp add: split_relation_alt list_assn_Cons_left list_assn_append_left)
-       supply T= "2.IH"(2)[of ls "(sub, sep) # rs" "(sub,sep)" rs sub sep]
-      subgoal for xx ttsi tti suba sepa zs1 a zzs
-        apply(rule hoare_triple_preI)
-        apply(subgoal_tac "suba = a", simp)
-         apply(sep_auto heap: T)
-          prefer 2
-        apply(sep_auto)
-
-       apply (rule cons_post_rule)
-        apply(rule fi_rule[OF T])
-            prefer 5
-      apply(frame_inference)
-      
-  note IH = "2.IH"
-  note [simp del] = btree_abs_search.isin.simps
-  show ?case
-    apply(subst isin.simps)
-    apply(cases ti; simp)
-    apply(sep_auto heap: split_imp_abs_split)
-      apply(simp add: btree_abs_search.isin.simps)
-      apply(simp split: prod.splits list.splits)
-      apply(clarsimp)
-      apply(auto)[]
-    using split_relation_list_assn_length
-       apply (metis (mono_tags, lifting) mod_starD)
-    using split_relation_list_assn_length2
-      apply (smt mod_starD)
-    using IH(2) apply(sep_auto heap: IH)
-    done
-*)
-
+qed
 
 
 definition isin_while :: "('a::{heap,linorder}) btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
@@ -542,7 +403,7 @@ where
 
 lemma  "<btree_assn t ti * true > isin_while ti x <\<lambda>r. btree_assn t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
   unfolding isin_while_def
-  sorry
+  oops
 
 
 

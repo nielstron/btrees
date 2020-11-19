@@ -58,6 +58,31 @@ lemma list_assn_aux_append2[simp]:
   apply (simp add: list_assn_aux_ineq_len assms)
   done
 
+(* ------------------ ADDED in course of btree_imp -------- *)
+
+
+lemma list_assn_len: "h \<Turnstile> list_assn A xs ys \<Longrightarrow> length xs = length ys"
+  using list_assn_aux_ineq_len by fastforce
+
+lemma list_assn_Cons_left: "list_assn A (x#xs) zs = (\<exists>\<^sub>A z zzs. A x z * list_assn A xs zzs * \<up>(zs = z#zzs))"
+  apply(cases zs)
+   apply(auto intro!: ent_iffI ent_ex_postI ent_ex_preI)
+  done
+
+
+lemma list_assn_append_left: "list_assn A (xs@ys) zs = (\<exists>\<^sub>A zs1 zs2. list_assn A xs zs1 * list_assn A ys zs2 * \<up>(zs = zs1@zs2))"
+  apply(induction xs arbitrary: zs)
+   apply(sep_auto simp add: list_assn_Cons_left intro!: ent_iffI)
+  apply(sep_auto simp add: list_assn_Cons_left intro!: ent_iffI)
+  done
+
+
+lemma list_assn_append_Cons_left: "list_assn A (xs@x#ys) zs = (\<exists>\<^sub>A zs1 z zs2. list_assn A xs zs1 * A x z * list_assn A ys zs2 * \<up>(zs = zs1@z#zs2))"
+  apply (sep_auto simp add: list_assn_Cons_left list_assn_append_left intro!: ent_iffI)
+  done
+
+(* -------------------------------------------- *)
+
 subsection \<open>Prod-Assn\<close>
 
 fun prod_assn (infixr "\<times>\<^sub>a" 80) where

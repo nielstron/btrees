@@ -65,7 +65,7 @@ where
   return i
 }"
 
-lemma split_rule: "< a \<mapsto>\<^sub>a xs * true > split a p <\<lambda>i. a\<mapsto>\<^sub>a xs * \<up>(i\<le>length xs \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<length xs \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
+lemma split_rule: "< a \<mapsto>\<^sub>a xs * true> split a p <\<lambda>i. a\<mapsto>\<^sub>a xs * \<up>(i\<le>length xs \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<length xs \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
   unfolding split_def
   
   supply R = heap_WHILET_rule''[where 
@@ -73,6 +73,7 @@ lemma split_rule: "< a \<mapsto>\<^sub>a xs * true > split a p <\<lambda>i. a\<m
     and I = "\<lambda>i. a\<mapsto>\<^sub>a xs * \<up>(i\<le>length xs \<and> (\<forall>j<i. snd (xs!j) < p))"
     and b = "\<lambda>i. i<length xs \<and> snd (xs!i) < p"
   ]
+  thm R
   
   apply (sep_auto decon: R simp: less_Suc_eq) []
   done
@@ -296,7 +297,7 @@ where
 lemma P_imp_Q_implies_P: "P \<Longrightarrow> (Q \<longrightarrow> P)"
   by simp
 
-lemma  "<btree_assn t ti * true > isin ti x <\<lambda>r. btree_assn t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
+lemma  "<btree_assn t ti * true> isin ti x <\<lambda>r. btree_assn t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
 proof(induction t x arbitrary: ti rule: btree_abs_search.isin.induct)
   case (1 x)
   then show ?case

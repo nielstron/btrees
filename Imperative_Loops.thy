@@ -626,6 +626,11 @@ proof -
     
 qed
 
+(* Added by NM *)          
+lemma ent_drop_not_true: "\<exists>P. P * true \<noteq> P"
+  unfolding times_assn_def top_assn_def
+  by (metis assn_basic_inequalities(1) assn_one_left times_assn_def top_assn_def)
+  
 
 lemma heap_WHILET_rule'':
   assumes

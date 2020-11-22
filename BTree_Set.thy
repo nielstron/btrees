@@ -17,20 +17,6 @@ lemma split_half_not_empty: "length xs \<ge> 1 \<Longrightarrow> \<exists>ls sub
   by (metis (no_types, hide_lams) drop0 drop_eq_Nil eq_snd_iff hd_Cons_tl le_trans not_one_le_zero split_half.simps)
 
 
-function binary_split where
-"binary_split ls [] rs x = (ls,rs)" |
-"binary_split ls (a#as) rs x = (let (mls, mrs) = split_half (a#as) in (
-  case mrs of (sub,sep)#mrrs \<Rightarrow> (
-    if x < sep then binary_split ls mls (mrs@rs) x
-    else if x > sep then binary_split (ls@mls) mrs rs x
-    else (ls@mls, mrs@rs)
-    )
-  )
-)"
-   apply (metis neq_Nil_conv surj_pair)
-   apply(auto)
-  done
-  
 
 (* TODO way to use this for custom case distinction? *)
 lemma node_i_cases: "length xs \<le> k \<or> (\<exists>ls sub sep rs. split_half xs = (ls,(sub,sep)#rs))"
@@ -3011,20 +2997,20 @@ interpretation btree_linear_search: split_fun linear_split
 
 (* however we can also explicitly derive the locale requirements *)
 
-lemma some_child_sm: "linear_split_help t y xs = (l,(sub,sep)#ts) \<Longrightarrow> y \<le> sep"
-  apply(induction t y xs arbitrary: l sub sep ts rule: linear_split_help.induct)
+lemma some_child_sm: "linear_split_help t y xs = (ls,(sub,sep)#rs) \<Longrightarrow> y \<le> sep"
+  apply(induction t y xs rule: linear_split_help.induct)
   apply(simp_all)
   by (metis Pair_inject le_less_linear list.inject)
 
 
 
-lemma linear_split_append: "linear_split_help xs p ys = (l,r) \<Longrightarrow> l@r = ys@xs"
-  apply(induction xs p ys arbitrary: l r rule: linear_split_help.induct)
+lemma linear_split_append: "linear_split_help xs p ys = (ls,rs) \<Longrightarrow> ls@rs = ys@xs"
+  apply(induction xs p ys rule: linear_split_help.induct)
    apply(simp_all)
   by (metis Pair_inject)
 
-lemma linear_split_sm: "\<lbrakk>linear_split_help xs p ys = (l,r); sorted_less (seperators (ys@xs)); \<forall>sep \<in> set (seperators ys). p > sep\<rbrakk> \<Longrightarrow> \<forall>sep \<in> set (seperators l). p > sep"
-  apply(induction xs p ys arbitrary: l r rule: linear_split_help.induct)
+lemma linear_split_sm: "\<lbrakk>linear_split_help xs p ys = (ls,rs); sorted_less (seperators (ys@xs)); \<forall>sep \<in> set (seperators ys). p > sep\<rbrakk> \<Longrightarrow> \<forall>sep \<in> set (seperators ls). p > sep"
+  apply(induction xs p ys rule: linear_split_help.induct)
    apply(simp_all)
   by (metis prod.inject)+
 
@@ -3032,20 +3018,10 @@ value "linear_split [(Leaf, 2)] (1::nat)"
 
 (* TODO still has format for older proof *)
 lemma linear_split_gr:
- "\<lbrakk>linear_split_help xs p ys = (l,r); sorted_less (seperators (ys@xs)); \<forall>(sub,sep) \<in> set ys. p > sep\<rbrakk> \<Longrightarrow> 
-(case r of [] \<Rightarrow> True | (_,sep)#_ \<Rightarrow> p \<le> sep)"
-proof(induction xs p ys arbitrary: l r rule: linear_split_help.induct)
-  case (2 sub sep xs x prev)
-  then obtain l r where btree_choose_lr: "linear_split_help ((sub, sep)#xs) x prev = (l,r)" by auto
-  then show ?case
-  using 2 proof (cases r)
-  case (Cons a list)
-  then obtain psub psep where a_head: "a = (psub, psep)" by (cases a)
-  then have 21: "x \<le> psep" using  btree_choose_lr Cons some_child_sm by blast
-  then show ?thesis
-    using "2.prems"(1) \<open>a = (psub, psep)\<close> btree_choose_lr Cons by auto 
-  qed simp
-qed simp
+ "\<lbrakk>linear_split_help xs p ys = (ls,rs); sorted_less (seperators (ys@xs)); \<forall>(sub,sep) \<in> set ys. p > sep\<rbrakk> \<Longrightarrow> 
+(case rs of [] \<Rightarrow> True | (_,sep)#_ \<Rightarrow> p \<le> sep)"
+  apply(cases rs)
+  by (auto simp add: some_child_sm)
 
 
 lemma linear_split_req:
@@ -3063,6 +3039,50 @@ interpretation btree_linear_search: split_fun linear_split
   by (simp add: linear_split_req linear_split_append split_fun_def)
 
 
+function (sequential) binary_split_help:: "(('a::linorder) btree\<times>'a) list \<Rightarrow> (('a::linorder) btree\<times>'a) list \<Rightarrow> (('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow>  ((_ btree\<times>_) list \<times> (_ btree\<times>_) list)" where
+"binary_split_help ls [] rs x = (ls,rs)" |
+"binary_split_help ls as rs x = (let (mls, mrs) = split_half as in (
+  case mrs of (sub,sep)#mrrs \<Rightarrow> (
+    if x < sep then binary_split_help ls mls (mrs@rs) x
+    else if x > sep then binary_split_help (ls@mls@[(sub,sep)]) mrrs rs x
+    else (ls@mls, mrs@rs)
+    )
+  )
+)"
+  by pat_completeness auto
+termination
+  apply(relation "measure (\<lambda>(ls,xs,rs,x). length xs)")
+  apply (auto)
+  by (metis append_take_drop_id length_Cons length_append lessI trans_less_add2)
+
+value "cmp (1::nat) 2"
+
+
+fun binary_split where
+  "binary_split as x = binary_split_help [] as [] x"
+
+value "cmp (1::nat) 2"
+
+lemma "binary_split_help as bs cs x = (ls,rs) \<Longrightarrow> (as@bs@cs) = (ls@rs)"
+  apply(induction as bs cs x arbitrary: ls rs rule: binary_split_help.induct)
+   apply (auto simp add: drop_not_empty split!: list.splits )
+  subgoal for ls a b va rs  x lsa rsa aa ba x22
+    apply(cases "cmp x ba")
+    apply auto
+    apply (metis Cons_eq_appendI append_eq_appendI append_take_drop_id)
+    apply (metis append_take_drop_id)
+    by (metis Cons_eq_appendI append_eq_appendI append_take_drop_id)
+  done
+
+lemma "\<lbrakk>sorted_less (seperators (as@bs@cs)); binary_split_help as bs cs x = (ls,rs); \<forall>y \<in> set (seperators as). y < x\<rbrakk>
+\<Longrightarrow> \<forall>y \<in> set (seperators ls). y < x"
+  apply(induction as bs cs x arbitrary: ls rs rule: binary_split_help.induct)
+   apply (auto simp add: drop_not_empty split!: list.splits)
+  subgoal for ls a b va rs  x lsa rsa aa ba x22 ab bb
+    apply(cases "cmp x ba")
+      apply auto
+    oops
+  
 
 (* TODO some examples to show that the implementation works and lemmas make sense *)
 find_theorems sorted_wrt

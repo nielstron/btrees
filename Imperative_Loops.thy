@@ -3,6 +3,7 @@ theory Imperative_Loops
     "Separation_Logic_Imperative_HOL.Sep_Main"
     "Refine_Imperative_HOL.Pf_Mono_Prover"
     "Refine_Imperative_HOL.Pf_Add"
+    "Refine_Imperative_HOL.Sepref_Basic"
     "Automatic_Refinement.Refine_Lib"
     Instantiate_Existentials
 begin
@@ -85,10 +86,7 @@ lemma list_assn_append_Cons_left: "list_assn A (xs@x#ys) zs = (\<exists>\<^sub>A
 
 subsection \<open>Prod-Assn\<close>
 
-fun prod_assn (infixr "\<times>\<^sub>a" 80) where
-  "prod_assn A B (a,b) (ai,bi) = A a ai * B b bi"
 
-  
 lemma prod_assn_cong[fundef_cong]:
   "\<lbrakk> p=p'; pi=pi'; A (fst p) (fst pi) = A' (fst p) (fst pi); B (snd p) (snd pi) = B' (snd p) (snd pi) \<rbrakk> 
     \<Longrightarrow> (A\<times>\<^sub>aB) p pi = (A'\<times>\<^sub>aB') p' pi'" 
@@ -630,7 +628,9 @@ qed
 lemma ent_drop_not_true: "\<exists>P. P * true \<noteq> P"
   unfolding times_assn_def top_assn_def
   by (metis assn_basic_inequalities(1) assn_one_left times_assn_def top_assn_def)
-  
+
+lemma "emp * true \<noteq> emp"
+  by simp
 
 lemma heap_WHILET_rule'':
   assumes

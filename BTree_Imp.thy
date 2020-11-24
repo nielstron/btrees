@@ -1,19 +1,16 @@
 theory BTree_Imp
   imports
-    "Separation_Logic_Imperative_HOL.Sep_Main"
+    "Refine_Imperative_HOL.IICF_Array_List"
     Imperative_Loops
     BTree_Set
 begin
 
 
-term sorted
-
-
 datatype 'a btnode =
-  Btnode "('a btnode ref option*'a) array" "'a btnode ref option"
+  Btnode "('a btnode ref option*'a) array_list" "'a btnode ref option"
 
 text \<open>Selector Functions\<close>
-primrec kvs :: "'a::heap btnode \<Rightarrow> ('a btnode ref option*'a) array" where
+primrec kvs :: "'a::heap btnode \<Rightarrow> ('a btnode ref option*'a) array_list" where
   [sep_dflt_simps]: "kvs (Btnode ts _) = ts"
 
 primrec last :: "'a::heap btnode \<Rightarrow> 'a btnode ref option" where
@@ -32,8 +29,14 @@ instance btnode :: (heap) heap
   apply (metis btnode_encode.elims from_nat_to_nat fst_conv snd_conv)
   ..
 
+
+fun array_list_assn where
+"array_list_assn A l (a,n) =  (\<exists>\<^sub>A li. 
+      is_array_list li (a,n)
+    * list_assn A (take n l) (take n li) 
+    )" 
     
-fun btree_assn where
+fun btree_assn :: "'a::heap btree \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
 "btree_assn Leaf None = emp" |
 "btree_assn (Node ts t) (Some a) = 
  (\<exists>\<^sub>A tsi ti xsi. 
@@ -407,6 +410,76 @@ lemma  "<btree_assn t ti * true > isin_while ti x <\<lambda>r. btree_assn t ti *
   oops
 
 
+definition split_half :: "('a::heap \<times> 'b::{heap}) array \<Rightarrow> nat Heap"
+where
+"split_half a \<equiv> do {
+  l \<leftarrow> Array.len a;
+  return (l div 2)
+}"
+
+lemma split_half_rule: "<
+    a \<mapsto>\<^sub>a tsi 
+  * list_assn (A \<times>\<^sub>a id_assn) ts tsi
+  * true> 
+    split_half a
+  <\<lambda>i. 
+      a \<mapsto>\<^sub>a tsi 
+    * list_assn (A \<times>\<^sub>a id_assn) ts tsi
+    * \<up>( split_relation ts (BTree_Set.split_half ts) i)>\<^sub>t"
+  unfolding split_half_def split_relation_def
+  apply(rule hoare_triple_preI)
+  apply(sep_auto dest!: list_assn_len mod_starD)
+  done
+
+datatype 'a btupi = 
+  UpT_i "'a btnode ref option" "'a option" "'a btnode ref option"
+
+fun
+  btupi_encode :: "'a::heap btupi \<Rightarrow> nat"
+  where
+  "btupi_encode (UpT_i a x b) = to_nat (a,x,b)"
+
+thm btupi_encode.cases
+instance btupi :: (heap) heap
+  apply (rule heap_class.intro)
+   apply (rule countable_classI[of "btupi_encode"])
+  subgoal
+  proof -
+    fix x :: "'a btupi" and y :: "'a btupi"
+    assume a1: "btupi_encode x = btupi_encode y"
+    have "\<forall>b n. (\<exists>z za zb. to_nat (z, za::'a option, zb) = n \<and> UpT_i z za zb = b) \<or> btupi_encode b \<noteq> n"
+      by (metis (no_types) btupi_encode.elims)
+    then show "x = y"
+      using a1 by (metis Pair_inject from_nat_to_nat)
+  qed
+  ..
+
+fun btupi_assn where
+"btupi_assn (btree_abs_search.T_i l) (UpT_i li None None) = btree_assn l li" |
+"btupi_assn (btree_abs_search.Up_i l a r) (UpT_i li (Some ai) ri) = btree_assn l li * id_assn a ai * btree_assn r ri" |
+"btupi_assn _ _ = false"
+
+find_theorems Array
+
+term blit
+
+thm list_assn.simps
+find_theorems slice
+
+term is_array_list
+
+
+
+definition node_i :: "nat \<Rightarrow> (('a::heap) btnode ref option \<times> 'a) array_list \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap" where
+"node_i k (a,n) ti \<equiv> do {
+    l \<leftarrow> ref (Btnode a ti);
+    if n \<le> 2*k then
+      return (UpT_i (Some l) None None)
+    else do {
+      i \<leftarrow> split_half a;
+      return ()
+    }
+}"
 
 end
 

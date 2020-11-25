@@ -1,4 +1,4 @@
-theory BTree_Imp
+theory BTree_Imp_DynArray
   imports
     "Refine_Imperative_HOL.IICF_Array_List"
     Imperative_Loops
@@ -7,10 +7,10 @@ begin
 
 
 datatype 'a btnode =
-  Btnode "('a btnode ref option*'a) array" "'a btnode ref option"
+  Btnode "('a btnode ref option*'a) array_list" "'a btnode ref option"
 
 text \<open>Selector Functions\<close>
-primrec kvs :: "'a::heap btnode \<Rightarrow> ('a btnode ref option*'a) array" where
+primrec kvs :: "'a::heap btnode \<Rightarrow> ('a btnode ref option*'a) array_list" where
   [sep_dflt_simps]: "kvs (Btnode ts _) = ts"
 
 primrec last :: "'a::heap btnode \<Rightarrow> 'a btnode ref option" where
@@ -30,35 +30,45 @@ instance btnode :: (heap) heap
   ..
 
 
-fun array_list_assn where
-"array_list_assn A l (a,n) =  (\<exists>\<^sub>A li. 
-      is_array_list li (a,n)
-    * list_assn A (take n l) (take n li) 
-    )" 
     
 fun btree_assn :: "'a::heap btree \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
 "btree_assn Leaf None = emp" |
 "btree_assn (Node ts t) (Some a) = 
- (\<exists>\<^sub>A tsi ti xsi. 
+ (\<exists>\<^sub>A tsi ti tsi' n l'. 
       a \<mapsto>\<^sub>r Btnode tsi ti 
-    * btree_assn t ti 
-    * tsi \<mapsto>\<^sub>a xsi
-    * list_assn (btree_assn \<times>\<^sub>a id_assn) ts xsi
+    * btree_assn t ti
+    * \<up>(tsi = (tsi', n))
+    * tsi' \<mapsto>\<^sub>a l'
+    * \<up>(n \<le> length l')
+    * list_assn (btree_assn \<times>\<^sub>a id_assn) ts (take n l')
     )" |
 "btree_assn _ _ = false"
+
+function (sequential) btree_assn_simpd :: "'a::heap btree \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
+"btree_assn_simpd Leaf None = emp" |
+"btree_assn_simpd (Node ts t) (Some a) =
+     (\<exists>\<^sub>A tsi ti. 
+        a \<mapsto>\<^sub>r Btnode tsi ti 
+        * btree_assn_simpd t ti
+        * array_list_assn (btree_assn_simpd \<times>\<^sub>a id_assn) ts tsi
+      )
+" |
+"btree_assn_simpd _ _ = false"
+  apply(auto)
+  by (metis btree.exhaust not_Some_eq)
 
 
 find_consts name: while
 
 term split_fun
 
-definition split :: "('a::heap \<times> 'b::{heap,linorder}) array \<Rightarrow> 'b \<Rightarrow> nat Heap"
+definition split :: "('a::heap \<times> 'b::{heap,linorder}) array_list \<Rightarrow> 'b \<Rightarrow> nat Heap"
 where
-"split a p \<equiv> do {
-  l \<leftarrow> Array.len a;
+"split l p \<equiv> 
+  let (a,n) = l in do {
   
   i \<leftarrow> heap_WHILET 
-    (\<lambda>i. if i<l then do {
+    (\<lambda>i. if i<n then do {
       (_,s) \<leftarrow> Array.nth a i;
       return (s<p)
     } else return False) 
@@ -68,13 +78,13 @@ where
   return i
 }"
 
-lemma split_rule: "< a \<mapsto>\<^sub>a xs * true> split a p <\<lambda>i. a\<mapsto>\<^sub>a xs * \<up>(i\<le>length xs \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<length xs \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
+lemma split_rule: "n \<le> length xs \<Longrightarrow> < a \<mapsto>\<^sub>a xs * true> split (a,n) p <\<lambda>i. a\<mapsto>\<^sub>a xs * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
   unfolding split_def
   
   supply R = heap_WHILET_rule''[where 
-    R = "measure (\<lambda>i. length xs - i)"
-    and I = "\<lambda>i. a\<mapsto>\<^sub>a xs * \<up>(i\<le>length xs \<and> (\<forall>j<i. snd (xs!j) < p))"
-    and b = "\<lambda>i. i<length xs \<and> snd (xs!i) < p"
+    R = "measure (\<lambda>i. n - i)"
+    and I = "\<lambda>i. a\<mapsto>\<^sub>a xs * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p))"
+    and b = "\<lambda>i. i<n \<and> snd (xs!i) < p"
   ]
   thm R
   
@@ -171,31 +181,38 @@ lemma snd_map_help:
     "x < length tsi \<Longrightarrow> snd (tsi!x) = ((map snd tsi)!x)"
   by auto
 
-lemma split_imp_abs_split: "<
+find_theorems "<_>_<_>"
+
+lemma split_imp_abs_split: "n \<le> length tsi \<Longrightarrow> <
     a \<mapsto>\<^sub>a tsi 
-  * list_assn (A \<times>\<^sub>a id_assn) ts tsi
+  * list_assn (A \<times>\<^sub>a id_assn) ts (take n tsi)
   * true> 
-    split a p 
+    split (a,n) p 
   <\<lambda>i. 
-      a \<mapsto>\<^sub>a tsi 
-    * list_assn (A \<times>\<^sub>a id_assn) ts tsi
-    * \<up>( split_relation ts (abs_split ts p) i)>\<^sub>t"
+      a \<mapsto>\<^sub>a tsi
+    * list_assn (A \<times>\<^sub>a id_assn) ts (take n tsi)
+    * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
+  thm split_rule
   apply (sep_auto heap: split_rule
  simp add: list_assn_prod_map split_ismeq)
 proof -
-  fix h assume heap_init: "h \<Turnstile> a \<mapsto>\<^sub>a tsi * list_assn id_assn (map snd ts) (map snd tsi) *
-       list_assn A (map fst ts) (map fst tsi) * true"
-  then have tsi_ts_eq_elems: "\<forall>j < length (map snd tsi). ((map snd tsi)!j) = ((map snd ts)!j)"
+  assume n_len: "n \<le> length tsi"
+  fix h assume heap_init: "h \<Turnstile> a \<mapsto>\<^sub>a tsi * list_assn id_assn (map snd ts) (map snd (take n tsi)) *
+       list_assn A (map fst ts) (map fst (take n tsi)) * true"
+  then have tsi_ts_eq_elems: "\<forall>j < length (map snd (take n tsi)). ((map snd (take n tsi))!j) = ((map snd ts)!j)"
     by (metis (mono_tags, lifting) id_assn_list list_assn_aux_ineq_len mod_starD)
 
-  from heap_init have map_tsi_ts_eq: "length (map snd tsi) = length (map snd ts)"
+  from heap_init have map_tsi_ts_eq: "length (map snd (take n tsi)) = length (map snd ts)"
     by (metis list_assn_aux_ineq_len list_assn_len star_false_left star_false_right)
+  then have map_n_ts_eq: "n = length (map snd ts)"
+    using n_len by auto
 
-  show full_thm: "\<forall>j<length tsi. snd (tsi ! j) < p \<Longrightarrow>
-       split_relation ts (abs_split ts p) (length tsi)"
+
+  show full_thm: "\<forall>j<n. snd (tsi ! j) < p \<Longrightarrow>
+       split_relation ts (abs_split ts p) n"
   proof -
-    assume sm_list: "\<forall>j<length tsi. snd (tsi ! j) < p"
-    then have "\<forall>j < length (map snd tsi). ((map snd tsi)!j) < p"
+    assume sm_list: "\<forall>j<n. snd (tsi ! j) < p"
+    then have "\<forall>j < length (map snd (take n tsi)). ((map snd (take n tsi))!j) < p"
       by simp
     then have "\<forall>j<length (map snd ts). ((map snd ts)!j) < p"
       using tsi_ts_eq_elems map_tsi_ts_eq by metis
@@ -203,29 +220,32 @@ proof -
       by (metis case_prod_unfold in_set_conv_nth length_map nth_map)
     then have "abs_split ts p = (ts, [])"
       using abs_split_full[of ts p] by simp
-    then show "split_relation ts (abs_split ts p) (length tsi)"
+    then show "split_relation ts (abs_split ts p) n"
       using
-        \<open>length (map snd tsi) = length (map snd ts)\<close>
+        map_n_ts_eq
         split_relation_length
+        n_len
       by auto
+      
   qed
-  then show "\<forall>j<length tsi. snd (tsi ! j) < p \<Longrightarrow>
-       p \<le> snd (tsi ! length tsi) \<Longrightarrow>
-       split_relation ts (abs_split ts p) (length tsi)"
+  then show "\<forall>j<n. snd (tsi ! j) < p \<Longrightarrow>
+       p \<le> snd (tsi ! n) \<Longrightarrow>
+       split_relation ts (abs_split ts p) n"
     by simp
 
-  show part_thm: "\<And>x. x < length tsi \<Longrightarrow>
+  show part_thm: "\<And>x. x < n \<Longrightarrow>
        \<forall>j<x. snd (tsi ! j) < p \<Longrightarrow>
        p \<le> snd (tsi ! x) \<Longrightarrow> split_relation ts (abs_split ts p) x"
   proof -
-    fix x assume x_sm_len: "x < length tsi"
+    fix x assume x_sm_len: "x < n"
     moreover assume sm_list: "\<forall>j<x. snd (tsi ! j) < p"
     ultimately have "\<forall>j<x. ((map snd tsi) ! j) < p"
+      using n_len
       by auto
     then have "\<forall>j<x. ((map snd ts)!j) < p"
-      using tsi_ts_eq_elems map_tsi_ts_eq x_sm_len
+      using tsi_ts_eq_elems map_tsi_ts_eq x_sm_len n_len
       by auto
-    moreover have x_sm_len_ts: "x < length ts"
+    moreover have x_sm_len_ts: "x < n"
       using map_tsi_ts_eq x_sm_len by auto
     ultimately have "\<forall>(_,x) \<in> set (take x ts). x < p"
       by (auto simp add: in_set_conv_nth  min.absorb2)+
@@ -233,12 +253,14 @@ proof -
     then have "case tsi!x of (_,s) \<Rightarrow> \<not>(s < p)"
       by (simp add: case_prod_unfold x_sm_len)
     then have "case ts!x of (_,s) \<Rightarrow> \<not>(s < p)"
-      using tsi_ts_eq_elems x_sm_len x_sm_len_ts by auto
+      using tsi_ts_eq_elems x_sm_len x_sm_len_ts n_len
+      by (metis (mono_tags, lifting) case_prod_unfold length_map map_n_ts_eq map_tsi_ts_eq nth_take snd_map_help(2))
     ultimately have "abs_split ts p = (take x ts, drop x ts)"
-      using x_sm_len_ts abs_split_split[of x ts p]
-      by metis
+      using x_sm_len_ts abs_split_split[of x ts p] map_n_ts_eq
+      by auto
     then show "split_relation ts (abs_split ts p) x"
-      using x_sm_len_ts by (auto simp add: split_relation_def)
+      using x_sm_len_ts map_n_ts_eq 
+      by (auto simp add: split_relation_def)
   qed
 qed
 
@@ -283,9 +305,9 @@ where
      (Some a) \<Rightarrow> do {
        node \<leftarrow> !a;
        i \<leftarrow> split (kvs node) x;
-       tsl \<leftarrow> Array.len (kvs node);
+       let tsl = snd (kvs node) in
        if i < tsl then do {
-         s \<leftarrow> Array.nth (kvs node) i;
+         s \<leftarrow> arl_get (kvs node) i;
          let (sub,sep) = s in
          if x = sep then
            return True
@@ -323,7 +345,7 @@ next
         apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
        apply(rule hoare_triple_preI)
        apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
-      apply(sep_auto heap: "2.IH"(1)[of ls "[]"])
+      aapply(sep_auto heap: "2.IH"(1)[of ls "[]"])
       done
   next
     case [simp]: (Cons h rrs)
@@ -340,7 +362,7 @@ next
          apply(rule hoare_triple_preI)
          apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
         apply(rule hoare_triple_preI)
-        apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
+        apply(auto simp add: split_relation_def dest: sym[of "[]"] mod_starD list_assn_len)[]
         done
     next
       case [simp]: False

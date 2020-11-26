@@ -164,7 +164,7 @@ find_theorems Id
 
   
 (* concrete *)
-lemma id_assn_list: "h \<Turnstile> list_assn id_assn xs ys \<Longrightarrow> (\<forall>i<length xs. (xs!i) = (ys!i))"
+lemma id_assn_list: "h \<Turnstile> list_assn id_assn xs ys \<Longrightarrow> xs = ys"
   apply(induct rule: list_assn.induct)
      apply(auto simp add: less_Suc_eq_0_disj pure_def)
   done
@@ -196,63 +196,60 @@ proof -
  
   fix h l' assume heap_init:
     "h \<Turnstile> a \<mapsto>\<^sub>a l'"
-    "\<forall>i < length ts. snd (ts ! i) =  (map snd (take n l') ! i)"
+    "map snd ts = (map snd (take n l'))"
     "n \<le> length l'"
 
 
   show full_thm: "\<forall>j<n. snd (l' ! j) < p \<Longrightarrow>
        split_relation ts (abs_split ts p) n"
   proof -
-    assume sm_list: "\<forall>j<n. snd (tsi ! j) < p"
-    then have "\<forall>j < length (map snd (take n tsi)). ((map snd (take n tsi))!j) < p"
+    assume sm_list: "\<forall>j<n. snd (l' ! j) < p"
+    then have "\<forall>j < length (map snd (take n l')). ((map snd (take n l'))!j) < p"
       by simp
     then have "\<forall>j<length (map snd ts). ((map snd ts)!j) < p"
-      using tsi_ts_eq_elems map_tsi_ts_eq by metis
+      using heap_init by simp
     then have "\<forall>(_,s) \<in> set ts. s < p"
       by (metis case_prod_unfold in_set_conv_nth length_map nth_map)
     then have "abs_split ts p = (ts, [])"
       using abs_split_full[of ts p] by simp
     then show "split_relation ts (abs_split ts p) n"
-      using
-        map_n_ts_eq
-        split_relation_length
-        n_len
-      by auto
+      using split_relation_length
+      by (metis heap_init(2) heap_init(3) length_map length_take min.absorb2)
       
   qed
-  then show "\<forall>j<n. snd (tsi ! j) < p \<Longrightarrow>
-       p \<le> snd (tsi ! n) \<Longrightarrow>
+  then show "\<forall>j<n. snd (l' ! j) < p \<Longrightarrow>
+       p \<le> snd (take n l' ! n) \<Longrightarrow>
        split_relation ts (abs_split ts p) n"
     by simp
 
   show part_thm: "\<And>x. x < n \<Longrightarrow>
-       \<forall>j<x. snd (tsi ! j) < p \<Longrightarrow>
-       p \<le> snd (tsi ! x) \<Longrightarrow> split_relation ts (abs_split ts p) x"
+       \<forall>j<x. snd (l' ! j) < p \<Longrightarrow>
+       p \<le> snd (l' ! x) \<Longrightarrow> split_relation ts (abs_split ts p) x"
   proof -
     fix x assume x_sm_len: "x < n"
-    moreover assume sm_list: "\<forall>j<x. snd (tsi ! j) < p"
-    ultimately have "\<forall>j<x. ((map snd tsi) ! j) < p"
-      using n_len
+    moreover assume sm_list: "\<forall>j<x. snd (l' ! j) < p"
+    ultimately have "\<forall>j<x. ((map snd l') ! j) < p"
+      using heap_init
       by auto
     then have "\<forall>j<x. ((map snd ts)!j) < p"
-      using tsi_ts_eq_elems map_tsi_ts_eq x_sm_len n_len
+      using heap_init  x_sm_len
       by auto
     moreover have x_sm_len_ts: "x < n"
-      using map_tsi_ts_eq x_sm_len by auto
+      using heap_init x_sm_len by auto
     ultimately have "\<forall>(_,x) \<in> set (take x ts). x < p"
       by (auto simp add: in_set_conv_nth  min.absorb2)+
-    moreover assume "p \<le> snd (tsi ! x)"
-    then have "case tsi!x of (_,s) \<Rightarrow> \<not>(s < p)"
+    moreover assume "p \<le> snd (l' ! x)"
+    then have "case l'!x of (_,s) \<Rightarrow> \<not>(s < p)"
       by (simp add: case_prod_unfold x_sm_len)
     then have "case ts!x of (_,s) \<Rightarrow> \<not>(s < p)"
-      using tsi_ts_eq_elems x_sm_len x_sm_len_ts n_len
-      by (metis (mono_tags, lifting) case_prod_unfold length_map map_n_ts_eq map_tsi_ts_eq nth_take snd_map_help(2))
+      using heap_init x_sm_len x_sm_len_ts
+      by (metis (mono_tags, lifting) case_prod_unfold length_map length_take min.absorb2 nth_take snd_map_help(2))
     ultimately have "abs_split ts p = (take x ts, drop x ts)"
-      using x_sm_len_ts abs_split_split[of x ts p] map_n_ts_eq
-      by auto
+      using x_sm_len_ts abs_split_split[of x ts p] heap_init
+      by (metis length_map length_take min.absorb2)
     then show "split_relation ts (abs_split ts p) x"
-      using x_sm_len_ts map_n_ts_eq 
-      by (auto simp add: split_relation_def)
+      using x_sm_len_ts 
+      by (metis append_take_drop_id heap_init(2) heap_init(3) length_map length_take less_imp_le_nat min.absorb2 split_relation_alt)
   qed
 qed
 

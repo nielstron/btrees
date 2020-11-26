@@ -455,7 +455,7 @@ term is_array_list
 
 
 
-definition node_i :: "nat \<Rightarrow> (('a::heap) btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap" where
+definition node_i :: "nat \<Rightarrow> (('a::{default,heap}) btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap" where
 "node_i k a ti \<equiv> do {
     n \<leftarrow> pfa_length a;
     if n \<le> 2*k then do {
@@ -466,9 +466,12 @@ definition node_i :: "nat \<Rightarrow> (('a::heap) btnode ref option \<times> '
       i \<leftarrow> split_half a;
       m \<leftarrow> pfa_get a i;
       a' \<leftarrow> pfa_shrink i a;
+      b \<leftarrow> (pfa_empty (2*k) :: ('a btnode ref option \<times> 'a) pfarray Heap);
+      b' \<leftarrow> pfa_drop a (i+1) b;
+      r \<leftarrow> ref (Btnode b' ti);
       let (sub,sep) = m in do {
         l \<leftarrow> ref (Btnode a' sub);
-        return (UpT_i (Some l) (Some sep) None)
+        return (UpT_i (Some l) (Some sep) (Some r))
       }
     }
 }"

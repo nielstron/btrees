@@ -25,9 +25,10 @@ definition is_pfarray where
   	using preciseD snga_prec by fastforce
   
 
-definition "pfa_empty init_cap \<equiv> do {
+definition pfa_empty where
+"pfa_empty init_cap \<equiv> do {
   a \<leftarrow> Array.new init_cap default;
-  return (a,0)
+  return (a,0::nat)
 }"
 
 definition "pfa_append \<equiv> \<lambda>(a,n) x. do {
@@ -66,7 +67,7 @@ definition pfa_blit :: "'a::heap pfarray \<Rightarrow> nat \<Rightarrow> 'a::hea
 }
 "
 
-definition pfa_drop :: "'a::heap pfarray \<Rightarrow> nat \<Rightarrow> 'a::heap pfarray \<Rightarrow> 'a::heap pfarray Heap" where
+definition pfa_drop :: "('a::heap) pfarray \<Rightarrow> nat \<Rightarrow> 'a pfarray \<Rightarrow> 'a pfarray Heap" where
 "pfa_drop \<equiv> \<lambda>(src,sn) si (dst,dn). do {
    blit src si dst 0 (sn-si);
    return (dst,(sn-si))

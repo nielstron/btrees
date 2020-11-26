@@ -5,11 +5,15 @@ theory Partly_Filled_Array
 
 begin
 
+(* MISSING(?): statement about preserving capacities *)
+
 text "An array that is only partly filled.
 The number of actual elements contained is kept in a second element.
 This represents a weakened version of the array_list from IICF"
 
 type_synonym 'a pfarray = "'a array_list"
+
+section "Operations on Partly Filled Arrays"
 
 definition is_pfarray where
 "is_pfarray l \<equiv> \<lambda>(a,n). \<exists>\<^sub>A l'. a \<mapsto>\<^sub>a l' *  \<up>(n \<le> length l' \<and> l = (take n l'))"
@@ -45,6 +49,32 @@ definition "pfa_length \<equiv> arl_length"
 definition "pfa_is_empty \<equiv> arl_is_empty"
 
 definition "pfa_set \<equiv> arl_set"
+
+definition pfa_shrink :: "nat \<Rightarrow> 'a::heap pfarray \<Rightarrow> 'a pfarray Heap" where
+"pfa_shrink k \<equiv> \<lambda>(a,n).
+  return (a,k)
+"
+
+definition "pfa_copy \<equiv> arl_copy"
+
+term blit
+
+definition pfa_blit :: "'a::heap pfarray \<Rightarrow> nat \<Rightarrow> 'a::heap pfarray \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> unit Heap" where
+"pfa_blit \<equiv> \<lambda>(src,sn) si (dst,dn) di l. do {
+   blit src si dst di l;
+   return ()
+}
+"
+
+definition pfa_drop :: "'a::heap pfarray \<Rightarrow> nat \<Rightarrow> 'a::heap pfarray \<Rightarrow> 'a::heap pfarray Heap" where
+"pfa_drop \<equiv> \<lambda>(src,sn) si (dst,dn). do {
+   blit src si dst 0 (sn-si);
+   return (dst,(sn-si))
+}
+"
+
+
+section "Inference rules"
 
 lemma pfa_empty_rule[sep_heap_rules]: "< emp > pfa_empty N <is_pfarray []>"
   by (sep_auto simp: pfa_empty_def arl_empty_def is_pfarray_def)
@@ -100,6 +130,64 @@ lemma pfa_get_rule[sep_heap_rules]: "
       pfa_set a i x
     <is_pfarray (l[i:=x])>"
     by (sep_auto simp: pfa_set_def arl_set_def is_pfarray_def split: prod.split)
+
+lemma pfa_shrink_rule[sep_heap_rules]: "
+   k \<le> length l \<Longrightarrow>
+    < is_pfarray l (a,n) > 
+      pfa_shrink k (a,n)
+    <\<lambda>a. is_pfarray (take k l) a >\<^sub>t"  
+  by (sep_auto 
+      simp: pfa_shrink_def is_pfarray_def min.absorb1
+      split: prod.splits nat.split)
+
+
+lemma arl_copy_rule[sep_heap_rules]: "< is_pfarray l a > pfa_copy a <\<lambda>r. is_pfarray l a * is_pfarray l r>"  
+    by (sep_auto simp: pfa_copy_def arl_copy_def is_pfarray_def)
+
+
+lemma pfa_blit_rule[sep_heap_rules]:
+    assumes LEN: "si+len \<le> sn" "di+len \<le> dn"
+    shows
+    "< is_pfarray src (srci,sn)
+      * is_pfarray dst (dsti,dn) >
+    pfa_blit (srci,sn) si (dsti,dn) di len
+    <\<lambda>_. is_pfarray src (srci,sn)
+      * is_pfarray (take di dst @ take len (drop si src) @ drop (di+len) dst) (dsti,dn)
+    >"
+  using LEN apply(sep_auto simp add: is_pfarray_def pfa_blit_def min.commute heap: blit_rule)
+proof -
+  fix l' :: "'a list" and l'a :: "'a list" and a :: heap and b :: "nat set"
+assume a1: "dn \<le> length l'"
+  assume a2: "di + len \<le> dn"
+assume a3: "si + len \<le> sn"
+  assume a4: "sn \<le> length l'a"
+  have f5: "\<forall>n na. \<not> (n::nat) \<le> na \<or> min n na = n"
+using min.absorb1 by blast
+  have f6: "di \<le> length l'"
+    using a2 a1 by (meson add_leD1 order_trans)
+  then have f7: "min di (length l') = di"
+    using f5 by blast
+    have f8: "\<forall>n na nb. min ((n::nat) - na) (nb - na) = min n nb - na"
+using min_diff by blast
+  then have f9: "len = min len (sn - si)"
+    using f5 a3 by (metis diff_add_inverse)
+  have "min len (length l'a - si) = len"
+    using a4 a3 by linarith
+    then show "take len (drop si (take sn l'a)) @ drop (di + len) (take dn l') = take (min len (dn - min di (length l'))) (drop si l'a) @ take (dn - (min di (length l') + min len (length l'a - si))) (drop (di + len) l')"
+using f9 f8 f7 f6 a2 by (metis (no_types) diff_add_inverse drop_take min_def_raw take_take)
+qed
+
+lemma pfa_drop_rule[sep_heap_rules]:
+    assumes LEN: "si < sn" "(sn-si) \<le> dn"
+    shows
+    "< is_pfarray src (srci,sn)
+      * is_pfarray dst (dsti,dn) >
+    pfa_drop (srci,sn) si (dsti,dn)
+    <\<lambda>r. is_pfarray src (srci,sn)
+      * is_pfarray (drop si src) r
+    >"
+  using LEN apply (sep_auto simp add: drop_take is_pfarray_def pfa_drop_def dest!: mod_starD heap: pfa_blit_rule)
+  done
 
  definition "pfa_assn A \<equiv> hr_comp is_pfarray (\<langle>the_pure A\<rangle>list_rel)"
   lemmas [safe_constraint_rules] = CN_FALSEI[of is_pure "pfa_assn A" for A]

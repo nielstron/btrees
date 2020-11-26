@@ -294,9 +294,9 @@ where
      (Some a) \<Rightarrow> do {
        node \<leftarrow> !a;
        i \<leftarrow> split (kvs node) x;
-       tsl \<leftarrow> arl_length (kvs node);
+       tsl \<leftarrow> pfa_length (kvs node);
        if i < tsl then do {
-         s \<leftarrow> arl_get (kvs node) i;
+         s \<leftarrow> pfa_get (kvs node) i;
          let (sub,sep) = s in
          if x = sep then
            return True
@@ -334,7 +334,7 @@ next
         apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
        apply(rule hoare_triple_preI)
        apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
-      aapply(sep_auto heap: "2.IH"(1)[of ls "[]"])
+      apply(sep_auto heap: "2.IH"(1)[of ls "[]"])
       done
   next
     case [simp]: (Cons h rrs)
@@ -351,7 +351,7 @@ next
          apply(rule hoare_triple_preI)
          apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
         apply(rule hoare_triple_preI)
-        apply(auto simp add: split_relation_def dest: sym[of "[]"] mod_starD list_assn_len)[]
+        apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
         done
     next
       case [simp]: False
@@ -369,13 +369,13 @@ next
         (* NOTE show that z = (suba, sepa) *)
          apply(rule norm_pre_ex_rule)+
          apply(rule hoare_triple_preI)
-        subgoal for p tsi ti xsi suba sepa zs1 z zs2 _
+        subgoal for p tsi n ti xsi suba sepa zs1 z zs2 _
           apply(subgoal_tac "z = (suba, sepa)", simp)
            apply(sep_auto heap:"2.IH"(2)[of ls rs h rrs sub sep])
           using list_split Cons h_split apply simp_all
             (* proof that previous assumptions hold later *)
           apply(rule P_imp_Q_implies_P)
-          apply(rule ent_ex_postI[where ?x="tsi"])
+          apply(rule ent_ex_postI[where ?x="(tsi,n)"])
           apply(rule ent_ex_postI[where ?x="ti"])
           apply(rule ent_ex_postI[where ?x="(zs1 @ (suba, sepa) # zs2)"])
           apply(rule ent_ex_postI[where ?x="zs1"])
@@ -394,47 +394,21 @@ next
 qed
 
 
-definition isin_while :: "('a::{heap,linorder}) btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
-where
-"isin_while p x \<equiv> do {
-  r \<leftarrow> heap_WHILET 
-    (\<lambda>p. return ((fst p = None) \<or> (snd p)))
-    (\<lambda>p. 
-      (case fst p of (Some a) \<Rightarrow> do {
-        node \<leftarrow> !a;
-        i \<leftarrow> split (kvs node) x;
-        tsl \<leftarrow> Array.len (kvs node);
-        if i = tsl then 
-         return ((last node), False)
-        else do {
-         s \<leftarrow> Array.nth (kvs node) i;
-         return (fst s, snd s = x)
-        }
-      }
-     )) 
-    (p, False);
-  return (snd r)
-}"
 
-lemma  "<btree_assn t ti * true > isin_while ti x <\<lambda>r. btree_assn t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
-  unfolding isin_while_def
-  oops
-
-
-definition split_half :: "('a::heap \<times> 'b::{heap}) array \<Rightarrow> nat Heap"
+definition split_half :: "('a::heap \<times> 'b::{heap}) pfarray \<Rightarrow> nat Heap"
 where
 "split_half a \<equiv> do {
-  l \<leftarrow> Array.len a;
+  l \<leftarrow> pfa_length a;
   return (l div 2)
 }"
 
 lemma split_half_rule: "<
-    a \<mapsto>\<^sub>a tsi 
+    is_pfarray tsi a
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
     split_half a
   <\<lambda>i. 
-      a \<mapsto>\<^sub>a tsi 
+      is_pfarray tsi a
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
     * \<up>( split_relation ts (BTree_Set.split_half ts) i)>\<^sub>t"
   unfolding split_half_def split_relation_def
@@ -481,16 +455,24 @@ term is_array_list
 
 
 
-definition node_i :: "nat \<Rightarrow> (('a::heap) btnode ref option \<times> 'a) array_list \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap" where
-"node_i k (a,n) ti \<equiv> do {
-    l \<leftarrow> ref (Btnode a ti);
-    if n \<le> 2*k then
+definition node_i :: "nat \<Rightarrow> (('a::heap) btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap" where
+"node_i k a ti \<equiv> do {
+    n \<leftarrow> pfa_length a;
+    if n \<le> 2*k then do {
+      l \<leftarrow> ref (Btnode a ti);
       return (UpT_i (Some l) None None)
+    }
     else do {
       i \<leftarrow> split_half a;
-      return ()
+      m \<leftarrow> pfa_get a i;
+      a' \<leftarrow> pfa_shrink i a;
+      let (sub,sep) = m in do {
+        l \<leftarrow> ref (Btnode a' sub);
+        return (UpT_i (Some l) (Some sep) None)
+      }
     }
 }"
+term Array.upd
 
 end
 

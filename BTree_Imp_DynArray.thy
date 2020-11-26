@@ -178,7 +178,7 @@ lemma snd_map_help:
 
 find_theorems "<_>_<_>"
 
-lemma split_imp_abs_split: "<
+lemma split_imp_abs_split[sep_heap_rules]: "<
     is_pfarray tsi (a,n)
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
@@ -402,7 +402,7 @@ where
   return (l div 2)
 }"
 
-lemma split_half_rule: "<
+lemma split_half_rule[sep_heap_rules]: "<
     is_pfarray tsi a
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
@@ -466,7 +466,7 @@ definition node_i :: "nat \<Rightarrow> (('a::{default,heap}) btnode ref option 
       i \<leftarrow> split_half a;
       m \<leftarrow> pfa_get a i;
       a' \<leftarrow> pfa_shrink i a;
-      b \<leftarrow> (pfa_empty (2*k) :: ('a btnode ref option \<times> 'a) pfarray Heap);
+      b \<leftarrow> (pfa_empty (2*k+1) :: ('a btnode ref option \<times> 'a) pfarray Heap);
       b' \<leftarrow> pfa_drop a (i+1) b;
       r \<leftarrow> ref (Btnode b' ti);
       let (sub,sep) = m in do {
@@ -477,5 +477,19 @@ definition node_i :: "nat \<Rightarrow> (('a::{default,heap}) btnode ref option 
 }"
 term Array.upd
 
+thm drop_eq_ConsD
+
+lemma "
+  <is_pfarray tsi a * list_assn (btree_assn \<times>\<^sub>a id_assn) ts tsi * btree_assn t ti>
+  node_i k a ti
+  <\<lambda>r. btupi_assn (btree_abs_search.node_i k ts t) r>\<^sub>t"
+  apply(cases "length ts \<le> 2*k")
+   apply(subst node_i_def)
+  apply(rule hoare_triple_preI)
+   apply(sep_auto dest!: mod_starD list_assn_len)
+  apply(subst node_i_def)
+  apply(rule hoare_triple_preI)
+  apply(sep_auto dest!: mod_starD list_assn_len)
+  sorry
 end
 

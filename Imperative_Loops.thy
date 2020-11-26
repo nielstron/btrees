@@ -1,6 +1,7 @@
 theory Imperative_Loops
   imports 
     "Separation_Logic_Imperative_HOL.Sep_Main"
+    "Refine_Imperative_HOL.Sepref_HOL_Bindings"
     "Refine_Imperative_HOL.Pf_Mono_Prover"
     "Refine_Imperative_HOL.Pf_Add"
     "Refine_Imperative_HOL.Sepref_Basic"
@@ -10,6 +11,7 @@ begin
 
 subsection \<open>List-Assn\<close>
 
+hide_const (open) Sepref_HOL_Bindings.list_assn
 context fixes A :: "'a \<Rightarrow> 'b \<Rightarrow> assn"
 begin
   fun list_assn where
@@ -92,9 +94,6 @@ lemma prod_assn_cong[fundef_cong]:
     \<Longrightarrow> (A\<times>\<^sub>aB) p pi = (A'\<times>\<^sub>aB') p' pi'" 
     apply (cases p; cases pi)
     by auto
-  
-  
-abbreviation "id_assn x y \<equiv> \<up>(x=y)"
 
 subsubsection "Imperative Version of nfoldli"
 text \<open>We define an imperative version of \<open>nfoldli\<close>. It is the
@@ -526,7 +525,7 @@ proof -
     done
 qed
 
-
+hide_const (open) Sepref_Translate.heap_WHILET
 definition "heap_WHILET b f s \<equiv> do {
   heap.fixp_fun (\<lambda>D s. do {
     bv \<leftarrow> b s;
@@ -536,6 +535,7 @@ definition "heap_WHILET b f s \<equiv> do {
     } else do {return s}
   }) s
 }"
+
 
 lemma heap_WHILET_unfold[code]: "heap_WHILET b f s = 
   do {

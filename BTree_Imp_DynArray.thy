@@ -1,16 +1,17 @@
 theory BTree_Imp_DynArray
   imports
-    "Refine_Imperative_HOL.IICF_Array_List"
-    Imperative_Loops
     BTree_Set
+    Partly_Filled_Array
+    Imperative_Loops
 begin
-
+hide_const (open) Sepref_Translate.heap_WHILET
+hide_const (open) Sepref_HOL_Bindings.list_assn
 
 datatype 'a btnode =
-  Btnode "('a btnode ref option*'a) array_list" "'a btnode ref option"
+  Btnode "('a btnode ref option*'a) pfarray" "'a btnode ref option"
 
 text \<open>Selector Functions\<close>
-primrec kvs :: "'a::heap btnode \<Rightarrow> ('a btnode ref option*'a) array_list" where
+primrec kvs :: "'a::heap btnode \<Rightarrow> ('a btnode ref option*'a) pfarray" where
   [sep_dflt_simps]: "kvs (Btnode ts _) = ts"
 
 primrec last :: "'a::heap btnode \<Rightarrow> 'a btnode ref option" where
@@ -34,28 +35,13 @@ instance btnode :: (heap) heap
 fun btree_assn :: "'a::heap btree \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
 "btree_assn Leaf None = emp" |
 "btree_assn (Node ts t) (Some a) = 
- (\<exists>\<^sub>A tsi ti tsi' n l'. 
-      a \<mapsto>\<^sub>r Btnode tsi ti 
+ (\<exists>\<^sub>A tsi ti tsi'.
+      a \<mapsto>\<^sub>r Btnode tsi ti
     * btree_assn t ti
-    * \<up>(tsi = (tsi', n))
-    * tsi' \<mapsto>\<^sub>a l'
-    * \<up>(n \<le> length l')
-    * list_assn (btree_assn \<times>\<^sub>a id_assn) ts (take n l')
+    * is_pfarray tsi' tsi
+    * list_assn (btree_assn \<times>\<^sub>a id_assn) ts tsi'
     )" |
 "btree_assn _ _ = false"
-
-function (sequential) btree_assn_simpd :: "'a::heap btree \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
-"btree_assn_simpd Leaf None = emp" |
-"btree_assn_simpd (Node ts t) (Some a) =
-     (\<exists>\<^sub>A tsi ti. 
-        a \<mapsto>\<^sub>r Btnode tsi ti 
-        * btree_assn_simpd t ti
-        * array_list_assn (btree_assn_simpd \<times>\<^sub>a id_assn) ts tsi
-      )
-" |
-"btree_assn_simpd _ _ = false"
-  apply(auto)
-  by (metis btree.exhaust not_Some_eq)
 
 
 find_consts name: while
@@ -78,17 +64,25 @@ where
   return i
 }"
 
-lemma split_rule: "n \<le> length xs \<Longrightarrow> < a \<mapsto>\<^sub>a xs * true> split (a,n) p <\<lambda>i. a\<mapsto>\<^sub>a xs * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
+
+lemma split_rule: "< is_pfarray xs (a,n) * true> split (a,n) p <\<lambda>i. is_pfarray xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
   unfolding split_def
   
   supply R = heap_WHILET_rule''[where 
     R = "measure (\<lambda>i. n - i)"
-    and I = "\<lambda>i. a\<mapsto>\<^sub>a xs * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p))"
+    and I = "\<lambda>i. is_pfarray xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p))"
     and b = "\<lambda>i. i<n \<and> snd (xs!i) < p"
   ]
   thm R
-  
-  apply (sep_auto decon: R simp: less_Suc_eq) []
+ 
+  apply (sep_auto  decon: R simp: less_Suc_eq is_pfarray_def) []
+      apply (metis nth_take snd_eqD)
+     apply (metis nth_take snd_eqD)
+    apply (sep_auto simp: is_pfarray_def less_Suc_eq)+
+     apply (metis dual_order.strict_trans nth_take)
+    apply (metis nth_take)
+  using diff_less_mono2 apply blast
+  apply(sep_auto simp: is_pfarray_def)
   done
 
 
@@ -166,13 +160,14 @@ lemma list_assn_prod_map: "list_assn (A \<times>\<^sub>a B) xs ys = list_assn B 
      apply(auto simp add: ab_semigroup_mult_class.mult.left_commute ent_star_mono star_aci(2) star_assoc)
   done
 
-lemma id_assn_pure: "id_assn = \<up>\<circ>\<circ>(=)"
-  by fastforce
+find_theorems Id
 
+  
 (* concrete *)
 lemma id_assn_list: "h \<Turnstile> list_assn id_assn xs ys \<Longrightarrow> (\<forall>i<length xs. (xs!i) = (ys!i))"
-  apply(simp add: id_assn_pure)
-  using list_assn_all[of "(=)" xs ys h] by metis
+  apply(induct rule: list_assn.induct)
+     apply(auto simp add: less_Suc_eq_0_disj pure_def)
+  done
 
 
 lemma snd_map_help:
@@ -183,32 +178,29 @@ lemma snd_map_help:
 
 find_theorems "<_>_<_>"
 
-lemma split_imp_abs_split: "n \<le> length tsi \<Longrightarrow> <
-    a \<mapsto>\<^sub>a tsi 
-  * list_assn (A \<times>\<^sub>a id_assn) ts (take n tsi)
+lemma split_imp_abs_split: "<
+    is_pfarray tsi (a,n)
+  * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
     split (a,n) p 
   <\<lambda>i. 
-      a \<mapsto>\<^sub>a tsi
-    * list_assn (A \<times>\<^sub>a id_assn) ts (take n tsi)
+    is_pfarray tsi (a,n)
+    * list_assn (A \<times>\<^sub>a id_assn) ts tsi
     * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
   thm split_rule
-  apply (sep_auto heap: split_rule
- simp add: list_assn_prod_map split_ismeq)
+  apply (sep_auto heap: split_rule dest!: mod_starD id_assn_list
+ simp add: list_assn_prod_map split_ismeq )
+    apply(simp_all add: is_pfarray_def)
+    apply(auto)
 proof -
-  assume n_len: "n \<le> length tsi"
-  fix h assume heap_init: "h \<Turnstile> a \<mapsto>\<^sub>a tsi * list_assn id_assn (map snd ts) (map snd (take n tsi)) *
-       list_assn A (map fst ts) (map fst (take n tsi)) * true"
-  then have tsi_ts_eq_elems: "\<forall>j < length (map snd (take n tsi)). ((map snd (take n tsi))!j) = ((map snd ts)!j)"
-    by (metis (mono_tags, lifting) id_assn_list list_assn_aux_ineq_len mod_starD)
-
-  from heap_init have map_tsi_ts_eq: "length (map snd (take n tsi)) = length (map snd ts)"
-    by (metis list_assn_aux_ineq_len list_assn_len star_false_left star_false_right)
-  then have map_n_ts_eq: "n = length (map snd ts)"
-    using n_len by auto
+ 
+  fix h l' assume heap_init:
+    "h \<Turnstile> a \<mapsto>\<^sub>a l'"
+    "\<forall>i < length ts. snd (ts ! i) =  (map snd (take n l') ! i)"
+    "n \<le> length l'"
 
 
-  show full_thm: "\<forall>j<n. snd (tsi ! j) < p \<Longrightarrow>
+  show full_thm: "\<forall>j<n. snd (l' ! j) < p \<Longrightarrow>
        split_relation ts (abs_split ts p) n"
   proof -
     assume sm_list: "\<forall>j<n. snd (tsi ! j) < p"
@@ -305,7 +297,7 @@ where
      (Some a) \<Rightarrow> do {
        node \<leftarrow> !a;
        i \<leftarrow> split (kvs node) x;
-       let tsl = snd (kvs node) in
+       tsl \<leftarrow> arl_length (kvs node);
        if i < tsl then do {
          s \<leftarrow> arl_get (kvs node) i;
          let (sub,sep) = s in

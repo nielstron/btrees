@@ -1,16 +1,17 @@
 theory BTree_Imp
   imports
-    "Refine_Imperative_HOL.IICF_Array_List"
-    Imperative_Loops
     BTree_Set
+    Partly_Filled_Array
+    Imperative_Loops
 begin
-
+hide_const (open) Sepref_Translate.heap_WHILET
+hide_const (open) Sepref_HOL_Bindings.list_assn
 
 datatype 'a btnode =
-  Btnode "('a btnode ref option*'a) array" "'a btnode ref option"
+  Btnode "('a btnode ref option*'a) pfarray" "'a btnode ref option"
 
 text \<open>Selector Functions\<close>
-primrec kvs :: "'a::heap btnode \<Rightarrow> ('a btnode ref option*'a) array" where
+primrec kvs :: "'a::heap btnode \<Rightarrow> ('a btnode ref option*'a) pfarray" where
   [sep_dflt_simps]: "kvs (Btnode ts _) = ts"
 
 primrec last :: "'a::heap btnode \<Rightarrow> 'a btnode ref option" where
@@ -30,20 +31,15 @@ instance btnode :: (heap) heap
   ..
 
 
-fun array_list_assn where
-"array_list_assn A l (a,n) =  (\<exists>\<^sub>A li. 
-      is_array_list li (a,n)
-    * list_assn A (take n l) (take n li) 
-    )" 
     
 fun btree_assn :: "'a::heap btree \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
 "btree_assn Leaf None = emp" |
 "btree_assn (Node ts t) (Some a) = 
- (\<exists>\<^sub>A tsi ti xsi. 
-      a \<mapsto>\<^sub>r Btnode tsi ti 
-    * btree_assn t ti 
-    * tsi \<mapsto>\<^sub>a xsi
-    * list_assn (btree_assn \<times>\<^sub>a id_assn) ts xsi
+ (\<exists>\<^sub>A tsi ti tsi'.
+      a \<mapsto>\<^sub>r Btnode tsi ti
+    * btree_assn t ti
+    * is_pfarray tsi' tsi
+    * list_assn (btree_assn \<times>\<^sub>a id_assn) ts tsi'
     )" |
 "btree_assn _ _ = false"
 
@@ -52,13 +48,13 @@ find_consts name: while
 
 term split_fun
 
-definition split :: "('a::heap \<times> 'b::{heap,linorder}) array \<Rightarrow> 'b \<Rightarrow> nat Heap"
+definition split :: "('a::heap \<times> 'b::{heap,linorder}) array_list \<Rightarrow> 'b \<Rightarrow> nat Heap"
 where
-"split a p \<equiv> do {
-  l \<leftarrow> Array.len a;
+"split l p \<equiv> 
+  let (a,n) = l in do {
   
   i \<leftarrow> heap_WHILET 
-    (\<lambda>i. if i<l then do {
+    (\<lambda>i. if i<n then do {
       (_,s) \<leftarrow> Array.nth a i;
       return (s<p)
     } else return False) 
@@ -68,17 +64,25 @@ where
   return i
 }"
 
-lemma split_rule: "< a \<mapsto>\<^sub>a xs * true> split a p <\<lambda>i. a\<mapsto>\<^sub>a xs * \<up>(i\<le>length xs \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<length xs \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
+
+lemma split_rule: "< is_pfarray xs (a,n) * true> split (a,n) p <\<lambda>i. is_pfarray xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
   unfolding split_def
   
   supply R = heap_WHILET_rule''[where 
-    R = "measure (\<lambda>i. length xs - i)"
-    and I = "\<lambda>i. a\<mapsto>\<^sub>a xs * \<up>(i\<le>length xs \<and> (\<forall>j<i. snd (xs!j) < p))"
-    and b = "\<lambda>i. i<length xs \<and> snd (xs!i) < p"
+    R = "measure (\<lambda>i. n - i)"
+    and I = "\<lambda>i. is_pfarray xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p))"
+    and b = "\<lambda>i. i<n \<and> snd (xs!i) < p"
   ]
   thm R
-  
-  apply (sep_auto decon: R simp: less_Suc_eq) []
+ 
+  apply (sep_auto  decon: R simp: less_Suc_eq is_pfarray_def) []
+      apply (metis nth_take snd_eqD)
+     apply (metis nth_take snd_eqD)
+    apply (sep_auto simp: is_pfarray_def less_Suc_eq)+
+     apply (metis dual_order.strict_trans nth_take)
+    apply (metis nth_take)
+  using diff_less_mono2 apply blast
+  apply(sep_auto simp: is_pfarray_def)
   done
 
 
@@ -156,13 +160,14 @@ lemma list_assn_prod_map: "list_assn (A \<times>\<^sub>a B) xs ys = list_assn B 
      apply(auto simp add: ab_semigroup_mult_class.mult.left_commute ent_star_mono star_aci(2) star_assoc)
   done
 
-lemma id_assn_pure: "id_assn = \<up>\<circ>\<circ>(=)"
-  by fastforce
+find_theorems Id
 
+  
 (* concrete *)
-lemma id_assn_list: "h \<Turnstile> list_assn id_assn xs ys \<Longrightarrow> (\<forall>i<length xs. (xs!i) = (ys!i))"
-  apply(simp add: id_assn_pure)
-  using list_assn_all[of "(=)" xs ys h] by metis
+lemma id_assn_list: "h \<Turnstile> list_assn id_assn xs ys \<Longrightarrow> xs = ys"
+  apply(induct rule: list_assn.induct)
+     apply(auto simp add: less_Suc_eq_0_disj pure_def)
+  done
 
 
 lemma snd_map_help:
@@ -171,74 +176,80 @@ lemma snd_map_help:
     "x < length tsi \<Longrightarrow> snd (tsi!x) = ((map snd tsi)!x)"
   by auto
 
-lemma split_imp_abs_split: "<
-    a \<mapsto>\<^sub>a tsi 
+find_theorems "<_>_<_>"
+
+lemma split_imp_abs_split[sep_heap_rules]: "<
+    is_pfarray tsi (a,n)
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
-    split a p 
+    split (a,n) p 
   <\<lambda>i. 
-      a \<mapsto>\<^sub>a tsi 
+    is_pfarray tsi (a,n)
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
-    * \<up>( split_relation ts (abs_split ts p) i)>\<^sub>t"
-  apply (sep_auto heap: split_rule
- simp add: list_assn_prod_map split_ismeq)
+    * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
+  thm split_rule
+  apply (sep_auto heap: split_rule dest!: mod_starD id_assn_list
+ simp add: list_assn_prod_map split_ismeq )
+    apply(simp_all add: is_pfarray_def)
+    apply(auto)
 proof -
-  fix h assume heap_init: "h \<Turnstile> a \<mapsto>\<^sub>a tsi * list_assn id_assn (map snd ts) (map snd tsi) *
-       list_assn A (map fst ts) (map fst tsi) * true"
-  then have tsi_ts_eq_elems: "\<forall>j < length (map snd tsi). ((map snd tsi)!j) = ((map snd ts)!j)"
-    by (metis (mono_tags, lifting) id_assn_list list_assn_aux_ineq_len mod_starD)
+ 
+  fix h l' assume heap_init:
+    "h \<Turnstile> a \<mapsto>\<^sub>a l'"
+    "map snd ts = (map snd (take n l'))"
+    "n \<le> length l'"
 
-  from heap_init have map_tsi_ts_eq: "length (map snd tsi) = length (map snd ts)"
-    by (metis list_assn_aux_ineq_len list_assn_len star_false_left star_false_right)
 
-  show full_thm: "\<forall>j<length tsi. snd (tsi ! j) < p \<Longrightarrow>
-       split_relation ts (abs_split ts p) (length tsi)"
+  show full_thm: "\<forall>j<n. snd (l' ! j) < p \<Longrightarrow>
+       split_relation ts (abs_split ts p) n"
   proof -
-    assume sm_list: "\<forall>j<length tsi. snd (tsi ! j) < p"
-    then have "\<forall>j < length (map snd tsi). ((map snd tsi)!j) < p"
+    assume sm_list: "\<forall>j<n. snd (l' ! j) < p"
+    then have "\<forall>j < length (map snd (take n l')). ((map snd (take n l'))!j) < p"
       by simp
     then have "\<forall>j<length (map snd ts). ((map snd ts)!j) < p"
-      using tsi_ts_eq_elems map_tsi_ts_eq by metis
+      using heap_init by simp
     then have "\<forall>(_,s) \<in> set ts. s < p"
       by (metis case_prod_unfold in_set_conv_nth length_map nth_map)
     then have "abs_split ts p = (ts, [])"
       using abs_split_full[of ts p] by simp
-    then show "split_relation ts (abs_split ts p) (length tsi)"
-      using
-        \<open>length (map snd tsi) = length (map snd ts)\<close>
-        split_relation_length
-      by auto
+    then show "split_relation ts (abs_split ts p) n"
+      using split_relation_length
+      by (metis heap_init(2) heap_init(3) length_map length_take min.absorb2)
+      
   qed
-  then show "\<forall>j<length tsi. snd (tsi ! j) < p \<Longrightarrow>
-       p \<le> snd (tsi ! length tsi) \<Longrightarrow>
-       split_relation ts (abs_split ts p) (length tsi)"
+  then show "\<forall>j<n. snd (l' ! j) < p \<Longrightarrow>
+       p \<le> snd (take n l' ! n) \<Longrightarrow>
+       split_relation ts (abs_split ts p) n"
     by simp
 
-  show part_thm: "\<And>x. x < length tsi \<Longrightarrow>
-       \<forall>j<x. snd (tsi ! j) < p \<Longrightarrow>
-       p \<le> snd (tsi ! x) \<Longrightarrow> split_relation ts (abs_split ts p) x"
+  show part_thm: "\<And>x. x < n \<Longrightarrow>
+       \<forall>j<x. snd (l' ! j) < p \<Longrightarrow>
+       p \<le> snd (l' ! x) \<Longrightarrow> split_relation ts (abs_split ts p) x"
   proof -
-    fix x assume x_sm_len: "x < length tsi"
-    moreover assume sm_list: "\<forall>j<x. snd (tsi ! j) < p"
-    ultimately have "\<forall>j<x. ((map snd tsi) ! j) < p"
+    fix x assume x_sm_len: "x < n"
+    moreover assume sm_list: "\<forall>j<x. snd (l' ! j) < p"
+    ultimately have "\<forall>j<x. ((map snd l') ! j) < p"
+      using heap_init
       by auto
     then have "\<forall>j<x. ((map snd ts)!j) < p"
-      using tsi_ts_eq_elems map_tsi_ts_eq x_sm_len
+      using heap_init  x_sm_len
       by auto
-    moreover have x_sm_len_ts: "x < length ts"
-      using map_tsi_ts_eq x_sm_len by auto
+    moreover have x_sm_len_ts: "x < n"
+      using heap_init x_sm_len by auto
     ultimately have "\<forall>(_,x) \<in> set (take x ts). x < p"
       by (auto simp add: in_set_conv_nth  min.absorb2)+
-    moreover assume "p \<le> snd (tsi ! x)"
-    then have "case tsi!x of (_,s) \<Rightarrow> \<not>(s < p)"
+    moreover assume "p \<le> snd (l' ! x)"
+    then have "case l'!x of (_,s) \<Rightarrow> \<not>(s < p)"
       by (simp add: case_prod_unfold x_sm_len)
     then have "case ts!x of (_,s) \<Rightarrow> \<not>(s < p)"
-      using tsi_ts_eq_elems x_sm_len x_sm_len_ts by auto
+      using heap_init x_sm_len x_sm_len_ts
+      by (metis (mono_tags, lifting) case_prod_unfold length_map length_take min.absorb2 nth_take snd_map_help(2))
     ultimately have "abs_split ts p = (take x ts, drop x ts)"
-      using x_sm_len_ts abs_split_split[of x ts p]
-      by metis
+      using x_sm_len_ts abs_split_split[of x ts p] heap_init
+      by (metis length_map length_take min.absorb2)
     then show "split_relation ts (abs_split ts p) x"
-      using x_sm_len_ts by (auto simp add: split_relation_def)
+      using x_sm_len_ts 
+      by (metis append_take_drop_id heap_init(2) heap_init(3) length_map length_take less_imp_le_nat min.absorb2 split_relation_alt)
   qed
 qed
 
@@ -283,9 +294,9 @@ where
      (Some a) \<Rightarrow> do {
        node \<leftarrow> !a;
        i \<leftarrow> split (kvs node) x;
-       tsl \<leftarrow> Array.len (kvs node);
+       tsl \<leftarrow> pfa_length (kvs node);
        if i < tsl then do {
-         s \<leftarrow> Array.nth (kvs node) i;
+         s \<leftarrow> pfa_get (kvs node) i;
          let (sub,sep) = s in
          if x = sep then
            return True
@@ -358,13 +369,13 @@ next
         (* NOTE show that z = (suba, sepa) *)
          apply(rule norm_pre_ex_rule)+
          apply(rule hoare_triple_preI)
-        subgoal for p tsi ti xsi suba sepa zs1 z zs2 _
+        subgoal for p tsi n ti xsi suba sepa zs1 z zs2 _
           apply(subgoal_tac "z = (suba, sepa)", simp)
            apply(sep_auto heap:"2.IH"(2)[of ls rs h rrs sub sep])
           using list_split Cons h_split apply simp_all
             (* proof that previous assumptions hold later *)
           apply(rule P_imp_Q_implies_P)
-          apply(rule ent_ex_postI[where ?x="tsi"])
+          apply(rule ent_ex_postI[where ?x="(tsi,n)"])
           apply(rule ent_ex_postI[where ?x="ti"])
           apply(rule ent_ex_postI[where ?x="(zs1 @ (suba, sepa) # zs2)"])
           apply(rule ent_ex_postI[where ?x="zs1"])
@@ -383,47 +394,20 @@ next
 qed
 
 
-definition isin_while :: "('a::{heap,linorder}) btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
-where
-"isin_while p x \<equiv> do {
-  r \<leftarrow> heap_WHILET 
-    (\<lambda>p. return ((fst p = None) \<or> (snd p)))
-    (\<lambda>p. 
-      (case fst p of (Some a) \<Rightarrow> do {
-        node \<leftarrow> !a;
-        i \<leftarrow> split (kvs node) x;
-        tsl \<leftarrow> Array.len (kvs node);
-        if i = tsl then 
-         return ((last node), False)
-        else do {
-         s \<leftarrow> Array.nth (kvs node) i;
-         return (fst s, snd s = x)
-        }
-      }
-     )) 
-    (p, False);
-  return (snd r)
-}"
 
-lemma  "<btree_assn t ti * true > isin_while ti x <\<lambda>r. btree_assn t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
-  unfolding isin_while_def
-  oops
-
-
-definition split_half :: "('a::heap \<times> 'b::{heap}) array \<Rightarrow> nat Heap"
+definition split_half :: "('a::heap \<times> 'b::{heap}) pfarray \<Rightarrow> nat Heap"
 where
 "split_half a \<equiv> do {
-  l \<leftarrow> Array.len a;
+  l \<leftarrow> pfa_length a;
   return (l div 2)
 }"
 
-lemma split_half_rule: "<
-    a \<mapsto>\<^sub>a tsi 
-  * list_assn (A \<times>\<^sub>a id_assn) ts tsi
-  * true> 
+lemma split_half_rule[sep_heap_rules]: "<
+    is_pfarray tsi a
+  * list_assn (A \<times>\<^sub>a id_assn) ts tsi> 
     split_half a
   <\<lambda>i. 
-      a \<mapsto>\<^sub>a tsi 
+      is_pfarray tsi a
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
     * \<up>( split_relation ts (BTree_Set.split_half ts) i)>\<^sub>t"
   unfolding split_half_def split_relation_def
@@ -470,16 +454,45 @@ term is_array_list
 
 
 
-definition node_i :: "nat \<Rightarrow> (('a::heap) btnode ref option \<times> 'a) array_list \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap" where
-"node_i k (a,n) ti \<equiv> do {
-    l \<leftarrow> ref (Btnode a ti);
-    if n \<le> 2*k then
+definition node_i :: "nat \<Rightarrow> (('a::{default,heap}) btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap" where
+"node_i k a ti \<equiv> do {
+    n \<leftarrow> pfa_length a;
+    if n \<le> 2*k then do {
+      l \<leftarrow> ref (Btnode a ti);
       return (UpT_i (Some l) None None)
+    }
     else do {
       i \<leftarrow> split_half a;
-      return ()
+      m \<leftarrow> pfa_get a i;
+      b \<leftarrow> (pfa_empty (2*k+1) :: ('a btnode ref option \<times> 'a) pfarray Heap);
+      b' \<leftarrow> pfa_drop a (i+1) b;
+      a' \<leftarrow> pfa_shrink i a;
+      r \<leftarrow> ref (Btnode b' ti);
+      let (sub,sep) = m in do {
+        l \<leftarrow> ref (Btnode a' sub);
+        return (UpT_i (Some l) (Some sep) (Some r))
+      }
     }
 }"
+term Array.upd
 
+thm drop_eq_ConsD
+
+lemma "
+  <is_pfarray tsi (a,n) * list_assn (btree_assn \<times>\<^sub>a id_assn) ts tsi * btree_assn t ti>
+  node_i k (a,n) ti
+  <\<lambda>r. btupi_assn (btree_abs_search.node_i k ts t) r>\<^sub>t"
+  apply(cases "length ts \<le> 2*k")
+   apply(subst node_i_def)
+  apply(rule hoare_triple_preI)
+   apply(sep_auto dest!: mod_starD list_assn_len)
+  apply(subst node_i_def)
+  apply(rule hoare_triple_preI)
+  apply(sep_auto dest!: mod_starD list_assn_len)
+   apply(sep_auto simp add:  split_relation_alt split_relation_length is_pfarray_def dest!: mod_starD list_assn_len split: prod.splits)
+  
+  apply(sep_auto simp add: split_relation_alt )
+  thm pfa_drop_rule[where ?dst="[]" and ?src="(take (length tsi div 2) tsi)" and ?srci="a"]
+  sorry
 end
 

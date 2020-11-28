@@ -28,7 +28,14 @@ definition is_pfarray_cap where
     apply(simp split: prod.splits) 
   	using preciseD snga_prec by fastforce
 
-  
+  lemma is_pfarray_cap_prec[safe_constraint_rules]: "precise (is_pfarray_cap c)"
+    unfolding is_pfarray_cap_def[abs_def]
+    apply(rule preciseI)
+    apply(simp split: prod.splits) 
+  	using preciseD snga_prec by fastforce
+
+lemma pfarray_cap_stronger: "is_pfarray_cap c l a \<Longrightarrow>\<^sub>A is_pfarray l a"
+  by (sep_auto simp add: is_pfarray_cap_def is_pfarray_def split: prod.splits)
 
 definition pfa_empty where
 "pfa_empty cap \<equiv> do {
@@ -51,6 +58,12 @@ definition pfa_butlast :: "'a::heap pfarray \<Rightarrow> 'a pfarray Heap" where
 definition "pfa_get \<equiv> arl_get"
 
 definition "pfa_length \<equiv> arl_length"
+
+definition "pfa_capacity \<equiv> \<lambda>(a,n). do {
+  l \<leftarrow> Array.len a;
+  return l
+}
+"
 
 definition "pfa_is_empty \<equiv> arl_is_empty"
 
@@ -82,118 +95,110 @@ definition pfa_drop :: "('a::heap) pfarray \<Rightarrow> nat \<Rightarrow> 'a pf
 
 section "Inference rules"
 
-lemma pfa_empty_rule[sep_heap_rules]: "< emp > pfa_empty N <is_pfarray []>"
-  by (sep_auto simp: pfa_empty_def arl_empty_def is_pfarray_def)
+lemma pfa_empty_rule[sep_heap_rules]: "< emp > pfa_empty N <is_pfarray_cap N []>"
+  by (sep_auto simp: pfa_empty_def arl_empty_def is_pfarray_cap_def)
 
 lemma pfa_length_rule[sep_heap_rules]: "
-  <is_pfarray l a> 
+  <is_pfarray_cap c l a> 
     pfa_length a
-  <\<lambda>r. is_pfarray l a * \<up>(r=length l)>"
-  by (sep_auto simp: pfa_length_def arl_length_def is_pfarray_def)
+  <\<lambda>r. is_pfarray_cap c l a * \<up>(r=length l)>"
+  by (sep_auto simp: pfa_length_def arl_length_def is_pfarray_cap_def)
 
-  lemma arl_is_empty_rule[sep_heap_rules]: "
-    <is_pfarray l a> 
+lemma pfa_capacity_rule[sep_heap_rules]: "
+  <is_pfarray_cap c l a> 
+    pfa_capacity a
+  <\<lambda>r. is_pfarray_cap r l a>"
+  by (sep_auto simp: pfa_capacity_def arl_length_def is_pfarray_cap_def)
+
+
+  lemma pfa_is_empty_rule[sep_heap_rules]: "
+    <is_pfarray_cap c l a> 
       pfa_is_empty a
-    <\<lambda>r. is_pfarray l a * \<up>(r\<longleftrightarrow>(l=[]))>"
-    by (sep_auto simp: pfa_is_empty_def arl_is_empty_def is_pfarray_def)
+    <\<lambda>r. is_pfarray_cap c l a * \<up>(r\<longleftrightarrow>(l=[]))>"
+    by (sep_auto simp: pfa_is_empty_def arl_is_empty_def is_pfarray_cap_def)
 
 lemma pfa_append_rule[sep_heap_rules]: "
-   n < length l \<Longrightarrow>
-    < is_pfarray l (a,n) > 
+   n < c  \<Longrightarrow>
+    < is_pfarray_cap c l (a,n) > 
       pfa_append (a,n) x 
-    <\<lambda>(a',n'). is_pfarray (l@[x]) (a',n') * \<up>(a' = a) >\<^sub>t"  
+    <\<lambda>(a',n'). is_pfarray_cap c (l@[x]) (a',n') * \<up>(a' = a) >\<^sub>t"  
     by (sep_auto 
-      simp: pfa_append_def arl_append_def is_pfarray_def take_update_last neq_Nil_conv
+      simp: pfa_append_def arl_append_def is_pfarray_cap_def take_update_last neq_Nil_conv
       split: prod.splits nat.split)
 
 lemma pfa_last_rule[sep_heap_rules]: "
   l\<noteq>[] \<Longrightarrow>
-  <is_pfarray l a> 
+  <is_pfarray_cap c l a> 
     pfa_last a
-  <\<lambda>r. is_pfarray l a * \<up>(r=last l)>"
-  by (sep_auto simp: pfa_last_def arl_last_def is_pfarray_def last_take_nth_conv)
+  <\<lambda>r. is_pfarray_cap c l a * \<up>(r=last l)>"
+  by (sep_auto simp: pfa_last_def arl_last_def is_pfarray_cap_def last_take_nth_conv)
 
 lemma pfa_butlast_rule[sep_heap_rules]: "
-  <is_pfarray l (a,n)> 
+  <is_pfarray_cap c l (a,n)> 
     pfa_butlast (a,n)
-  <\<lambda>(a',n'). is_pfarray (butlast l) (a',n') * \<up>(a' = a)>\<^sub>t"
+  <\<lambda>(a',n'). is_pfarray_cap c (butlast l) (a',n') * \<up>(a' = a)>\<^sub>t"
     by (sep_auto 
       split: prod.splits
-      simp: pfa_butlast_def is_pfarray_def butlast_take)  
+      simp: pfa_butlast_def is_pfarray_cap_def butlast_take)  
 
 
 lemma pfa_get_rule[sep_heap_rules]: "
   i < length l \<Longrightarrow>
-  < is_pfarray l a> 
+  < is_pfarray_cap c l a> 
     pfa_get a i
-  <\<lambda>r. is_pfarray l a * \<up>((l!i) = r)>"
-  apply (sep_auto simp: is_pfarray_def pfa_get_def arl_get_def  split: prod.split)
+  <\<lambda>r. is_pfarray_cap c l a * \<up>((l!i) = r)>"
+  apply (sep_auto simp: is_pfarray_cap_def pfa_get_def arl_get_def  split: prod.split)
   done
 
   lemma pfa_set_rule[sep_heap_rules]: "
     i<length l \<Longrightarrow>
-    <is_pfarray l a> 
+    <is_pfarray_cap c l a> 
       pfa_set a i x
-    <\<lambda>a'. is_pfarray (l[i:=x]) a' * \<up>(a' = a)>"
-    by (sep_auto simp: pfa_set_def arl_set_def is_pfarray_def split: prod.split)
+    <\<lambda>a'. is_pfarray_cap c (l[i:=x]) a' * \<up>(a' = a)>"
+    by (sep_auto simp: pfa_set_def arl_set_def is_pfarray_cap_def split: prod.split)
 
 lemma pfa_shrink_rule[sep_heap_rules]: "
    k \<le> length l \<Longrightarrow>
-    < is_pfarray l (a,n) > 
+    < is_pfarray_cap c l (a,n) > 
       pfa_shrink k (a,n)
-    <\<lambda>(a',n'). is_pfarray (take k l) (a',n') * \<up>(a'=a) >\<^sub>t"  
+    <\<lambda>(a',n'). is_pfarray_cap c (take k l) (a',n') * \<up>(a'=a) >\<^sub>t"  
   by (sep_auto 
-      simp: pfa_shrink_def is_pfarray_def min.absorb1
+      simp: pfa_shrink_def is_pfarray_cap_def min.absorb1
       split: prod.splits nat.split)
 
 
-lemma arl_copy_rule[sep_heap_rules]: "< is_pfarray l a > pfa_copy a <\<lambda>r. is_pfarray l a * is_pfarray l r>"  
-    by (sep_auto simp: pfa_copy_def arl_copy_def is_pfarray_def)
+lemma arl_copy_rule[sep_heap_rules]: "< is_pfarray_cap c l a > pfa_copy a <\<lambda>r. is_pfarray_cap c l a * is_pfarray_cap c l r>"  
+    by (sep_auto simp: pfa_copy_def arl_copy_def is_pfarray_cap_def)
+
+lemma min_nat: "min a (a+b) = (a::nat)"
+  by auto
 
 
 lemma pfa_blit_rule[sep_heap_rules]:
-    assumes LEN: "si+len \<le> sn" "di+len \<le> dn"
+    assumes LEN: "si+len \<le> sn" "di \<le> dn" "di+len \<le> dc"
     shows
-    "< is_pfarray src (srci,sn)
-      * is_pfarray dst (dsti,dn) >
+    "< is_pfarray_cap sc src (srci,sn)
+      * is_pfarray_cap dc dst (dsti,dn) >
     pfa_blit (srci,sn) si (dsti,dn) di len
-    <\<lambda>_. is_pfarray src (srci,sn)
-      * is_pfarray (take di dst @ take len (drop si src) @ drop (di+len) dst) (dsti,dn)
+    <\<lambda>_. is_pfarray_cap sc src (srci,sn)
+      * is_pfarray_cap dc (take di dst @ take len (drop si src) @ drop (di+len) dst) (dsti,max (di+len) dn)
     >"
-  using LEN apply(sep_auto simp add: is_pfarray_def pfa_blit_def min.commute heap: blit_rule)
-proof -
-  fix l' :: "'a list" and l'a :: "'a list" and a :: heap and b :: "nat set"
-assume a1: "dn \<le> length l'"
-  assume a2: "di + len \<le> dn"
-assume a3: "si + len \<le> sn"
-  assume a4: "sn \<le> length l'a"
-  have f5: "\<forall>n na. \<not> (n::nat) \<le> na \<or> min n na = n"
-using min.absorb1 by blast
-  have f6: "di \<le> length l'"
-    using a2 a1 by (meson add_leD1 order_trans)
-  then have f7: "min di (length l') = di"
-    using f5 by blast
-    have f8: "\<forall>n na nb. min ((n::nat) - na) (nb - na) = min n nb - na"
-using min_diff by blast
-  then have f9: "len = min len (sn - si)"
-    using f5 a3 by (metis diff_add_inverse)
-  have "min len (length l'a - si) = len"
-    using a4 a3 by linarith
-    then show "take len (drop si (take sn l'a)) @ drop (di + len) (take dn l') = take (min len (dn - min di (length l'))) (drop si l'a) @ take (dn - (min di (length l') + min len (length l'a - si))) (drop (di + len) l')"
-using f9 f8 f7 f6 a2 by (metis (no_types) diff_add_inverse drop_take min_def_raw take_take)
-qed
+  using LEN apply(sep_auto simp add: min_nat is_pfarray_cap_def pfa_blit_def min.commute min.absorb1 heap: blit_rule)
+   apply (simp add: min.absorb1 take_drop)
+   apply (simp add: drop_take max_def)
+  done
 
 lemma pfa_drop_rule[sep_heap_rules]:
-    assumes LEN: "si \<le> sn" "(sn-si) \<le> dn"
+    assumes LEN: "si \<le> sn" "(sn-si) \<le> dc"
     shows
-    "< is_pfarray src (srci,sn)
-      * is_pfarray dst (dsti,dn) >
+    "< is_pfarray_cap sc src (srci,sn)
+      * is_pfarray_cap dc dst (dsti,dn) >
     pfa_drop (srci,sn) si (dsti,dn)
-    <\<lambda>(dsti',dn'). is_pfarray src (srci,sn)
-      * is_pfarray (drop si src) (dsti',dn')
+    <\<lambda>(dsti',dn'). is_pfarray_cap sc src (srci,sn)
+      * is_pfarray_cap dc (drop si src) (dsti',dn')
       * \<up>(dsti' = dsti)
     >"
-  using LEN apply (sep_auto simp add: drop_take is_pfarray_def pfa_drop_def dest!: mod_starD heap: pfa_blit_rule)
+  using LEN apply (sep_auto simp add: drop_take is_pfarray_cap_def pfa_drop_def dest!: mod_starD heap: pfa_blit_rule)
   done
 
  definition "pfa_assn A \<equiv> hr_comp is_pfarray (\<langle>the_pure A\<rangle>list_rel)"
@@ -215,7 +220,7 @@ begin
 
 
   lemma pfa_empty_hnr_aux: "(uncurry0 (pfa_empty N),uncurry0 (RETURN op_list_empty)) \<in> unit_assn\<^sup>k \<rightarrow>\<^sub>a is_pfarray"  
-    by sep_auto
+    sorry
   sepref_decl_impl (no_register) pfa_empty: pfa_empty_hnr_aux .
 
   definition "op_pfa_empty (N::nat) \<equiv> op_list_empty"

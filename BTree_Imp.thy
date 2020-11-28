@@ -1,7 +1,7 @@
 theory BTree_Imp
   imports
     BTree_Set
-    "Refine_Imperative_HOL.IICF_Array_List"
+    Partly_Filled_Array
     Imperative_Loops
 begin
 hide_const (open) Sepref_Translate.heap_WHILET
@@ -32,16 +32,16 @@ instance btnode :: (heap) heap
 
 
     
-fun btree_assn :: "'a::heap btree \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
-"btree_assn Leaf None = emp" |
-"btree_assn (Node ts t) (Some a) = 
+fun btree_assn :: "nat \<Rightarrow> 'a::heap btree \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
+"btree_assn k Leaf None = emp" |
+"btree_assn k (Node ts t) (Some a) = 
  (\<exists>\<^sub>A tsi ti tsi'.
       a \<mapsto>\<^sub>r Btnode tsi ti
-    * btree_assn t ti
-    * is_pfarray tsi' tsi
-    * list_assn (btree_assn \<times>\<^sub>a id_assn) ts tsi'
+    * btree_assn k t ti
+    * is_pfarray_cap (2*k) tsi' tsi
+    * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi'
     )" |
-"btree_assn _ _ = false"
+"btree_assn _ _ _ = false"
 
 
 find_consts name: while
@@ -65,24 +65,24 @@ where
 }"
 
 
-lemma split_rule: "< is_pfarray xs (a,n) * true> split (a,n) p <\<lambda>i. is_pfarray xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
+lemma split_rule: "< is_pfarray_cap c xs (a,n) * true> split (a,n) p <\<lambda>i. is_pfarray_cap c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
   unfolding split_def
   
   supply R = heap_WHILET_rule''[where 
     R = "measure (\<lambda>i. n - i)"
-    and I = "\<lambda>i. is_pfarray xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p))"
+    and I = "\<lambda>i. is_pfarray_cap c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p))"
     and b = "\<lambda>i. i<n \<and> snd (xs!i) < p"
   ]
   thm R
  
-  apply (sep_auto  decon: R simp: less_Suc_eq is_pfarray_def) []
+  apply (sep_auto  decon: R simp: less_Suc_eq is_pfarray_cap_def) []
       apply (metis nth_take snd_eqD)
      apply (metis nth_take snd_eqD)
-    apply (sep_auto simp: is_pfarray_def less_Suc_eq)+
+    apply (sep_auto simp: is_pfarray_cap_def less_Suc_eq)+
      apply (metis dual_order.strict_trans nth_take)
     apply (metis nth_take)
   using diff_less_mono2 apply blast
-  apply(sep_auto simp: is_pfarray_def)
+  apply(sep_auto simp: is_pfarray_cap_def)
   done
 
 
@@ -179,18 +179,18 @@ lemma snd_map_help:
 find_theorems "<_>_<_>"
 
 lemma split_imp_abs_split[sep_heap_rules]: "<
-    is_pfarray tsi (a,n)
+    is_pfarray_cap c tsi (a,n)
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
     split (a,n) p 
   <\<lambda>i. 
-    is_pfarray tsi (a,n)
+    is_pfarray_cap c tsi (a,n)
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
     * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
   thm split_rule
   apply (sep_auto heap: split_rule dest!: mod_starD id_assn_list
  simp add: list_assn_prod_map split_ismeq )
-    apply(simp_all add: is_pfarray_def)
+    apply(simp_all add: is_pfarray_cap_def)
     apply(auto)
 proof -
  
@@ -311,7 +311,7 @@ where
 lemma P_imp_Q_implies_P: "P \<Longrightarrow> (Q \<longrightarrow> P)"
   by simp
 
-lemma  "<btree_assn t ti * true> isin ti x <\<lambda>r. btree_assn t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
+lemma  "<btree_assn k t ti * true> isin ti x <\<lambda>r. btree_assn k t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
 proof(induction t x arbitrary: ti rule: btree_abs_search.isin.induct)
   case (1 x)
   then show ?case
@@ -403,11 +403,11 @@ where
 }"
 
 lemma split_half_rule[sep_heap_rules]: "<
-    is_pfarray tsi a
+    is_pfarray_cap c tsi a
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi> 
     split_half a
   <\<lambda>i. 
-      is_pfarray tsi a
+      is_pfarray_cap c tsi a
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
     * \<up>( split_relation ts (BTree_Set.split_half ts) i)>\<^sub>t"
   unfolding split_half_def split_relation_def
@@ -439,9 +439,9 @@ instance btupi :: (heap) heap
   ..
 
 fun btupi_assn where
-"btupi_assn (btree_abs_search.T_i l) (UpT_i li None None) = btree_assn l li" |
-"btupi_assn (btree_abs_search.Up_i l a r) (UpT_i li (Some ai) ri) = btree_assn l li * id_assn a ai * btree_assn r ri" |
-"btupi_assn _ _ = false"
+"btupi_assn k (btree_abs_search.T_i l) (UpT_i li None None) = btree_assn k l li" |
+"btupi_assn k (btree_abs_search.Up_i l a r) (UpT_i li (Some ai) ri) = btree_assn k l li * id_assn a ai * btree_assn k r ri" |
+"btupi_assn _ _ _ = false"
 
 
 
@@ -455,7 +455,7 @@ definition node_i :: "nat \<Rightarrow> (('a::{default,heap}) btnode ref option 
     else do {
       i \<leftarrow> split_half a;
       m \<leftarrow> pfa_get a i;
-      b \<leftarrow> (pfa_empty (2*k+1) :: ('a btnode ref option \<times> 'a) pfarray Heap);
+      b \<leftarrow> (pfa_empty (2*k) :: ('a btnode ref option \<times> 'a) pfarray Heap);
       b' \<leftarrow> pfa_drop a (i+1) b;
       a' \<leftarrow> pfa_shrink i a;
       r \<leftarrow> ref (Btnode b' ti);
@@ -469,10 +469,12 @@ term Array.upd
 
 thm drop_eq_ConsD
 
+
+  
 lemma "
-  <is_pfarray tsi (a,n) * list_assn (btree_assn \<times>\<^sub>a id_assn) ts tsi * btree_assn t ti>
+  <is_pfarray_cap (2*k) tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti>
   node_i k (a,n) ti
-  <\<lambda>r. btupi_assn (btree_abs_search.node_i k ts t) r>\<^sub>t"
+  <\<lambda>r. btupi_assn k (btree_abs_search.node_i k ts t) r>\<^sub>t"
   apply(cases "length ts \<le> 2*k")
    apply(subst node_i_def)
   apply(rule hoare_triple_preI)
@@ -480,10 +482,16 @@ lemma "
   apply(subst node_i_def)
   apply(rule hoare_triple_preI)
   apply(sep_auto dest!: mod_starD list_assn_len)
-   apply(sep_auto simp add:  split_relation_alt split_relation_length is_pfarray_def dest!: mod_starD list_assn_len split: prod.splits)
+   apply(sep_auto simp add:  split_relation_alt split_relation_length is_pfarray_cap_def dest!: mod_starD list_assn_len split: prod.splits)
   
   apply(sep_auto simp add: split_relation_alt )
-     apply(sep_auto simp add: is_pfarray_def min.absorb2)[]
+     apply(sep_auto simp add: is_pfarray_cap_def)[]
+    apply(sep_auto simp add: is_pfarray_cap_def)[]
+   apply(sep_auto)[]
+  apply(sep_auto split: list.splits )
+  apply(sep_auto simp add: is_pfarray_cap_def)[]
+  done
+  
   
   
   thm pfa_drop_rule[where ?dst="[]" and ?src="(take (length tsi div 2) tsi)" and ?srci="a"]

@@ -1,7 +1,7 @@
 theory BTree_Imp
   imports
     BTree_Set
-    Partly_Filled_Array
+    "Refine_Imperative_HOL.IICF_Array_List"
     Imperative_Loops
 begin
 hide_const (open) Sepref_Translate.heap_WHILET
@@ -443,15 +443,6 @@ fun btupi_assn where
 "btupi_assn (btree_abs_search.Up_i l a r) (UpT_i li (Some ai) ri) = btree_assn l li * id_assn a ai * btree_assn r ri" |
 "btupi_assn _ _ = false"
 
-find_theorems Array
-
-term blit
-
-thm list_assn.simps
-find_theorems slice
-
-term is_array_list
-
 
 
 definition node_i :: "nat \<Rightarrow> (('a::{default,heap}) btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap" where
@@ -492,6 +483,9 @@ lemma "
    apply(sep_auto simp add:  split_relation_alt split_relation_length is_pfarray_def dest!: mod_starD list_assn_len split: prod.splits)
   
   apply(sep_auto simp add: split_relation_alt )
+     apply(sep_auto simp add: is_pfarray_def min.absorb2)[]
+  
+  
   thm pfa_drop_rule[where ?dst="[]" and ?src="(take (length tsi div 2) tsi)" and ?srci="a"]
   sorry
 end

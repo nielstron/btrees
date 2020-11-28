@@ -18,11 +18,16 @@ section "Operations on Partly Filled Arrays"
 definition is_pfarray where
 "is_pfarray l \<equiv> \<lambda>(a,n). \<exists>\<^sub>A l'. a \<mapsto>\<^sub>a l' *  \<up>(n \<le> length l' \<and> l = (take n l'))"
 
+(* TODO *)
+definition is_pfarray_cap where
+"is_pfarray_cap c l \<equiv> \<lambda>(a,n). \<exists>\<^sub>A l'. a \<mapsto>\<^sub>a l' *  \<up>(c = length l' \<and> n \<le> length l' \<and> l = (take n l'))"
+
   lemma is_pfarray_prec[safe_constraint_rules]: "precise is_pfarray"
     unfolding is_pfarray_def[abs_def]
     apply(rule preciseI)
     apply(simp split: prod.splits) 
   	using preciseD snga_prec by fastforce
+
   
 
 definition pfa_empty where
@@ -179,7 +184,7 @@ using f9 f8 f7 f6 a2 by (metis (no_types) diff_add_inverse drop_take min_def_raw
 qed
 
 lemma pfa_drop_rule[sep_heap_rules]:
-    assumes LEN: "si < sn" "(sn-si) \<le> dn"
+    assumes LEN: "si \<le> sn" "(sn-si) \<le> dn"
     shows
     "< is_pfarray src (srci,sn)
       * is_pfarray dst (dsti,dn) >

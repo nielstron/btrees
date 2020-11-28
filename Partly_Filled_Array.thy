@@ -74,6 +74,13 @@ definition pfa_shrink :: "nat \<Rightarrow> 'a::heap pfarray \<Rightarrow> 'a pf
   return (a,k)
 "
 
+definition pfa_shrink_cap :: "nat \<Rightarrow> 'a::heap pfarray \<Rightarrow> 'a pfarray Heap" where
+"pfa_shrink_cap k \<equiv> \<lambda>(a,n). do {
+  a' \<leftarrow> array_shrink a k;
+  return (a',min k n)
+}
+"
+
 definition "pfa_copy \<equiv> arl_copy"
 
 term blit
@@ -165,6 +172,28 @@ lemma pfa_shrink_rule[sep_heap_rules]: "
   by (sep_auto 
       simp: pfa_shrink_def is_pfarray_cap_def min.absorb1
       split: prod.splits nat.split)
+
+(* ?
+lemma pfa_shrink_cap_rule_preserve[sep_heap_rules]: "
+   \<lbrakk>n \<le> k; k \<le> c\<rbrakk> \<Longrightarrow>
+    < is_pfarray_cap c l (a,n) > 
+      pfa_shrink_cap k (a,n)
+    <\<lambda>a'. is_pfarray_cap k l a' >\<^sub>t"  
+  by (sep_auto 
+      simp: pfa_shrink_cap_def is_pfarray_cap_def min.absorb1 min.absorb2
+      split: prod.splits nat.split)
+*)
+
+
+lemma pfa_shrink_cap_rule[sep_heap_rules]: "
+   \<lbrakk>k \<le> c\<rbrakk> \<Longrightarrow>
+    < is_pfarray_cap c l a > 
+      pfa_shrink_cap k a
+    <\<lambda>a'. is_pfarray_cap k (take k l) a' >\<^sub>t"  
+  by (sep_auto 
+      simp: pfa_shrink_cap_def is_pfarray_cap_def min.absorb1 min.absorb2
+      split: prod.splits nat.split)
+  
 
 
 lemma arl_copy_rule[sep_heap_rules]: "< is_pfarray_cap c l a > pfa_copy a <\<lambda>r. is_pfarray_cap c l a * is_pfarray_cap c l r>"  

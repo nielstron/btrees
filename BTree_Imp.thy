@@ -449,7 +449,8 @@ definition node_i :: "nat \<Rightarrow> (('a::{default,heap}) btnode ref option 
 "node_i k a ti \<equiv> do {
     n \<leftarrow> pfa_length a;
     if n \<le> 2*k then do {
-      l \<leftarrow> ref (Btnode a ti);
+      a' \<leftarrow> pfa_shrink_cap (2*k) a;
+      l \<leftarrow> ref (Btnode a' ti);
       return (UpT_i (Some l) None None)
     }
     else do {
@@ -479,6 +480,9 @@ lemma "
    apply(subst node_i_def)
   apply(rule hoare_triple_preI)
    apply(sep_auto dest!: mod_starD list_assn_len)
+     apply(sep_auto simp add: is_pfarray_cap_def)[]
+    apply(sep_auto simp add: is_pfarray_cap_def)[]
+    apply(sep_auto  dest!: mod_starD list_assn_len)[]
   apply(subst node_i_def)
   apply(rule hoare_triple_preI)
   apply(sep_auto dest!: mod_starD list_assn_len)

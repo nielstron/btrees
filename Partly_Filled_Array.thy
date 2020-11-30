@@ -168,12 +168,12 @@ lemma pfa_shrink_rule[sep_heap_rules]: "
    k \<le> length l \<Longrightarrow>
     < is_pfarray_cap c l (a,n) > 
       pfa_shrink k (a,n)
-    <\<lambda>(a',n'). is_pfarray_cap c (take k l) (a',n') * \<up>(a'=a) >\<^sub>t"  
+    <\<lambda>(a',n'). is_pfarray_cap c (take k l) (a',n') * \<up>(n' = k) * \<up>(a'=a) >\<^sub>t"  
   by (sep_auto 
       simp: pfa_shrink_def is_pfarray_cap_def min.absorb1
       split: prod.splits nat.split)
 
-(* ?
+
 lemma pfa_shrink_cap_rule_preserve[sep_heap_rules]: "
    \<lbrakk>n \<le> k; k \<le> c\<rbrakk> \<Longrightarrow>
     < is_pfarray_cap c l (a,n) > 
@@ -182,10 +182,10 @@ lemma pfa_shrink_cap_rule_preserve[sep_heap_rules]: "
   by (sep_auto 
       simp: pfa_shrink_cap_def is_pfarray_cap_def min.absorb1 min.absorb2
       split: prod.splits nat.split)
-*)
 
 
-lemma pfa_shrink_cap_rule[sep_heap_rules]: "
+
+lemma pfa_shrink_cap_rule: "
    \<lbrakk>k \<le> c\<rbrakk> \<Longrightarrow>
     < is_pfarray_cap c l a > 
       pfa_shrink_cap k a
@@ -193,7 +193,6 @@ lemma pfa_shrink_cap_rule[sep_heap_rules]: "
   by (sep_auto 
       simp: pfa_shrink_cap_def is_pfarray_cap_def min.absorb1 min.absorb2
       split: prod.splits nat.split)
-  
 
 
 lemma arl_copy_rule[sep_heap_rules]: "< is_pfarray_cap c l a > pfa_copy a <\<lambda>r. is_pfarray_cap c l a * is_pfarray_cap c l r>"  

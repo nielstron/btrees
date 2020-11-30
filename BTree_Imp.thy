@@ -404,11 +404,11 @@ where
 
 lemma split_half_rule[sep_heap_rules]: "<
     is_pfarray_cap c tsi a
-  * list_assn (A \<times>\<^sub>a id_assn) ts tsi> 
+  * list_assn R ts tsi> 
     split_half a
   <\<lambda>i. 
       is_pfarray_cap c tsi a
-    * list_assn (A \<times>\<^sub>a id_assn) ts tsi
+    * list_assn R ts tsi
     * \<up>( split_relation ts (BTree_Set.split_half ts) i)>\<^sub>t"
   unfolding split_half_def split_relation_def
   apply(rule hoare_triple_preI)
@@ -459,9 +459,10 @@ definition node_i :: "nat \<Rightarrow> (('a::{default,heap}) btnode ref option 
       b \<leftarrow> (pfa_empty (2*k) :: ('a btnode ref option \<times> 'a) pfarray Heap);
       b' \<leftarrow> pfa_drop a (i+1) b;
       a' \<leftarrow> pfa_shrink i a;
+      a'' \<leftarrow> pfa_shrink_cap (2*k) a';
       r \<leftarrow> ref (Btnode b' ti);
       let (sub,sep) = m in do {
-        l \<leftarrow> ref (Btnode a' sub);
+        l \<leftarrow> ref (Btnode a'' sub);
         return (UpT_i (Some l) (Some sep) (Some r))
       }
     }
@@ -473,7 +474,8 @@ thm drop_eq_ConsD
 
   
 lemma "
-  <is_pfarray_cap (2*k) tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti>
+\<lbrakk>2*k \<le> c; c \<le> 4*k+1\<rbrakk> \<Longrightarrow>
+  <is_pfarray_cap c tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti>
   node_i k (a,n) ti
   <\<lambda>r. btupi_assn k (btree_abs_search.node_i k ts t) r>\<^sub>t"
   apply(cases "length ts \<le> 2*k")
@@ -492,8 +494,12 @@ lemma "
      apply(sep_auto simp add: is_pfarray_cap_def)[]
     apply(sep_auto simp add: is_pfarray_cap_def)[]
    apply(sep_auto)[]
-  apply(sep_auto split: list.splits )
-  apply(sep_auto simp add: is_pfarray_cap_def)[]
+  apply(sep_auto heap add: pfa_shrink_cap_rule_preserve)
+    apply(sep_auto simp add: is_pfarray_cap_def)[]
+  apply simp
+  
+  apply(simp split: list.splits prod.splits add: is_pfarray_cap_def)
+  apply(sep_auto simp add: min.absorb2)[]
   done
   
   

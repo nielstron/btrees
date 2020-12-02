@@ -84,6 +84,12 @@ lemma list_assn_append_Cons_left: "list_assn A (xs@x#ys) zs = (\<exists>\<^sub>A
   apply (sep_auto simp add: list_assn_Cons_left list_assn_append_left intro!: ent_iffI)
   done
 
+
+lemma list_assn_aux_append_Cons: 
+  shows "length xs = length zsl \<Longrightarrow> list_assn A (xs@x#ys) (zsl@z#zsr) = (list_assn A xs zsl * A x z * list_assn A ys zsr) "
+  by (sep_auto simp add: mult.assoc)
+
+
 (* -------------------------------------------- *)
 
 subsection \<open>Prod-Assn\<close>

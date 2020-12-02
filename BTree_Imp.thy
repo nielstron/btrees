@@ -409,7 +409,7 @@ lemma split_half_rule[sep_heap_rules]: "<
   <\<lambda>i. 
       is_pfarray_cap c tsi a
     * list_assn R ts tsi
-    * \<up>( split_relation ts (BTree_Set.split_half ts) i)>\<^sub>t"
+    * \<up>(i = length ts div 2 \<and>  split_relation ts (BTree_Set.split_half ts) i)>"
   unfolding split_half_def split_relation_def
   apply(rule hoare_triple_preI)
   apply(sep_auto dest!: list_assn_len mod_starD)
@@ -454,15 +454,15 @@ definition node_i :: "nat \<Rightarrow> (('a::{default,heap}) btnode ref option 
       return (UpT_i (Some l) None None)
     }
     else do {
+      b \<leftarrow> (pfa_empty (2*k) :: ('a btnode ref option \<times> 'a) pfarray Heap);
       i \<leftarrow> split_half a;
       m \<leftarrow> pfa_get a i;
-      b \<leftarrow> (pfa_empty (2*k) :: ('a btnode ref option \<times> 'a) pfarray Heap);
       b' \<leftarrow> pfa_drop a (i+1) b;
       a' \<leftarrow> pfa_shrink i a;
       a'' \<leftarrow> pfa_shrink_cap (2*k) a';
-      r \<leftarrow> ref (Btnode b' ti);
       let (sub,sep) = m in do {
         l \<leftarrow> ref (Btnode a'' sub);
+        r \<leftarrow> ref (Btnode b' ti);
         return (UpT_i (Some l) (Some sep) (Some r))
       }
     }
@@ -471,36 +471,75 @@ term Array.upd
 
 thm drop_eq_ConsD
 
+find_theorems "<emp>_<_>"
 
-  
-lemma "
-\<lbrakk>2*k \<le> c; c \<le> 4*k+1\<rbrakk> \<Longrightarrow>
-  <is_pfarray_cap c tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti>
+
+
+
+lemma assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
+  shows "<is_pfarray_cap c tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti >
   node_i k (a,n) ti
   <\<lambda>r. btupi_assn k (btree_abs_search.node_i k ts t) r>\<^sub>t"
-  apply(cases "length ts \<le> 2*k")
-   apply(subst node_i_def)
-  apply(rule hoare_triple_preI)
-   apply(sep_auto dest!: mod_starD list_assn_len)
-     apply(sep_auto simp add: is_pfarray_cap_def)[]
-    apply(sep_auto simp add: is_pfarray_cap_def)[]
-    apply(sep_auto  dest!: mod_starD list_assn_len)[]
-  apply(subst node_i_def)
-  apply(rule hoare_triple_preI)
-  apply(sep_auto dest!: mod_starD list_assn_len)
-   apply(sep_auto simp add:  split_relation_alt split_relation_length is_pfarray_cap_def dest!: mod_starD list_assn_len split: prod.splits)
-  
-  apply(sep_auto simp add: split_relation_alt )
-     apply(sep_auto simp add: is_pfarray_cap_def)[]
-    apply(sep_auto simp add: is_pfarray_cap_def)[]
-   apply(sep_auto)[]
-  apply(sep_auto heap add: pfa_shrink_cap_rule_preserve)
-    apply(sep_auto simp add: is_pfarray_cap_def)[]
-  apply simp
-  
-  apply(simp split: list.splits prod.splits add: is_pfarray_cap_def)
-  apply(sep_auto simp add: min.absorb2)[]
-  done
+proof (cases "length ts \<le> 2*k")
+  case [simp]: True
+  then show ?thesis
+    apply(subst node_i_def)
+    apply(rule hoare_triple_preI)
+    apply(sep_auto dest!: mod_starD list_assn_len)
+       apply(sep_auto simp add: is_pfarray_cap_def)[]
+    using c_cap apply(sep_auto simp add: is_pfarray_cap_def)[]
+     apply(sep_auto  dest!: mod_starD list_assn_len)[]
+    using True apply(sep_auto dest!: mod_starD list_assn_len)
+    done
+next
+  case [simp]: False
+  then obtain ls sub sep rs where
+    split_half_eq: "BTree_Set.split_half ts = (ls,(sub,sep)#rs)"
+    using node_i_cases by blast
+  then show ?thesis
+    apply(subst node_i_def)
+    apply(rule hoare_triple_preI)
+    apply(sep_auto dest!: mod_starD list_assn_len)
+       apply(sep_auto simp add:  split_relation_alt split_relation_length is_pfarray_cap_def dest!: mod_starD list_assn_len)
+
+    using False apply(sep_auto simp add: split_relation_alt )
+    using False  apply(sep_auto simp add: is_pfarray_cap_def)[]
+    apply(sep_auto)[]
+      apply(sep_auto simp add: is_pfarray_cap_def split_relation_alt)[]
+    using c_cap apply(sep_auto simp add: is_pfarray_cap_def)[]
+    apply(sep_auto)[]
+    using c_cap apply(sep_auto simp add: is_pfarray_cap_def)[]
+    using c_cap apply(simp)
+    apply(vcg)
+    apply(simp)
+    apply(rule impI)
+    subgoal for _ _ _ _ rsa subi ba rn lsi al ar _
+      (* instantiate right hand side *)
+      apply(rule ent_ex_postI[where ?x="(rsa,rn)"])
+      apply(rule ent_ex_postI[where ?x="ti"])
+      apply(rule ent_ex_postI[where ?x="(drop (Suc (length tsi div 2)) tsi)"])
+      apply(rule ent_ex_postI[where ?x="lsi"])
+      apply(rule ent_ex_postI[where ?x="subi"])
+      apply(rule ent_ex_postI[where ?x="take (length tsi div 2) tsi"])
+        (* introduce equality between equality of split tsi/ts and original lists *)
+      apply(simp add: split_relation_alt)
+      apply(subgoal_tac "tsi =
+            take (length tsi div 2) tsi @ (subi, ba) # drop (Suc (length tsi div 2)) tsi")
+       apply(rule back_subst[where a="list_assn (btree_assn k \<times>\<^sub>a id_assn) ts (take (length tsi div 2) tsi @ (subi, ba) # (drop (Suc (length tsi div 2)) tsi))" and b="list_assn (btree_assn k \<times>\<^sub>a id_assn) ts tsi"])
+        apply(rule back_subst[where a="list_assn (btree_assn k \<times>\<^sub>a id_assn) (take (length tsi div 2) ts @ (sub, sep) # rs)" and b="list_assn (btree_assn k \<times>\<^sub>a id_assn) ts"])
+         apply(subst list_assn_aux_append_Cons)
+           apply sep_auto
+         apply sep_auto
+        apply simp
+       apply simp
+      apply(rule back_subst[where a="tsi ! (length tsi div 2)" and b="(subi, ba)"])
+       apply(rule id_take_nth_drop)
+       apply simp
+      apply simp
+      done
+    done
+qed
+
   
   
   

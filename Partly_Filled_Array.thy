@@ -13,12 +13,13 @@ This represents a weakened version of the array_list from IICF"
 
 type_synonym 'a pfarray = "'a array_list"
 
+
 section "Operations on Partly Filled Arrays"
 
 definition is_pfarray where
 "is_pfarray l \<equiv> \<lambda>(a,n). \<exists>\<^sub>A l'. a \<mapsto>\<^sub>a l' *  \<up>(n \<le> length l' \<and> l = (take n l'))"
 
-(* TODO *)
+
 definition is_pfarray_cap where
 "is_pfarray_cap c l \<equiv> \<lambda>(a,n). \<exists>\<^sub>A l'. a \<mapsto>\<^sub>a l' *  \<up>(c = length l' \<and> n \<le> length l' \<and> l = (take n l'))"
 
@@ -48,6 +49,7 @@ definition "pfa_append \<equiv> \<lambda>(a,n) x. do {
   return (a,n+1)
 }"
 
+
 definition "pfa_last \<equiv> arl_last"
 
 definition pfa_butlast :: "'a::heap pfarray \<Rightarrow> 'a pfarray Heap" where
@@ -65,6 +67,7 @@ definition "pfa_capacity \<equiv> \<lambda>(a,n). do {
 }
 "
 
+
 definition "pfa_is_empty \<equiv> arl_is_empty"
 
 definition "pfa_set \<equiv> arl_set"
@@ -80,6 +83,7 @@ definition pfa_shrink_cap :: "nat \<Rightarrow> 'a::heap pfarray \<Rightarrow> '
   return (a',min k n)
 }
 "
+
 
 definition "pfa_copy \<equiv> arl_copy"
 
@@ -99,6 +103,19 @@ definition pfa_drop :: "('a::heap) pfarray \<Rightarrow> nat \<Rightarrow> 'a pf
 }
 "
 
+term arl_append
+
+
+definition "pfa_append_grow \<equiv> \<lambda>(a,n) x. do {
+  l \<leftarrow> pfa_capacity (a,n);
+  a' \<leftarrow> if l = n 
+  then array_grow a (l+1) x
+  else Array.upd n x a;
+  return (a',n+1)
+}"
+
+
+
 
 section "Inference rules"
 
@@ -114,7 +131,7 @@ lemma pfa_length_rule[sep_heap_rules]: "
 lemma pfa_capacity_rule[sep_heap_rules]: "
   <is_pfarray_cap c l a> 
     pfa_capacity a
-  <\<lambda>r. is_pfarray_cap r l a>"
+  <\<lambda>r. is_pfarray_cap c l a * \<up>(c=r)>"
   by (sep_auto simp: pfa_capacity_def arl_length_def is_pfarray_cap_def)
 
 
@@ -195,7 +212,7 @@ lemma pfa_shrink_cap_rule: "
 
 
 
-lemma arl_copy_rule[sep_heap_rules]: "< is_pfarray_cap c l a > pfa_copy a <\<lambda>r. is_pfarray_cap c l a * is_pfarray_cap c l r>\<^sub>t"  
+lemma pfa_copy_rule[sep_heap_rules]: "< is_pfarray_cap c l a > pfa_copy a <\<lambda>r. is_pfarray_cap c l a * is_pfarray_cap c l r>\<^sub>t"  
     by (sep_auto simp: pfa_copy_def arl_copy_def is_pfarray_cap_def)
 
 lemma min_nat: "min a (a+b) = (a::nat)"
@@ -228,6 +245,41 @@ lemma pfa_drop_rule[sep_heap_rules]:
     >\<^sub>t"
   using LEN apply (sep_auto simp add: drop_take is_pfarray_cap_def pfa_drop_def dest!: mod_starD heap: pfa_blit_rule)
   done
+
+lemma pfa_append_grow_full_rule: "n = c \<Longrightarrow>
+     <is_pfarray_cap c l (a,n)>
+  array_grow a (c+1) x
+      <\<lambda>a'. is_pfarray_cap (c+1) (l@[x]) (a',n+1)>\<^sub>t"
+  apply(sep_auto simp add: is_pfarray_cap_def 
+heap del: array_grow_rule)
+  apply(vcg heap del: array_grow_rule heap add: array_grow_rule[of l "(Suc (length l))" a x])
+   apply simp
+  apply(rule ent_ex_postI[where ?x="l@[x]"])
+  apply sep_auto
+  done
+
+
+lemma pfa_append_grow_less_rule: "n < c \<Longrightarrow>
+ <is_pfarray_cap c l (a,n)>
+    Array.upd n x a
+<\<lambda>a'. is_pfarray_cap c (l@[x]) (a',n+1)>\<^sub>t"
+  apply(sep_auto simp add: is_pfarray_cap_def take_update_last)
+  done
+
+lemma pfa_append_grow_rule: "
+  <is_pfarray_cap c l (a,n)>
+  pfa_append_grow (a,n) x 
+  <\<lambda>(a',n'). is_pfarray_cap (if c = n then c+1 else c) (l@[x]) (a',n') * \<up>(n'=n+1)>\<^sub>t"
+  apply(subst pfa_append_grow_def)
+  apply(rule hoare_triple_preI)
+  apply (sep_auto
+      heap add: pfa_append_grow_full_rule pfa_append_grow_less_rule)
+   apply(sep_auto simp add: is_pfarray_cap_def)
+  apply(sep_auto simp add: is_pfarray_cap_def)
+  done
+
+
+
 
  definition "pfa_assn A \<equiv> hr_comp is_pfarray (\<langle>the_pure A\<rangle>list_rel)"
   lemmas [safe_constraint_rules] = CN_FALSEI[of is_pure "pfa_assn A" for A]

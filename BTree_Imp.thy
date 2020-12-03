@@ -16,6 +16,8 @@ primrec kvs :: "'a::heap btnode \<Rightarrow> ('a btnode ref option*'a) pfarray"
 
 primrec last :: "'a::heap btnode \<Rightarrow> 'a btnode ref option" where
   [sep_dflt_simps]: "last (Btnode _ t) = t"
+           
+term arrays_update
 
 text \<open>Encoding to natural numbers, as required by Imperative/HOL\<close>
 (* Sollte auch mit deriving gehen *)
@@ -416,31 +418,14 @@ lemma split_half_rule[sep_heap_rules]: "<
   done
 
 datatype 'a btupi = 
-  UpT_i "'a btnode ref option" "'a option" "'a btnode ref option"
-
-fun
-  btupi_encode :: "'a::heap btupi \<Rightarrow> nat"
-  where
-  "btupi_encode (UpT_i a x b) = to_nat (a,x,b)"
-
-thm btupi_encode.cases
-instance btupi :: (heap) heap
-  apply (rule heap_class.intro)
-   apply (rule countable_classI[of "btupi_encode"])
-  subgoal
-  proof -
-    fix x :: "'a btupi" and y :: "'a btupi"
-    assume a1: "btupi_encode x = btupi_encode y"
-    have "\<forall>b n. (\<exists>z za zb. to_nat (z, za::'a option, zb) = n \<and> UpT_i z za zb = b) \<or> btupi_encode b \<noteq> n"
-      by (metis (no_types) btupi_encode.elims)
-    then show "x = y"
-      using a1 by (metis Pair_inject from_nat_to_nat)
-  qed
-  ..
+  T_i "'a btnode ref option" |
+  Up_i "'a btnode ref option" "'a" "'a btnode ref option"
 
 fun btupi_assn where
-"btupi_assn k (btree_abs_search.T_i l) (UpT_i li None None) = btree_assn k l li" |
-"btupi_assn k (btree_abs_search.Up_i l a r) (UpT_i li (Some ai) ri) = btree_assn k l li * id_assn a ai * btree_assn k r ri" |
+"btupi_assn k (btree_abs_search.T_i l) (T_i li) =
+   btree_assn k l li" |
+"btupi_assn k (btree_abs_search.Up_i l a r) (Up_i li ai ri) =
+   btree_assn k l li * id_assn a ai * btree_assn k r ri" |
 "btupi_assn _ _ _ = false"
 
 
@@ -451,7 +436,7 @@ definition node_i :: "nat \<Rightarrow> (('a::{default,heap}) btnode ref option 
     if n \<le> 2*k then do {
       a' \<leftarrow> pfa_shrink_cap (2*k) a;
       l \<leftarrow> ref (Btnode a' ti);
-      return (UpT_i (Some l) None None)
+      return (T_i (Some l))
     }
     else do {
       b \<leftarrow> (pfa_empty (2*k) :: ('a btnode ref option \<times> 'a) pfarray Heap);
@@ -463,7 +448,7 @@ definition node_i :: "nat \<Rightarrow> (('a::{default,heap}) btnode ref option 
       let (sub,sep) = m in do {
         l \<leftarrow> ref (Btnode a'' sub);
         r \<leftarrow> ref (Btnode b' ti);
-        return (UpT_i (Some l) (Some sep) (Some r))
+        return (Up_i (Some l) sep (Some r))
       }
     }
 }"
@@ -499,8 +484,8 @@ next
   then show ?thesis
     apply(subst node_i_def)
     apply(rule hoare_triple_preI)
-    apply(sep_auto dest!: mod_starD list_assn_len)
-       apply(sep_auto simp add:  split_relation_alt split_relation_length is_pfarray_cap_def dest!: mod_starD list_assn_len)
+     apply(sep_auto dest!: mod_starD list_assn_len)
+     apply(sep_auto simp add:  split_relation_alt split_relation_length is_pfarray_cap_def dest!: mod_starD list_assn_len)
 
     using False apply(sep_auto simp add: split_relation_alt )
     using False  apply(sep_auto simp add: is_pfarray_cap_def)[]
@@ -540,10 +525,50 @@ next
     done
 qed
 
-  
-  
-  
-  thm pfa_drop_rule[where ?dst="[]" and ?src="(take (length tsi div 2) tsi)" and ?srci="a"]
-  sorry
+term Array.set
+
+partial_function (heap) ins :: "nat \<Rightarrow> 'a \<Rightarrow> ('a::{heap,linorder,default}) btnode ref option \<Rightarrow> 'a btupi Heap"
+where
+"ins k x p = (case p of
+  None \<Rightarrow> 
+    return (Up_i None x None) |
+  (Some a) \<Rightarrow> do {
+    node \<leftarrow> !a;
+    i \<leftarrow> split (kvs node) x;
+    tsl \<leftarrow> pfa_length (kvs node);
+    if i < tsl then do {
+      s \<leftarrow> pfa_get (kvs node) i;
+      let (sub,sep) = s in
+      if sep = x then
+        return (T_i p)
+      else do {
+        r \<leftarrow> ins k x sub;
+        case r of 
+          (T_i lp) \<Rightarrow> do {
+            pfa_set (kvs node) i (lp,sep);
+            return (T_i p)
+          } |
+          (Up_i lp x' rp) \<Rightarrow> do {
+            return undefined
+          }
+        }
+      }
+    else do {
+      r \<leftarrow> ins k x (last node);
+      case r of 
+        (T_i lp) \<Rightarrow> do {
+          a := (Btnode (kvs node) lp);
+          return (T_i p)
+        } |
+        (Up_i lp x' rp) \<Rightarrow> do {
+          kvs' \<leftarrow> pfa_append_grow (kvs node) (lp,x');
+          node_i k kvs' rp
+        }
+    }
+  }
+)"
+
+find_theorems "_ := _"
+ 
 end
 

@@ -277,8 +277,8 @@ lemma pfa_append_grow_rule: "
    apply(sep_auto simp add: is_pfarray_cap_def)
   apply(sep_auto simp add: is_pfarray_cap_def)
   done
-
-
+term blit
+thm blit_rule
 
 
  definition "pfa_assn A \<equiv> hr_comp is_pfarray (\<langle>the_pure A\<rangle>list_rel)"
@@ -292,55 +292,6 @@ lemma pfa_append_grow_rule: "
   lemma pfa_assn_comp': "hr_comp (pfa_assn id_assn) (\<langle>B\<rangle>list_rel) = pfa_assn (pure B)"
     by (simp add: pfa_assn_comp)
 
-context 
-  notes [fcomp_norm_unfold] = pfa_assn_def[symmetric] pfa_assn_comp'
-  notes [intro!] = hfrefI hn_refineI[THEN hn_refine_preI]
-  notes [simp] = pure_def hn_ctxt_def invalid_assn_def
-begin  
-
-
-  lemma pfa_empty_hnr_aux: "(uncurry0 (pfa_empty N),uncurry0 (RETURN op_list_empty)) \<in> unit_assn\<^sup>k \<rightarrow>\<^sub>a is_pfarray"  
-    sorry
-  sepref_decl_impl (no_register) pfa_empty: pfa_empty_hnr_aux .
-
-  definition "op_pfa_empty (N::nat) \<equiv> op_list_empty"
-
-  lemma pfa_length_hnr_aux: "(pfa_length,RETURN o op_list_length) \<in> is_pfarray\<^sup>k \<rightarrow>\<^sub>a nat_assn"
-    by sep_auto
-  sepref_decl_impl pfa_length: pfa_length_hnr_aux .
-
-  lemma pfa_is_empty_hnr_aux: "(pfa_is_empty,RETURN o op_list_is_empty) \<in> is_pfarray\<^sup>k \<rightarrow>\<^sub>a bool_assn"
-    by sep_auto
-  sepref_decl_impl pfa_is_empty: pfa_is_empty_hnr_aux .  
-
-lemma pfa_last_hnr_aux: "(pfa_last,RETURN o op_list_last) \<in> [pre_list_last]\<^sub>a is_pfarray\<^sup>k \<rightarrow> id_assn"
-    by sep_auto
-  sepref_decl_impl pfa_last: pfa_last_hnr_aux . 
-
-  lemma pfa_butlast_hnr_aux: "(pfa_butlast,RETURN o op_list_butlast) \<in> [pre_list_butlast]\<^sub>a is_pfarray\<^sup>d \<rightarrow> is_pfarray"
-    by sep_auto
-  sepref_decl_impl pfa_butlast: pfa_butlast_hnr_aux .
-
-  lemma pfa_get_hnr_aux: "(uncurry pfa_get,uncurry (RETURN oo op_list_get)) \<in> [\<lambda>(l,i). i<length l]\<^sub>a (is_pfarray\<^sup>k *\<^sub>a nat_assn\<^sup>k) \<rightarrow> id_assn"
-    by sep_auto
-  sepref_decl_impl pfa_get: pfa_get_hnr_aux .
-
-  lemma pfa_set_hnr_aux: "(uncurry2 pfa_set,uncurry2 (RETURN ooo op_list_set)) \<in> [\<lambda>((l,i),_). i<length l]\<^sub>a (is_pfarray\<^sup>d *\<^sub>a nat_assn\<^sup>k *\<^sub>a id_assn\<^sup>k) \<rightarrow> is_pfarray"
-    by sep_auto
-  sepref_decl_impl pfa_set: pfa_set_hnr_aux .
-
-  sepref_definition pfa_swap is "uncurry2 mop_list_swap" :: "((pfa_assn id_assn)\<^sup>d *\<^sub>a nat_assn\<^sup>k *\<^sub>a nat_assn\<^sup>k \<rightarrow>\<^sub>a pfa_assn id_assn)"
-    unfolding gen_mop_list_swap[abs_def]
-    by sepref
-  sepref_decl_impl (ismop) pfa_swap: pfa_swap.refine .  
-end
-
-
-lemma [def_pat_rules]: "op_pfa_empty$N \<equiv> UNPROTECT (op_pfa_empty N)" by simp
-interpretation pfa_sz: list_custom_empty "pfa_assn A" "pfa_empty N" "PR_CONST (op_pfa_empty N)"
-  apply unfold_locales
-  apply (rule pfa_empty_hnr)
-  by (auto simp: op_pfa_empty_def)
 
 
 end

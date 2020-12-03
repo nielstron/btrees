@@ -37,24 +37,25 @@ next
     by (sep_auto simp: take_update_last drop_upd_irrelevant)
 qed
 
-text "The function blit_rev may be used to copy elements a defined offset to the right"
+text "The function rblit may be used to copy elements a defined offset to the right"
 
-primrec blit_rev :: "_ array \<Rightarrow> nat \<Rightarrow> _ array \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> unit Heap" where
-  "blit_rev _ _ _ _ 0 = return ()"
-| "blit_rev src si dst di (Suc l) = do {
+(* Right BLIT or Reverse BLIT *)
+primrec rblit :: "_ array \<Rightarrow> nat \<Rightarrow> _ array \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> unit Heap" where
+  "rblit _ _ _ _ 0 = return ()"
+| "rblit src si dst di (Suc l) = do {
       x \<leftarrow> Array.nth src (si+l);
       Array.upd (di+l) x dst;
-      blit_rev src si dst di l
+      rblit src si dst di l
     }"
 
 text "For seperated arrays it is equivalent to normal blit"
 
-lemma blit_rev_rule[sep_heap_rules]:
+lemma rblit_rule[sep_heap_rules]:
   assumes LEN: "si+len \<le> length lsrc" "di+len \<le> length ldst"
   shows
     "< src \<mapsto>\<^sub>a lsrc 
       * dst \<mapsto>\<^sub>a ldst >
-    blit_rev src si dst di len
+    rblit src si dst di len
     <\<lambda>_. src \<mapsto>\<^sub>a lsrc 
       * dst \<mapsto>\<^sub>a (take di ldst @ take len (drop si lsrc) @ drop (di+len) ldst)
     >"
@@ -83,18 +84,19 @@ next
     by (sep_auto simp: take_update_last drop_upd_irrelevant)
 qed
 
-definition "sblit_rev a s d l \<equiv> blit_rev a s a d l"
+definition "srblit a s d l \<equiv> rblit a s a d l"
 
-lemma sblit_rev_rule[sep_heap_rules]:
+(* however for the same arrays we can now copy to the right *)
+lemma srblit_rule[sep_heap_rules]:
   assumes LEN:
     "di+len \<le> length lsrc"
     and DST_GR: "di \<ge> si"
   shows
     "< src \<mapsto>\<^sub>a lsrc  >
-    sblit_rev src si di len
+    srblit src si di len
     <\<lambda>_. src \<mapsto>\<^sub>a (take di lsrc @ take len (drop si lsrc) @ drop (di+len) lsrc)
     >"
-  unfolding sblit_rev_def
+  unfolding srblit_def
   using LEN DST_GR
 proof (induction len arbitrary: lsrc si di)
   case 0 thus ?case by sep_auto
@@ -128,14 +130,14 @@ definition "safe_sblit a s d l \<equiv>
     if s > d then
       sblit a s d l
     else
-      sblit_rev a s d l
+      srblit a s d l
 "
 
 (* Compare this to blit_rule *)
 thm blit_rule
 lemma safe_sblit_rule[sep_heap_rules]:
   assumes LEN:
-    "len > 0 \<longrightarrow> di+len \<le> length lsrc \<and> si+len \<le> length lsrc"
+    "len > 0 \<Longrightarrow> di+len \<le> length lsrc \<and> si+len \<le> length lsrc"
   shows
     "< src \<mapsto>\<^sub>a lsrc  >
     safe_sblit src si di len
@@ -144,11 +146,13 @@ lemma safe_sblit_rule[sep_heap_rules]:
   unfolding safe_sblit_def
   using LEN
   apply(cases len)
-   apply(sep_auto simp add: sblit_def sblit_rev_def)[]
+   apply(sep_auto simp add: sblit_def srblit_def)[]
   apply sep_auto
   done
 
-
+(* note that the requirement for correctness
+   is even weaker here than in SML 
+  TODO is this good or bad? *)
 subsection "Code Generator Setup"
   code_printing code_module "array_sblit" \<rightharpoonup> (SML)
     \<open>
@@ -201,10 +205,38 @@ lemma array_shr_rule[sep_heap_rules]:
   unfolding array_shr_def
   by sep_auto
 
-lemma array_shr_alt: "
-  (take (i+k) lsrc @ take (length lsrc - (i+k)) (drop i lsrc)) =
-   (take (length lsrc) (take (i+k) lsrc @ (drop i lsrc)))
+lemma array_shr_rule_alt:
+    "< src \<mapsto>\<^sub>a lsrc  >
+    array_shr src i k
+    <\<lambda>_. src \<mapsto>\<^sub>a (take (length lsrc) (take (i+k) lsrc @ (drop i lsrc)))
+    >"
+  by (sep_auto simp add: min_def)
+
+definition array_shl where
+"array_shl a i k \<equiv> do {
+  l \<leftarrow> Array.len a;
+  safe_sblit a i (i-k) (l-i)
+}
+"
+
+lemma array_shl_rule[sep_heap_rules]:
     "
-  by (auto simp add: min_def)
+    < src \<mapsto>\<^sub>a lsrc  >
+    array_shl src i k
+    <\<lambda>_. src \<mapsto>\<^sub>a (take (i-k) lsrc @ (drop i lsrc) @ drop (i - k + (length lsrc - i)) lsrc)
+    >"
+  unfolding array_shl_def
+  by sep_auto
+
+
+lemma array_shl_rule_alt:
+    "
+    \<lbrakk>i \<le> length lsrc; k \<le> i\<rbrakk> \<Longrightarrow>
+    < src \<mapsto>\<^sub>a lsrc  >
+    array_shl src i k
+    <\<lambda>_. src \<mapsto>\<^sub>a (take (i-k) lsrc @ (drop i lsrc) @ drop (length lsrc - k) lsrc)
+    >"
+  by sep_auto
+
 
 end

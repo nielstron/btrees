@@ -1,4 +1,4 @@
-theory Array_Shift
+theory Array_SBlit
 imports "Separation_Logic_Imperative_HOL.Array_Blit"
 begin
 
@@ -152,15 +152,17 @@ lemma safe_sblit_rule[sep_heap_rules]:
 
 (* note that the requirement for correctness
    is even weaker here than in SML 
-  TODO is this good or bad? *)
+  we therefore also handle the case where length is 0 (in which case nothing happens at all) *)
 subsection "Code Generator Setup"
   code_printing code_module "array_sblit" \<rightharpoonup> (SML)
     \<open>
    fun array_sblit src si di len = (
-      ArraySlice.copy {
-        di = IntInf.toInt di,
-        src = ArraySlice.slice (src,IntInf.toInt si,SOME (IntInf.toInt len)),
-        dst = src}
+      if len > 0 then
+        ArraySlice.copy {
+          di = IntInf.toInt di,
+          src = ArraySlice.slice (src,IntInf.toInt si,SOME (IntInf.toInt len)),
+          dst = src}
+      else ()
     )
 \<close>
 
@@ -179,7 +181,10 @@ subsection "Code Generator Setup"
     (SML) "(fn/ ()/ => /array'_sblit _ _ _ _)"
     and (Scala) "{ ('_: Unit)/=>/
       def safescopy(src: Array['_], srci: Int, dsti: Int, len: Int) = {
-        System.arraycopy(src, srci, src, dsti, len)
+       if (len > 0)
+          System.arraycopy(src, srci, src, dsti, len)
+        else
+          ()
       }
       safescopy(_.array,_.toInt,_.toInt,_.toInt)
     }"

@@ -549,7 +549,9 @@ where
             return (T_i p)
           } |
           (Up_i lp x' rp) \<Rightarrow> do {
-            return undefined
+            kvs' \<leftarrow> pfa_set (kvs node) i (rp,sep);
+            kvs'' \<leftarrow> pfa_insert_grow kvs' i (lp,x');
+            node_i k kvs'' (last node)
           }
         }
       }

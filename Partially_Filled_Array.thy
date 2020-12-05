@@ -79,7 +79,7 @@ lemma pfa_append_rule[sep_heap_rules]: "
    n < c  \<Longrightarrow>
     < is_pfarray_cap c l (a,n) > 
       pfa_append (a,n) x 
-    <\<lambda>(a',n'). is_pfarray_cap c (l@[x]) (a',n') * \<up>(a' = a) >"  
+    <\<lambda>(a',n'). is_pfarray_cap c (l@[x]) (a',n') * \<up>(a' = a \<and> n' = n+1) >"  
     by (sep_auto 
       simp: pfa_append_def arl_append_def is_pfarray_cap_def take_update_last neq_Nil_conv
       split: prod.splits nat.split)
@@ -144,7 +144,7 @@ lemma pfa_shrink_rule[sep_heap_rules]: "
    k \<le> length l \<Longrightarrow>
     < is_pfarray_cap c l (a,n) > 
       pfa_shrink k (a,n)
-    <\<lambda>(a',n'). is_pfarray_cap c (take k l) (a',n') * \<up>(n' = k) * \<up>(a'=a) >"  
+    <\<lambda>(a',n'). is_pfarray_cap c (take k l) (a',n') * \<up>(n' = k \<and> a'=a) >"  
   by (sep_auto 
       simp: pfa_shrink_def is_pfarray_cap_def min.absorb1
       split: prod.splits nat.split)
@@ -177,7 +177,8 @@ lemma pfa_shrink_cap_rule: "
       simp: pfa_shrink_cap_def is_pfarray_cap_def min.absorb1 min.absorb2
       split: prod.splits nat.split dest: mod_starD)
 
-definition "safe_array_grow a s x \<equiv> do {
+
+definition "array_ensure a s x \<equiv> do {
     l\<leftarrow>Array.len a;
     if l\<ge>s then 
       return a
@@ -188,28 +189,28 @@ definition "safe_array_grow a s x \<equiv> do {
     }
   }"
 
-lemma safe_array_grow_rule[sep_heap_rules]:
+lemma array_ensure_rule[sep_heap_rules]:
   shows "
       < a\<mapsto>\<^sub>ala > 
-        safe_array_grow a s x 
+        array_ensure a s x 
       <\<lambda>a'. a'\<mapsto>\<^sub>a (la @ replicate (s-length la) x)>\<^sub>t"
-  unfolding safe_array_grow_def
+  unfolding array_ensure_def
   by sep_auto
 
-(* TODO broken? *)
-definition pfa_ensure_cap :: "'a::{heap,default} pfarray \<Rightarrow> nat \<Rightarrow> 'a pfarray Heap" where
-"pfa_ensure_cap \<equiv> \<lambda>(a,n) k. do {
-  a' \<leftarrow> safe_array_grow a k default;
+(* Ensure a certain capacity *)
+definition pfa_ensure :: "'a::{heap,default} pfarray \<Rightarrow> nat \<Rightarrow> 'a pfarray Heap" where
+"pfa_ensure \<equiv> \<lambda>(a,n) k. do {
+  a' \<leftarrow> array_ensure a k default;
   return (a',n)
 }
 "
 
-lemma pfa_ensure_cap_rule[sep_heap_rules]: "
+lemma pfa_ensure_rule[sep_heap_rules]: "
     < is_pfarray_cap c l (a,n) > 
-      pfa_ensure_cap (a,n) k
+      pfa_ensure (a,n) k
     <\<lambda>(a',n'). is_pfarray_cap (max c k) l (a',n') * \<up>(n' = n)>\<^sub>t"  
   by (sep_auto 
-      simp: pfa_ensure_cap_def is_pfarray_cap_def)
+      simp: pfa_ensure_def is_pfarray_cap_def)
 
 
 definition "pfa_copy \<equiv> arl_copy"
@@ -311,6 +312,20 @@ lemma pfa_append_grow_rule: "
   apply(sep_auto simp add: is_pfarray_cap_def)
   done
 
+(* This definition has only one access to the array length *)
+definition "pfa_append_grow' \<equiv> \<lambda>(a,n) x. do {
+  a' \<leftarrow> pfa_ensure (a,n) (n+1);
+  a'' \<leftarrow> pfa_append a' x;
+  return a''
+}"
+
+lemma pfa_append_grow'_rule: "
+  <is_pfarray_cap c l (a,n)>
+  pfa_append_grow' (a,n) x 
+  <\<lambda>(a',n'). is_pfarray_cap (max (n+1) c) (l@[x]) (a',n') * \<up>(n'=n+1)>\<^sub>t"
+  unfolding pfa_append_grow'_def
+  by (sep_auto simp add: max_def)
+
 
 definition "pfa_insert \<equiv> \<lambda>(a,n) i x. do {
   a' \<leftarrow> array_shr a i 1;
@@ -333,7 +348,7 @@ lemma pfa_insert_rule[sep_heap_rules]:
 
 definition pfa_insert_grow ::  "'a::{heap,default} pfarray \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> 'a pfarray Heap" 
   where "pfa_insert_grow \<equiv> \<lambda>(a,n) i x. do {
-  a' \<leftarrow> pfa_ensure_cap (a,n) (n+1);
+  a' \<leftarrow> pfa_ensure (a,n) (n+1);
   pfa_insert a' i x
 }"
 

@@ -45,10 +45,7 @@ lemma pfa_length_rule[sep_heap_rules]: "
   by (sep_auto simp: pfa_length_def arl_length_def is_pfarray_cap_def)
 
 
-definition "pfa_capacity \<equiv> \<lambda>(a,n). do {
-  l \<leftarrow> Array.len a;
-  return l
-}
+definition "pfa_capacity \<equiv> \<lambda>(a,n). Array.len a
 "
 
 
@@ -223,11 +220,7 @@ lemma pfa_copy_rule[sep_heap_rules]:
     by (sep_auto simp: pfa_copy_def arl_copy_def is_pfarray_cap_def)
 
 definition pfa_blit :: "'a::heap pfarray \<Rightarrow> nat \<Rightarrow> 'a::heap pfarray \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> unit Heap" where
-"pfa_blit \<equiv> \<lambda>(src,sn) si (dst,dn) di l. do {
-   blit src si dst di l;
-   return ()
-}
-"
+"pfa_blit \<equiv> \<lambda>(src,sn) si (dst,dn) di l. blit src si dst di l"
 
 
 lemma min_nat: "min a (a+b) = (a::nat)"
@@ -349,7 +342,8 @@ lemma pfa_insert_rule[sep_heap_rules]:
 definition pfa_insert_grow ::  "'a::{heap,default} pfarray \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> 'a pfarray Heap" 
   where "pfa_insert_grow \<equiv> \<lambda>(a,n) i x. do {
   a' \<leftarrow> pfa_ensure (a,n) (n+1);
-  pfa_insert a' i x
+  a'' \<leftarrow> pfa_insert a' i x;
+  return a''
 }"
 
 lemma pfa_insert_grow_rule: 

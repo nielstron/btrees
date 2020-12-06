@@ -1,7 +1,7 @@
 theory BTree_Imp
   imports
     BTree_Set
-    Partly_Filled_Array
+    Partially_Filled_Array
     Imperative_Loops
 begin
 hide_const (open) Sepref_Translate.heap_WHILET
@@ -330,7 +330,6 @@ next
     (* NOTE: induction condition trivial here *)
     case [simp]: Nil
     show ?thesis
-      apply(simp split: list.splits prod.splits)
       apply(subst isin.simps)
       apply(sep_auto heap: split_imp_abs_split)
         apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
@@ -461,7 +460,7 @@ find_theorems "<emp>_<_>"
 
 
 
-lemma assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
+lemma node_i_rule: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
   shows "<is_pfarray_cap c tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti >
   node_i k (a,n) ti
   <\<lambda>r. btupi_assn k (btree_abs_search.node_i k ts t) r>\<^sub>t"
@@ -569,6 +568,65 @@ where
     }
   }
 )"
+
+
+lemma ins_rule:
+  shows "<btree_assn k t ti * true>
+  ins k x ti
+  <\<lambda>r. btupi_assn k (btree_abs_search.ins k x t) r>\<^sub>t"
+proof (induction k x t arbitrary: ti rule: btree_abs_search.ins.induct)
+  case (1 k x)
+  then show ?case
+    apply(subst ins.simps)
+    apply (sep_auto simp add: pure_app_eq)
+    done
+next
+  case (2 k x ts t)
+    then obtain ls rrs where list_split: "abs_split ts x = (ls,rrs)"
+    by (cases "abs_split ts x")
+  then show ?case
+  proof (cases rrs)
+    case Nil
+    then show ?thesis
+    proof (cases "btree_abs_search.ins k x t")
+      case (T_i a)
+      then show ?thesis
+        apply(subst ins.simps)
+        apply simp
+        apply(sep_auto heap: split_imp_abs_split)
+        subgoal for p tsil tsin tti
+          using Nil list_split
+          apply(sep_auto split!: list.splits simp add: split_relation_alt)
+          apply (metis Imperative_Loops.list_assn_aux_ineq_len assn_times_comm drop_eq_Nil entailsI less_le_not_le local.Nil mod_false star_false_left)
+          done
+        subgoal for p tsil tsin tti tsi' xb xaa xc sub sep
+            apply(rule hoare_triple_preI)
+           using Nil list_split apply(sep_auto dest!: mod_starD list_assn_len simp add: is_pfarray_cap_def)
+            apply(sep_auto split!: list.splits simp add: split_relation_alt)
+           apply(sep_auto split!: list.splits simp add: split_relation_alt)
+           done
+         subgoal for p tsil tsin tti tsi' xb xaa
+           thm "2.IH"(1)[of ls rrs tti]
+           using Nil list_split T_i apply(sep_auto split!: list.splits simp add: split_relation_alt
+                heap add: "2.IH"(1)[of ls rrs tti])
+           subgoal for xi
+             apply(cases xi)
+              apply sep_auto
+             apply sep_auto
+             done
+           done
+         done
+    next
+      case (Up_i l a r)
+      then show ?thesis sorry
+    qed
+  next
+  case (Cons a list)
+    then show ?thesis sorry
+  qed
+
+qed
+
 
 find_theorems "_ := _"
  

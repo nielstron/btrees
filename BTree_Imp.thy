@@ -461,7 +461,7 @@ find_theorems "<emp>_<_>"
 
 
 lemma node_i_rule: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
-  shows "<is_pfarray_cap c tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti >
+  shows "<is_pfarray_cap c tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti * true>
   node_i k (a,n) ti
   <\<lambda>r. btupi_assn k (btree_abs_search.node_i k ts t) r >\<^sub>t"
 proof (cases "length ts \<le> 2*k")
@@ -497,7 +497,9 @@ next
     apply(vcg)
     apply(simp)
     apply(rule impI)
-    subgoal for _ _ _ _ rsa subi ba rn lsi al ar _
+    subgoal for _ _ _ _ _ _ rsa subi ba rn lsi al ar _
+      thm ent_ex_postI
+      thm ent_ex_postI[where ?x="take (length tsi div 2) tsi"]
       (* instantiate right hand side *)
       apply(rule ent_ex_postI[where ?x="(rsa,rn)"])
       apply(rule ent_ex_postI[where ?x="ti"])
@@ -569,7 +571,47 @@ where
   }
 )"
 
-declare prod_assn_pair_conv[simp del] btree_abs_search.node_i.simps[simp del]
+
+declare btree_abs_search.node_i.simps[simp del]
+
+lemma node_i_rule_app: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1\<rbrakk> \<Longrightarrow>
+<is_pfarray_cap c (tsi' @ [(li, ai)]) (aa,al) *
+     btree_assn k l li *
+     id_assn a ai *
+     btree_assn k r ri *
+     list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi' *
+     true> node_i k (aa,al) ri
+ <btupi_assn k (btree_abs_search.node_i k (ls @ [(l, a)]) r)>\<^sub>t"
+proof -
+  assume assms: "2*k \<le> c" "c \<le> 4*k+1"
+  
+  have 0: "
+    is_pfarray_cap c (tsi' @ [(li, ai)]) (aa, al) *
+   list_assn (btree_assn k \<times>\<^sub>a id_assn) (ls @ [(l, a)]) (tsi' @ [(li, ai)]) *
+   btree_assn k r ri * true =
+    is_pfarray_cap c (tsi' @ [(li, ai)]) (aa,al) *
+     btree_assn k l li *
+     id_assn a ai *
+     btree_assn k r ri *
+     list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi' *
+     true"
+    by (simp add: ab_semigroup_mult_class.mult.commute star_aci(3))
+  have 1: "is_pfarray_cap c (tsi' @ [(li, ai)]) (aa, al) *
+   list_assn (btree_assn k \<times>\<^sub>a id_assn) (ls @ [(l, a)]) (tsi' @ [(li, ai)]) *
+   btree_assn k r ri \<Longrightarrow>\<^sub>A is_pfarray_cap c (tsi' @ [(li, ai)]) (aa, al) *
+   list_assn (btree_assn k \<times>\<^sub>a id_assn) (ls @ [(l, a)]) (tsi' @ [(li, ai)]) *
+   btree_assn k r ri * true"
+    using ent_refl_true by blast
+  show ?thesis
+    apply(simp del: list_assn_aux_append2  list_assn_aux_append list_assn.simps
+               add: sym[OF 0])
+    using assms node_i_rule[of k c "(tsi' @ [(li, ai)])" aa al "(ls @ [(l, a)])" r ri]
+    apply metis
+    done
+qed
+    
+  
+
 lemma ins_rule:
   shows "<btree_assn k t ti * true>
   ins k x ti
@@ -632,39 +674,7 @@ next
           subgoal for xi
             apply(cases xi)
              apply sep_auto
-            apply sep_auto
-            subgoal for li ai ri
-              thm node_i_rule[of k "2*k" "(tsi' @ [(li, ai)])" _ "Suc tsin"]
-              thm sym[OF list_assn.simps(2)]
-              thm prod_assn_def[of "btree_assn k" id_assn "(l,a)" "(li,ai)"]
-              thm sym[OF prod_assn_pair_conv[of "btree_assn k" id_assn l a li ai]]
-              thm sym[OF list_assn_aux_append]
-              thm mult.assoc[of _ "btree_assn k l li" "id_assn a ai"]
-              apply(simp add: 
-                  mult.assoc[of _ "btree_assn k l li" "id_assn a ai"]
-                  sym[OF prod_assn_pair_conv[of "btree_assn k" id_assn l a li ai]]
-                  )
-              thm mult.assoc[of _ "(btree_assn k \<times>\<^sub>a id_assn) (l,a) (li,ai)" "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"]
-
-              thm mult.left_assoc[of _ "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"  "btree_assn k r ri"]
-              thm mult.commute[of  "btree_assn k r ri" "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"]
-                (*TODO de-uglify - is it possible? *)
-              apply(simp add:
-                  mult.commute[of "btree_assn k r ri" "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"]
-                  mult.assoc[of _ "btree_assn k r ri" "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"]
-                  mult.left_assoc[of _ "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"  "btree_assn k r ri"]
-                  mult.assoc[of _ "(btree_assn k \<times>\<^sub>a id_assn) (l,a) (li,ai)" "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"]
-                  mult.commute[of "(btree_assn k \<times>\<^sub>a id_assn) (l,a) (li,ai)" "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"]
-                  )
-              apply(subst sym[OF list_assn_app_one[of "(btree_assn k \<times>\<^sub>a id_assn)" ls "(l,a)" tsi' "(li,ai)"]])
-              thm sym[OF list_assn_app_one[of "(btree_assn k \<times>\<^sub>a id_assn)" ls "(l,a)" tsi' "(li,ai)"]]
-              apply(rule hoare_triple_preI)
-              apply(vcg heap add: node_i_rule)
-                apply auto[]
-               apply auto[]
-              find_theorems "_\<le>_" "_<_"
-              apply (sep_auto)
-              done
+              apply(sep_auto heap add: node_i_rule_app)
             done
           done
         done

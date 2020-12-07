@@ -463,7 +463,7 @@ find_theorems "<emp>_<_>"
 lemma node_i_rule: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
   shows "<is_pfarray_cap c tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti >
   node_i k (a,n) ti
-  <\<lambda>r. btupi_assn k (btree_abs_search.node_i k ts t) r>\<^sub>t"
+  <\<lambda>r. btupi_assn k (btree_abs_search.node_i k ts t) r >\<^sub>t"
 proof (cases "length ts \<le> 2*k")
   case [simp]: True
   then show ?thesis
@@ -562,14 +562,14 @@ where
           return (T_i p)
         } |
         (Up_i lp x' rp) \<Rightarrow> do {
-          kvs' \<leftarrow> pfa_append_grow (kvs node) (lp,x');
+          kvs' \<leftarrow> pfa_append_grow' (kvs node) (lp,x');
           node_i k kvs' rp
         }
     }
   }
 )"
 
-
+declare prod_assn_pair_conv[simp del] btree_abs_search.node_i.simps[simp del]
 lemma ins_rule:
   shows "<btree_assn k t ti * true>
   ins k x ti
@@ -582,7 +582,7 @@ proof (induction k x t arbitrary: ti rule: btree_abs_search.ins.induct)
     done
 next
   case (2 k x ts t)
-    then obtain ls rrs where list_split: "abs_split ts x = (ls,rrs)"
+  then obtain ls rrs where list_split: "abs_split ts x = (ls,rrs)"
     by (cases "abs_split ts x")
   then show ?case
   proof (cases rrs)
@@ -592,43 +592,90 @@ next
       case (T_i a)
       then show ?thesis
         apply(subst ins.simps)
-        apply simp
         apply(sep_auto heap: split_imp_abs_split)
         subgoal for p tsil tsin tti
           using Nil list_split
-          apply(sep_auto split!: list.splits simp add: split_relation_alt)
-          apply (metis Imperative_Loops.list_assn_aux_ineq_len assn_times_comm drop_eq_Nil entailsI less_le_not_le local.Nil mod_false star_false_left)
-          done
+          by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)
         subgoal for p tsil tsin tti tsi' xb xaa xc sub sep
-            apply(rule hoare_triple_preI)
-           using Nil list_split apply(sep_auto dest!: mod_starD list_assn_len simp add: is_pfarray_cap_def)
-            apply(sep_auto split!: list.splits simp add: split_relation_alt)
+          apply(rule hoare_triple_preI)
+          using Nil list_split apply(sep_auto dest!: mod_starD list_assn_len simp add: is_pfarray_cap_def)
            apply(sep_auto split!: list.splits simp add: split_relation_alt)
-           done
-         subgoal for p tsil tsin tti tsi' xb xaa
-           thm "2.IH"(1)[of ls rrs tti]
-           using Nil list_split T_i apply(sep_auto split!: list.splits simp add: split_relation_alt
-                heap add: "2.IH"(1)[of ls rrs tti])
-           subgoal for xi
-             apply(cases xi)
-              apply sep_auto
+          apply(sep_auto split!: list.splits simp add: split_relation_alt)
+          done
+        subgoal for p tsil tsin tti tsi' xb xaa
+          thm "2.IH"(1)[of ls rrs tti]
+          using Nil list_split T_i apply(sep_auto split!: list.splits simp add: split_relation_alt
+              heap add: "2.IH"(1)[of ls rrs tti])
+          subgoal for xi
+            apply(cases xi)
              apply sep_auto
-             done
-           done
-         done
+            apply sep_auto
+            done
+          done
+        done
     next
       case (Up_i l a r)
-      then show ?thesis sorry
+      then show ?thesis
+        apply(subst ins.simps)
+        apply(sep_auto heap: split_imp_abs_split)
+        subgoal for p tsil tsin tti
+          using Nil list_split
+          by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)                 
+        subgoal for p tsil tsin tti tsi' xb xaa xc sub sep
+          apply(rule hoare_triple_preI)
+          using Nil list_split 
+          by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)
+        subgoal for p tsil tsin tti tsi' xb xaa
+          thm "2.IH"(1)[of ls rrs tti]
+          using Nil list_split Up_i apply(sep_auto split!: list.splits simp add: split_relation_alt
+              heap add: "2.IH"(1)[of ls rrs tti])
+          subgoal for xi
+            apply(cases xi)
+             apply sep_auto
+            apply sep_auto
+            subgoal for li ai ri
+              thm node_i_rule[of k "2*k" "(tsi' @ [(li, ai)])" _ "Suc tsin"]
+              thm sym[OF list_assn.simps(2)]
+              thm prod_assn_def[of "btree_assn k" id_assn "(l,a)" "(li,ai)"]
+              thm sym[OF prod_assn_pair_conv[of "btree_assn k" id_assn l a li ai]]
+              thm sym[OF list_assn_aux_append]
+              thm mult.assoc[of _ "btree_assn k l li" "id_assn a ai"]
+              apply(simp add: 
+                  mult.assoc[of _ "btree_assn k l li" "id_assn a ai"]
+                  sym[OF prod_assn_pair_conv[of "btree_assn k" id_assn l a li ai]]
+                  )
+              thm mult.assoc[of _ "(btree_assn k \<times>\<^sub>a id_assn) (l,a) (li,ai)" "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"]
+
+              thm mult.left_assoc[of _ "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"  "btree_assn k r ri"]
+              thm mult.commute[of  "btree_assn k r ri" "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"]
+                (*TODO de-uglify - is it possible? *)
+              apply(simp add:
+                  mult.commute[of "btree_assn k r ri" "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"]
+                  mult.assoc[of _ "btree_assn k r ri" "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"]
+                  mult.left_assoc[of _ "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"  "btree_assn k r ri"]
+                  mult.assoc[of _ "(btree_assn k \<times>\<^sub>a id_assn) (l,a) (li,ai)" "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"]
+                  mult.commute[of "(btree_assn k \<times>\<^sub>a id_assn) (l,a) (li,ai)" "list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi'"]
+                  )
+              apply(subst sym[OF list_assn_app_one[of "(btree_assn k \<times>\<^sub>a id_assn)" ls "(l,a)" tsi' "(li,ai)"]])
+              thm sym[OF list_assn_app_one[of "(btree_assn k \<times>\<^sub>a id_assn)" ls "(l,a)" tsi' "(li,ai)"]]
+              apply(rule hoare_triple_preI)
+              apply(vcg heap add: node_i_rule)
+                apply auto[]
+               apply auto[]
+              find_theorems "_\<le>_" "_<_"
+              apply (sep_auto)
+              done
+            done
+          done
+        done
     qed
   next
-  case (Cons a list)
+    case (Cons a list)
     then show ?thesis sorry
   qed
 
 qed
 
-
-find_theorems "_ := _"
  
 end
 

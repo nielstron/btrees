@@ -47,6 +47,11 @@ lemma list_assn_aux_append[simp]:
   apply (simp add: star_assoc)
   done
 
+lemma list_assn_app_one: "list_assn P (l1@[x]) (l1'@[y]) = list_assn P l1 l1' * P x y"
+  apply(induct l1 l1' rule: list_assn.induct)
+     apply (auto simp add: star_assoc)
+  done
+
 lemma list_assn_aux_ineq_len: "length l \<noteq> length li \<Longrightarrow> list_assn A l li = false"
 proof (induction l arbitrary: li)
   case (Cons x l li) thus ?case by (cases li; auto)

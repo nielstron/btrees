@@ -16,7 +16,7 @@ section "Operations on Partly Filled Arrays"
 
 
 definition is_pfarray_cap where
-"is_pfarray_cap c l \<equiv> \<lambda>(a,n). \<exists>\<^sub>A l'. a \<mapsto>\<^sub>a l' *  \<up>(c = length l' \<and> n \<le> length l' \<and> l = (take n l'))"
+"is_pfarray_cap c l \<equiv> \<lambda>(a,n). \<exists>\<^sub>A l'. a \<mapsto>\<^sub>a l' *  \<up>(c = length l' \<and> n \<le> c \<and> l = (take n l'))"
 
 
   lemma is_pfarray_cap_prec[safe_constraint_rules]: "precise (is_pfarray_cap c)"
@@ -205,7 +205,7 @@ definition pfa_ensure :: "'a::{heap,default} pfarray \<Rightarrow> nat \<Rightar
 lemma pfa_ensure_rule[sep_heap_rules]: "
     < is_pfarray_cap c l (a,n) > 
       pfa_ensure (a,n) k
-    <\<lambda>(a',n'). is_pfarray_cap (max c k) l (a',n') * \<up>(n' = n)>\<^sub>t"  
+    <\<lambda>(a',n'). is_pfarray_cap (max c k) l (a',n') * \<up>(n' = n \<and> c \<ge> n)>\<^sub>t"  
   by (sep_auto 
       simp: pfa_ensure_def is_pfarray_cap_def)
 
@@ -293,10 +293,10 @@ lemma pfa_append_grow_less_rule: "n < c \<Longrightarrow>
   apply(sep_auto simp add: is_pfarray_cap_def take_update_last)
   done
 
-lemma pfa_append_grow_rule: "
+lemma pfa_append_grow_rule[sep_heap_rules]: "
   <is_pfarray_cap c l (a,n)>
   pfa_append_grow (a,n) x 
-  <\<lambda>(a',n'). is_pfarray_cap (if c = n then c+1 else c) (l@[x]) (a',n') * \<up>(n'=n+1)>\<^sub>t"
+  <\<lambda>(a',n'). is_pfarray_cap (if c = n then c+1 else c) (l@[x]) (a',n') * \<up>(n'=n+1 \<and> c \<ge> n)>\<^sub>t"
   apply(subst pfa_append_grow_def)
   apply(rule hoare_triple_preI)
   apply (sep_auto
@@ -312,10 +312,10 @@ definition "pfa_append_grow' \<equiv> \<lambda>(a,n) x. do {
   return a''
 }"
 
-lemma pfa_append_grow'_rule: "
+lemma pfa_append_grow'_rule[sep_heap_rules]: "
   <is_pfarray_cap c l (a,n)>
   pfa_append_grow' (a,n) x 
-  <\<lambda>(a',n'). is_pfarray_cap (max (n+1) c) (l@[x]) (a',n') * \<up>(n'=n+1)>\<^sub>t"
+  <\<lambda>(a',n'). is_pfarray_cap (max (n+1) c) (l@[x]) (a',n') * \<up>(n'=n+1 \<and> c \<ge> n)>\<^sub>t"
   unfolding pfa_append_grow'_def
   by (sep_auto simp add: max_def)
 
@@ -350,7 +350,7 @@ lemma pfa_insert_grow_rule:
   "i \<le> n \<Longrightarrow>
   <is_pfarray_cap c l (a,n)>
   pfa_insert_grow (a,n) i x 
-  <\<lambda>(a',n'). is_pfarray_cap (max c (n+1)) (take i l@x#drop i l) (a',n') * \<up>(n'=n+1)>\<^sub>t"
+  <\<lambda>(a',n'). is_pfarray_cap (max c (n+1)) (take i l@x#drop i l) (a',n') * \<up>(n'=n+1 \<and> c \<ge> n)>\<^sub>t"
   unfolding pfa_insert_grow_def  
   by (sep_auto heap add: pfa_insert_rule[of i n "max c (Suc n)"])
 

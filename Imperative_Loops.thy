@@ -11,14 +11,6 @@ begin
 
 subsection \<open>List-Assn\<close>
 
-hide_const (open) Sepref_HOL_Bindings.list_assn
-context fixes A :: "'a \<Rightarrow> 'b \<Rightarrow> assn"
-begin
-  fun list_assn where
-    "list_assn [] [] = emp"
-  | "list_assn (x#xs) (y#ys) = A x y * list_assn xs ys"  
-  | "list_assn _ _ = false"
-end
 
 
 lemma list_assn_cong[fundef_cong]:
@@ -48,7 +40,7 @@ lemma list_assn_aux_append[simp]:
   done
 
 lemma list_assn_app_one: "list_assn P (l1@[x]) (l1'@[y]) = list_assn P l1 l1' * P x y"
-  apply(induct l1 l1' rule: list_assn.induct)
+  apply(induct P l1 l1' rule: list_assn.induct)
      apply (auto simp add: star_assoc)
   done
 

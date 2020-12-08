@@ -5,7 +5,6 @@ theory BTree_Imp
     Imperative_Loops
 begin
 hide_const (open) Sepref_Translate.heap_WHILET
-hide_const (open) Sepref_HOL_Bindings.list_assn
 
 datatype 'a btnode =
   Btnode "('a btnode ref option*'a) pfarray" "'a btnode ref option"
@@ -152,13 +151,13 @@ lemma split_relation_length: "split_relation xs (ls,rs) (length xs) = (ls = xs \
 thm index_to_elem_all[of ts "\<lambda>x. snd x < p"]
 
 lemma list_assn_all: "h \<Turnstile> (list_assn (\<up>\<circ>\<circ>P) xs ys) \<Longrightarrow> (\<forall>i<length xs. P (xs!i) (ys!i))"
-  apply(induct rule: list_assn.induct)
+  apply(induction "\<up>\<circ>\<circ>P" xs ys rule: list_assn.induct)
      apply(auto simp add: less_Suc_eq_0_disj)
   done
 
 (* simp? not sure if it always makes things more easy *)
 lemma list_assn_prod_map: "list_assn (A \<times>\<^sub>a B) xs ys = list_assn B (map snd xs) (map snd ys) * list_assn A (map fst xs) (map fst ys)"
-  apply(induct xs ys rule: list_assn.induct)
+  apply(induct "(A \<times>\<^sub>a B)" xs ys rule: list_assn.induct)
      apply(auto simp add: ab_semigroup_mult_class.mult.left_commute ent_star_mono star_aci(2) star_assoc)
   done
 
@@ -166,8 +165,8 @@ find_theorems Id
 
   
 (* concrete *)
-lemma id_assn_list: "h \<Turnstile> list_assn id_assn xs ys \<Longrightarrow> xs = ys"
-  apply(induct rule: list_assn.induct)
+lemma id_assn_list: "h \<Turnstile> list_assn id_assn (xs::'a list) ys \<Longrightarrow> xs = ys"
+  apply(induction "id_assn::('a \<Rightarrow> 'a \<Rightarrow> assn)" xs ys rule: list_assn.induct)
      apply(auto simp add: less_Suc_eq_0_disj pure_def)
   done
 
@@ -596,20 +595,14 @@ proof -
      list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi' *
      true"
     by (simp add: ab_semigroup_mult_class.mult.commute star_aci(3))
-  have 1: "is_pfarray_cap c (tsi' @ [(li, ai)]) (aa, al) *
-   list_assn (btree_assn k \<times>\<^sub>a id_assn) (ls @ [(l, a)]) (tsi' @ [(li, ai)]) *
-   btree_assn k r ri \<Longrightarrow>\<^sub>A is_pfarray_cap c (tsi' @ [(li, ai)]) (aa, al) *
-   list_assn (btree_assn k \<times>\<^sub>a id_assn) (ls @ [(l, a)]) (tsi' @ [(li, ai)]) *
-   btree_assn k r ri * true"
-    using ent_refl_true by blast
+
   show ?thesis
-    apply(simp del: list_assn_aux_append2  list_assn_aux_append list_assn.simps
-               add: sym[OF 0])
+    apply(subst sym[OF 0])
     using assms node_i_rule[of k c "(tsi' @ [(li, ai)])" aa al "(ls @ [(l, a)])" r ri]
     apply metis
     done
 qed
-    
+
   
 
 lemma ins_rule:
@@ -640,10 +633,8 @@ next
           by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)
         subgoal for p tsil tsin tti tsi' xb xaa xc sub sep
           apply(rule hoare_triple_preI)
-          using Nil list_split apply(sep_auto dest!: mod_starD list_assn_len simp add: is_pfarray_cap_def)
-           apply(sep_auto split!: list.splits simp add: split_relation_alt)
-          apply(sep_auto split!: list.splits simp add: split_relation_alt)
-          done
+          using Nil list_split
+          by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)
         subgoal for p tsil tsin tti tsi' xb xaa
           thm "2.IH"(1)[of ls rrs tti]
           using Nil list_split T_i apply(sep_auto split!: list.splits simp add: split_relation_alt
@@ -664,7 +655,6 @@ next
           using Nil list_split
           by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)                 
         subgoal for p tsil tsin tti tsi' xb xaa xc sub sep
-          apply(rule hoare_triple_preI)
           using Nil list_split 
           by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)
         subgoal for p tsil tsin tti tsi' xb xaa
@@ -680,10 +670,39 @@ next
         done
     qed
   next
-    case (Cons a list)
-    then show ?thesis sorry
-  qed
+    case (Cons a rs)
+    obtain sub sep where a_split: "a = (sub,sep)"
+      by (cases a)
+    then show ?thesis
+    proof(cases "x = sep")
+      case True
+      then show ?thesis
+        apply(subst ins.simps)
+        apply(sep_auto heap: split_imp_abs_split)
+        subgoal for p tsil tsin tti tsi j subi
+          using Cons list_split a_split
+          by sep_auto
+        subgoal for p tsil tsin tti tsi j _ _ subi sepi
+          using Cons list_split a_split
+          apply(subst list_assn_aux_len)
+          apply(rule hoare_triple_preI)
+          subgoal for h
 
+          
+                apply(sep_auto simp add:  split_relation_alt split_relation_length is_pfarray_cap_def dest!: mod_starD list_assn_len)
+
+    next
+      case False
+      then show ?thesis
+      proof (cases "btree_abs_search.ins k x sub")
+        case (T_i x1)
+        then show ?thesis sorry
+      next
+        case (Up_i x21 x22 x23)
+        then show ?thesis sorry
+      qed
+    qed
+  qed
 qed
 
  

@@ -676,21 +676,24 @@ next
     then show ?thesis
     proof(cases "x = sep")
       case True
-      then show ?thesis
+      show ?thesis
         apply(subst ins.simps)
         apply(sep_auto heap: split_imp_abs_split)
         subgoal for p tsil tsin tti tsi j subi
-          using Cons list_split a_split
+          using Cons list_split a_split True
           by sep_auto
         subgoal for p tsil tsin tti tsi j _ _ subi sepi
-          using Cons list_split a_split
-          apply(subst list_assn_aux_len)
           apply(rule hoare_triple_preI)
-          subgoal for h
-
-          
-                apply(sep_auto simp add:  split_relation_alt split_relation_length is_pfarray_cap_def dest!: mod_starD list_assn_len)
-
+          using Cons list_split a_split True
+          apply(subgoal_tac "sepi = sep")
+          apply (sep_auto simp add: split_relation_alt)
+          apply(sep_auto simp add: list_assn_prod_map dest!: mod_starD id_assn_list)
+          by (metis length_map snd_conv snd_map_help(2) split_relation_access)
+        subgoal for p tsil tsin tti tsi j
+          apply(rule hoare_triple_preI)
+          using Cons list_split
+          by (sep_auto simp add: split_relation_alt dest!: mod_starD list_assn_len)
+        done
     next
       case False
       then show ?thesis

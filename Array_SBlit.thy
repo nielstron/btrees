@@ -1,11 +1,11 @@
 theory Array_SBlit
-imports "Separation_Logic_Imperative_HOL.Array_Blit"
+  imports "Separation_Logic_Imperative_HOL.Array_Blit"
 begin
 
 term blit
 thm blit_rule
 thm blit.simps
-(* Same array BLIT *)
+  (* Same array BLIT *)
 definition "sblit a s d l \<equiv> blit a s a d l"
 
 text "blit only works for moving elements of an array to the left"
@@ -154,8 +154,8 @@ lemma safe_sblit_rule[sep_heap_rules]:
    is even weaker here than in SML 
   we therefore also handle the case where length is 0 (in which case nothing happens at all) *)
 subsection "Code Generator Setup"
-  code_printing code_module "array_sblit" \<rightharpoonup> (SML)
-    \<open>
+code_printing code_module "array_sblit" \<rightharpoonup> (SML)
+  \<open>
    fun array_sblit src si di len = (
       if len > 0 then
         ArraySlice.copy {
@@ -166,20 +166,20 @@ subsection "Code Generator Setup"
     )
 \<close>
 
-  definition safe_sblit' where
-    [code del]: "safe_sblit' src si di len 
+definition safe_sblit' where
+  [code del]: "safe_sblit' src si di len 
       = safe_sblit src (nat_of_integer si) (nat_of_integer di) 
           (nat_of_integer len)"
 
-  lemma [code]:
-    "safe_sblit src si di len 
+lemma [code]:
+  "safe_sblit src si di len 
       = safe_sblit' src (integer_of_nat si) (integer_of_nat di) 
           (integer_of_nat len)" by (simp add: safe_sblit'_def)
 
-  (* TODO: Export to other languages: OCaml, Haskell *)
-  code_printing constant safe_sblit' \<rightharpoonup>
-    (SML) "(fn/ ()/ => /array'_sblit _ _ _ _)"
-    and (Scala) "{ ('_: Unit)/=>/
+(* TODO: Export to other languages: OCaml, Haskell *)
+code_printing constant safe_sblit' \<rightharpoonup>
+  (SML) "(fn/ ()/ => /array'_sblit _ _ _ _)"
+  and (Scala) "{ ('_: Unit)/=>/
       def safescopy(src: Array['_], srci: Int, dsti: Int, len: Int) = {
        if (len > 0)
           System.arraycopy(src, srci, src, dsti, len)
@@ -195,7 +195,7 @@ export_code safe_sblit checking SML Scala
 section "Derived methods"
 
 definition array_shr where
-"array_shr a i k \<equiv> do {
+  "array_shr a i k \<equiv> do {
   l \<leftarrow> Array.len a;
   safe_sblit a i (i+k) (l-(i+k))
 }"
@@ -203,7 +203,7 @@ definition array_shr where
 find_theorems "Array.len"
 
 lemma array_shr_rule[sep_heap_rules]:
-    "< src \<mapsto>\<^sub>a lsrc  >
+  "< src \<mapsto>\<^sub>a lsrc  >
     array_shr src i k
     <\<lambda>_. src \<mapsto>\<^sub>a (take (i+k) lsrc @ take (length lsrc - (i+k)) (drop i lsrc))
     >"
@@ -211,21 +211,21 @@ lemma array_shr_rule[sep_heap_rules]:
   by sep_auto
 
 lemma array_shr_rule_alt:
-    "< src \<mapsto>\<^sub>a lsrc  >
+  "< src \<mapsto>\<^sub>a lsrc  >
     array_shr src i k
     <\<lambda>_. src \<mapsto>\<^sub>a (take (length lsrc) (take (i+k) lsrc @ (drop i lsrc)))
     >"
   by (sep_auto simp add: min_def)
 
 definition array_shl where
-"array_shl a i k \<equiv> do {
+  "array_shl a i k \<equiv> do {
   l \<leftarrow> Array.len a;
   safe_sblit a i (i-k) (l-i)
 }
 "
 
 lemma array_shl_rule[sep_heap_rules]:
-    "
+  "
     < src \<mapsto>\<^sub>a lsrc  >
     array_shl src i k
     <\<lambda>_. src \<mapsto>\<^sub>a (take (i-k) lsrc @ (drop i lsrc) @ drop (i - k + (length lsrc - i)) lsrc)
@@ -235,7 +235,7 @@ lemma array_shl_rule[sep_heap_rules]:
 
 
 lemma array_shl_rule_alt:
-    "
+  "
     \<lbrakk>i \<le> length lsrc; k \<le> i\<rbrakk> \<Longrightarrow>
     < src \<mapsto>\<^sub>a lsrc  >
     array_shl src i k

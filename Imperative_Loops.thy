@@ -16,17 +16,17 @@ subsection \<open>List-Assn\<close>
 lemma list_assn_cong[fundef_cong]:
   "\<lbrakk> xs=xs'; ys=ys'; \<And>x y. \<lbrakk> x\<in>set xs; y\<in>set ys \<rbrakk> \<Longrightarrow> A x y = A' x y \<rbrakk> \<Longrightarrow> list_assn A xs ys = list_assn A' xs' ys'"
   apply (induction xs ys arbitrary: xs' ys' rule: list_assn.induct)
-  apply auto
+     apply auto
   done
-  
+
 lemma list_assn_aux_simps[simp]:
   "list_assn P [] l' = (\<up>(l'=[]))"
   "list_assn P l [] = (\<up>(l=[]))"
-  apply (cases l')
-  apply simp
-  apply simp
+   apply (cases l')
+    apply simp
+   apply simp
   apply (cases l)
-  apply simp
+   apply simp
   apply simp
   done
 
@@ -35,7 +35,7 @@ lemma list_assn_aux_append[simp]:
     list_assn P (l1@l2) (l1'@l2') 
     = list_assn P l1 l1' * list_assn P l2 l2'"
   apply (induct rule: list_induct2)
-  apply simp
+   apply simp
   apply (simp add: star_assoc)
   done
 
@@ -54,7 +54,7 @@ lemma list_assn_aux_append2[simp]:
   shows "list_assn P (l1@l2) (l1'@l2') 
     = list_assn P l1 l1' * list_assn P l2 l2'"
   apply (cases "length l1 = length l1'")
-  apply (erule list_assn_aux_append)
+   apply (erule list_assn_aux_append)
   apply (simp add: list_assn_aux_ineq_len assms)
   done
 
@@ -66,13 +66,13 @@ lemma list_assn_len: "h \<Turnstile> list_assn A xs ys \<Longrightarrow> length 
 
 lemma list_assn_Cons_left: "list_assn A (x#xs) zs = (\<exists>\<^sub>A z zzs. A x z * list_assn A xs zzs * \<up>(zs = z#zzs))"
   apply(cases zs)
-   apply(auto intro!: ent_iffI ent_ex_postI ent_ex_preI)
+  apply(auto intro!: ent_iffI ent_ex_postI ent_ex_preI)
   done
 
 
 lemma list_assn_append_left: "list_assn A (xs@ys) zs = (\<exists>\<^sub>A zs1 zs2. list_assn A xs zs1 * list_assn A ys zs2 * \<up>(zs = zs1@zs2))"
   apply(induction xs arbitrary: zs)
-   apply(sep_auto simp add: list_assn_Cons_left intro!: ent_iffI)
+  apply(sep_auto simp add: list_assn_Cons_left intro!: ent_iffI)
   apply(sep_auto simp add: list_assn_Cons_left intro!: ent_iffI)
   done
 
@@ -95,8 +95,8 @@ subsection \<open>Prod-Assn\<close>
 lemma prod_assn_cong[fundef_cong]:
   "\<lbrakk> p=p'; pi=pi'; A (fst p) (fst pi) = A' (fst p) (fst pi); B (snd p) (snd pi) = B' (snd p) (snd pi) \<rbrakk> 
     \<Longrightarrow> (A\<times>\<^sub>aB) p pi = (A'\<times>\<^sub>aB') p' pi'" 
-    apply (cases p; cases pi)
-    by auto
+  apply (cases p; cases pi)
+  by auto
 
 subsubsection "Imperative Version of nfoldli"
 text \<open>We define an imperative version of \<open>nfoldli\<close>. It is the
@@ -164,18 +164,18 @@ declare imp_for.simps[code]
 lemma [simp]:
   "i \<ge> u \<Longrightarrow> imp_for i u c f s = return s"
   "i < u \<Longrightarrow> imp_for i u c f s = do {ctn <- c s; if ctn then f i s \<bind> imp_for (i + 1) u c f else return s}"
-by (auto simp: imp_for.simps)
+  by (auto simp: imp_for.simps)
 
 lemma imp_nfoldli_deforest:
   "imp_nfoldli [l..<u] c = imp_for l u c"
- apply (intro ext)
- subgoal for f s
-  apply (induction "u - l" arbitrary: l u s)
-  apply (simp add: upt_conv_Cons; fail)
-  apply (simp add: upt_conv_Cons)
-  apply (fo_rule arg_cong)
- by (auto cong: if_cong)
-done
+  apply (intro ext)
+  subgoal for f s
+    apply (induction "u - l" arbitrary: l u s)
+    apply (simp add: upt_conv_Cons; fail)
+    apply (simp add: upt_conv_Cons)
+    apply (fo_rule arg_cong)
+    by (auto cong: if_cong)
+  done
 
 partial_function (heap) imp_for' :: "nat \<Rightarrow> nat \<Rightarrow> (nat \<Rightarrow> 'a \<Rightarrow> 'a Heap) \<Rightarrow> 'a \<Rightarrow> 'a Heap" where
   "imp_for' i u f s = (if i \<ge> u then return s else f i s \<bind> imp_for' (i + 1) u f)"
@@ -185,18 +185,18 @@ declare imp_for'.simps[code]
 lemma [simp]:
   "i \<ge> u \<Longrightarrow> imp_for' i u f s = return s"
   "i < u \<Longrightarrow> imp_for' i u f s = f i s \<bind> imp_for' (i + 1) u f"
-by (auto simp: imp_for'.simps)
+  by (auto simp: imp_for'.simps)
 
 lemma imp_for_imp_for':
   "imp_for i u (\<lambda> _. return True) = imp_for' i u"
-apply (intro ext)
-subgoal for f s
-  apply (induction "u - i" arbitrary: i u s)
-  apply (simp; fail)
-  apply simp
-  apply (fo_rule arg_cong)
-  by auto
-done
+  apply (intro ext)
+  subgoal for f s
+    apply (induction "u - i" arbitrary: i u s)
+    apply (simp; fail)
+    apply simp
+    apply (fo_rule arg_cong)
+    by auto
+  done
 
 partial_function (heap) imp_for_down :: "nat \<Rightarrow> nat \<Rightarrow> ('a \<Rightarrow> bool Heap) \<Rightarrow> (nat \<Rightarrow> 'a \<Rightarrow> 'a Heap) \<Rightarrow> 'a \<Rightarrow> 'a Heap" where
   "imp_for_down l i c f s = do {
@@ -227,19 +227,19 @@ proof (intro ext)
       case 0 thus ?case by auto
     next
       case (Suc u')
-        from Suc.prems Suc.hyps(2) have [simp]: "rev [l..<u] = (u-1)#rev [l..<u-1]"
-          apply simp
-          apply (subst upt_Suc_append[symmetric])
-          apply auto
-          done
-        show ?case using Suc.hyps(1)[of "u-1"] Suc.hyps(2) Suc.prems
-          apply (subst imp_for_down.simps)
-          apply (cases "l < u - Suc 0")
-          apply (auto simp: Let_def cong: if_cong)
-          done
-      qed    
-    qed  
-  qed            
+      from Suc.prems Suc.hyps(2) have [simp]: "rev [l..<u] = (u-1)#rev [l..<u-1]"
+        apply simp
+        apply (subst upt_Suc_append[symmetric])
+        apply auto
+        done
+      show ?case using Suc.hyps(1)[of "u-1"] Suc.hyps(2) Suc.prems
+        apply (subst imp_for_down.simps)
+        apply (cases "l < u - Suc 0")
+        apply (auto simp: Let_def cong: if_cong)
+        done
+    qed    
+  qed  
+qed            
 
 context begin
 
@@ -267,7 +267,7 @@ lemma imp_for_down_no_cond:
   apply (subst imp_for_down'.simps)
   apply (simp cong: if_cong)
   done
-  
+
 end
 
 (* TODO: Move. Add rule for imp_for! *)    
@@ -285,8 +285,8 @@ next
   show ?case using step.hyps 
     by (sep_auto heap: STEP step.IH)  
 qed 
-  
-  
+
+
 text \<open>This lemma is used to manually convert a fold to a loop over indices. \<close>
 lemma fold_idx_conv: "fold f l s = fold (\<lambda>i. f (l!i)) [0..<length l] s"
 proof (induction l arbitrary: s rule: rev_induct)
@@ -324,7 +324,7 @@ lemma fold_map_ht1:
     Heap_Monad.fold_map f xsi
   <\<lambda>rs. A * \<up>(list_all2 (\<lambda>x r. Q x r) xs rs)>\<^sub>t"
   apply (induction xs arbitrary: xsi)
-   apply (sep_auto; fail)
+  apply (sep_auto; fail)
   subgoal for x xs xsi
     by (cases xsi; sep_auto heap: assms)
   done
@@ -336,12 +336,12 @@ lemma fold_map_ht2:
     Heap_Monad.fold_map f xsi
   <\<lambda>rs. A * list_assn R xs xsi * \<up>(list_all2 (\<lambda>x r. Q x r) xs rs)>\<^sub>t"
   apply (induction xs arbitrary: xsi)
-   apply (sep_auto; fail)
+  apply (sep_auto; fail)
   subgoal for x xs xsi
     apply (cases xsi; sep_auto heap: assms)
-     apply (rule cons_rule[rotated 2], rule frame_rule, rprems)
-      apply frame_inference
-     apply frame_inference
+    apply (rule cons_rule[rotated 2], rule frame_rule, rprems)
+    apply frame_inference
+    apply frame_inference
     apply sep_auto
     done
   done
@@ -350,10 +350,10 @@ lemma fold_map_ht3:
   assumes "\<And>x xi. <A * R x xi * true> f xi <\<lambda>r. A * Q x r>\<^sub>t"
   shows "<A * list_assn R xs xsi * true> Heap_Monad.fold_map f xsi <\<lambda>rs. A * list_assn Q xs rs>\<^sub>t"
   apply (induction xs arbitrary: xsi)
-   apply (sep_auto; fail)
+  apply (sep_auto; fail)
   subgoal for x xs xsi
     apply (cases xsi; sep_auto heap: assms)
-     apply (rule Hoare_Triple.cons_pre_rule[rotated], rule frame_rule, rprems, frame_inference)
+    apply (rule Hoare_Triple.cons_pre_rule[rotated], rule frame_rule, rprems, frame_inference)
     apply sep_auto
     done
   done
@@ -377,7 +377,7 @@ proof -
     subgoal
       apply (subst merge_true_star[symmetric])
       apply (rule ent_frame_fwd[OF assms(1)])
-       apply frame_inference+
+      apply frame_inference+
       done
     subgoal
       by (rule ent_frame_fwd[OF assms(3)]) frame_inference+
@@ -399,25 +399,25 @@ proof -
     <\<lambda>r. A * (I j r \<or>\<^sub>A (\<exists>\<^sub>A i'. \<up>(i' < j \<and> \<not> c r) * I i' r))>\<^sub>t"
     using \<open>i \<le> j\<close> assms(2,3)
     apply (induction "j - i" arbitrary: i a; sep_auto)
-      apply (rule ent_star_mono, rule ent_star_mono, rule ent_refl, rule ent_disjI1_direct, rule ent_refl)
-     apply rprems
+    apply (rule ent_star_mono, rule ent_star_mono, rule ent_refl, rule ent_disjI1_direct, rule ent_refl)
+    apply rprems
     apply sep_auto
-      apply (rprems)
-       apply sep_auto+
+    apply (rprems)
+    apply sep_auto+
     apply (rule ent_star_mono, rule ent_star_mono, rule ent_refl, rule ent_disjI2')
-     apply solve_entails
-     apply simp+
+    apply solve_entails
+    apply simp+
     done
   then show ?thesis
     apply (rule cons_rule[rotated 2])
     subgoal
       apply (subst merge_true_star[symmetric])
       apply (rule ent_frame_fwd[OF assms(1)])
-       apply frame_inference+
+      apply frame_inference+
       done
     apply (rule ent_star_mono)
-     apply (rule ent_star_mono, rule ent_refl)
-     apply (solve_entails eintros: assms(5) assms(4) ent_disjE)+
+    apply (rule ent_star_mono, rule ent_refl)
+    apply (solve_entails eintros: assms(5) assms(4) ent_disjE)+
     done
 qed
 
@@ -494,19 +494,19 @@ proof -
     for as bs s
     using that
     apply (induction bs arbitrary: s as)
-     apply (sep_auto, rule ent_star_mono, rule ent_disjI1_direct, rule ent_refl; fail)
+    apply (sep_auto, rule ent_star_mono, rule ent_disjI1_direct, rule ent_refl; fail)
     apply simp
     apply sep_auto
-     apply (rule assms(2))
+    apply (rule assms(2))
     apply sep_auto
-      apply (rule assms(3))
-       apply assumption+
-     apply (rule cons_post_rule, rprems)
+    apply (rule assms(3))
+    apply assumption+
+    apply (rule cons_post_rule, rprems)
     apply (simp; fail)
-     apply (sep_auto eintros del: exI)
+    apply (sep_auto eintros del: exI)
     subgoal for a bs s as x xb ys zs
       apply (inst_existentials "a # ys" zs)
-       apply sep_auto+
+      apply sep_auto+
       done
     apply (sep_auto eintros del: exI)
     subgoal for a bs s as x
@@ -519,11 +519,11 @@ proof -
     apply simp
     subgoal
       apply (rule ent_frame_fwd[OF assms(1)])
-       apply solve_entails+
+      apply solve_entails+
       done
     apply (rule ent_star_mono)
     apply (rule ent_disjE, simp, rule assms(4))
-     apply (solve_entails eintros: assms(5))
+    apply (solve_entails eintros: assms(5))
     apply simp
     done
 qed
@@ -583,7 +583,7 @@ proof -
   qed
   then show ?thesis
     apply (rule cons_rule[rotated 2])
-     apply (intro ent_star_mono assms(2) ent_refl)
+    apply (intro ent_star_mono assms(2) ent_refl)
     apply clarsimp
     apply (intro ent_star_mono assms(5) ent_refl)
     .
@@ -618,13 +618,13 @@ proof -
   qed
   then show ?thesis
     apply (rule cons_rule[rotated 2])
-     apply (intro ent_star_mono assms(2) ent_refl)
+    apply (intro ent_star_mono assms(2) ent_refl)
     apply clarsimp
     apply (sep_auto )
     apply (erule ent_frame_fwd[OF assms(5)])
     apply frame_inference
     by sep_auto
-    
+
 qed
 
 (* Added by NM *)          
@@ -661,19 +661,11 @@ proof -
   qed
   then show ?thesis
     apply (rule cons_rule[rotated 2])
-     apply (intro ent_star_mono assms(2) ent_refl)
+    apply (intro ent_star_mono assms(2) ent_refl)
     apply clarsimp
     apply (intro ent_star_mono assms(5) ent_refl)
     .
 qed
-  
-
-
-
-
-
-
-
 
 
 end

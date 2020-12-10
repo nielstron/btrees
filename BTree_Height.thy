@@ -14,8 +14,8 @@ text "The default size function does not suit our needs in this case.
 (* we want a different counting method,
   namely only the number of nodes in a tree *)
 fun size_btree::"'a btree \<Rightarrow> nat" where
-"size_btree Leaf = 0" |
-"size_btree (Node ts t) = 1 + sum_list (map size_btree (subtrees ts)) + (size_btree t)"
+  "size_btree Leaf = 0" |
+  "size_btree (Node ts t) = 1 + sum_list (map size_btree (subtrees ts)) + (size_btree t)"
 
 find_theorems "height Leaf"
 
@@ -24,8 +24,8 @@ subsection "Maximum number of nodes for a given height"
 
 
 lemma sum_list_replicate: "sum_list (replicate n c) = n*c"
-apply(induction n)
- apply(auto simp add: ring_class.ring_distribs(2))
+  apply(induction n)
+   apply(auto simp add: ring_class.ring_distribs(2))
   done
 
 
@@ -71,11 +71,27 @@ text "To verify our lower bound is sharp, we compare it to the height of artific
 full trees."
 
 fun full_tree::"nat \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a btree" where
-"full_tree k c 0 = Leaf"|
-"full_tree k c (Suc n) = (Node (replicate (2*k) ((full_tree k c n),c)) (full_tree k c n))"
+  "full_tree k c 0 = Leaf"|
+  "full_tree k c (Suc n) = (Node (replicate (2*k) ((full_tree k c n),c)) (full_tree k c n))"
 
 value "let k = (2::nat) in map (\<lambda>x. size_btree x * 2*k) (map (full_tree k (1::nat)) [0,1,2,3,4])"
 value "let k = (2::nat) in map (\<lambda>x. ((2*k+(1::nat))^(x)-1)) [0,1,2,3,4]"
+
+lemma compow_max_eq: "((max n) ^^ c) n = max n n"
+  apply (induction c)
+   apply (auto simp add: max_def)
+  done
+  
+
+lemma height_full_tree: "height (full_tree k a n) = n"
+  apply(induction k a n rule: full_tree.induct)
+   apply (auto simp add: compow_max_eq)
+  done
+
+lemma full_btrees_sharp: "size_btree (full_tree k a n) * (2*k) = (2*k+1)^n - 1"
+  apply(induction k a n rule: full_tree.induct)
+   apply (auto simp add: height_full_tree algebra_simps sum_list_replicate)
+  done
 
 (* maximum number of nodes *)
 subsection "Maximum height for a given number of nodes"
@@ -96,6 +112,7 @@ proof(induction t rule: size_btree.induct)
   also have "\<dots> \<le> sum_list (map (\<lambda>t. size_btree t * k) (subtrees ts))"
     using 2 by (simp add: sum_list_mono)
   also have "\<dots> = sum_list (map size_btree (subtrees ts)) * k"
+    find_theorems "sum_list _ * _"
     using sum_list_distrib[of size_btree "subtrees ts" k] by simp
   finally have "sum_list (map size_btree (subtrees ts))*k \<ge> ?sub_height*k"
     by simp
@@ -123,8 +140,8 @@ text "To verify our upper bound is sharp, we compare it to the height of artific
 minimally filled (=slim) trees."
 
 fun slim_tree::"nat \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a btree" where
-"slim_tree k c 0 = Leaf"|
-"slim_tree k c (Suc n) = (Node (replicate k ((slim_tree k c n),c)) (slim_tree k c n))"
+  "slim_tree k c 0 = Leaf"|
+  "slim_tree k c (Suc n) = (Node (replicate k ((slim_tree k c n),c)) (slim_tree k c n))"
 
 value "let k = (2::nat) in map (\<lambda>x. size_btree x * k) (map (slim_tree k (1::nat)) [0,1,2,3,4])"
 value "let k = (2::nat) in map (\<lambda>x. ((k+1::nat)^(x)-1)) [0,1,2,3,4]"
@@ -137,7 +154,7 @@ lemma size_root_height_lower_bound:
     and "bal t"
   shows "2*((k+1)^(height t - 1) - 1) \<le> size_btree t * k"
 proof (cases t)
-case Leaf
+  case Leaf
   then show ?thesis by simp
 next
   case (Node ts t)
@@ -160,7 +177,7 @@ next
     using sum_list_distrib[of size_btree "subtrees ts" k] by simp
   finally have "sum_list (map size_btree (subtrees ts))*k \<ge> ?sub_height"
     by simp
-  
+
   moreover have "(size_btree t)*k \<ge> ?sub_height"
     using Node assms size_height_lower_bound
     by auto
@@ -173,4 +190,19 @@ next
     using Node assms(2) height_bal_tree by fastforce
 qed
 
+lemma compow_max_eq: "((max n) ^^ c) n = max n n"
+  apply (induction c)
+   apply (auto simp add: max_def)
+  done
+  
+
+lemma height_full_tree: "height (full_tree k a n) = n"
+  apply(induction k a n rule: full_tree.induct)
+   apply (auto simp add: compow_max_eq)
+  done
+
+lemma full_btrees_sharp: "size_btree (full_tree k a n) * (2*k) = (2*k+1)^n - 1"
+  apply(induction k a n rule: full_tree.induct)
+   apply (auto simp add: height_full_tree algebra_simps sum_list_replicate)
+  done
 end

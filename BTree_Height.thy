@@ -28,6 +28,10 @@ lemma sum_list_replicate: "sum_list (replicate n c) = n*c"
    apply(auto simp add: ring_class.ring_distribs(2))
   done
 
+lemma sum_list_distrib: "sum_list (map f xs) * (c::nat) = sum_list (map (\<lambda>x. f x * c) xs)"
+  apply(induction xs)
+   apply(auto simp add: add_mult_distrib)
+  done
 
 lemma size_height_upper_bound: 
   "\<lbrakk>order k t; bal t\<rbrakk> \<Longrightarrow> size_btree t * (2*k) \<le> (2*k+1)^(height t) - 1"
@@ -146,6 +150,17 @@ fun slim_tree::"nat \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a btree" w
 value "let k = (2::nat) in map (\<lambda>x. size_btree x * k) (map (slim_tree k (1::nat)) [0,1,2,3,4])"
 value "let k = (2::nat) in map (\<lambda>x. ((k+1::nat)^(x)-1)) [0,1,2,3,4]"
 
+
+lemma height_slim_tree: "height (slim_tree k a n) = n"
+  apply(induction k a n rule: slim_tree.induct)
+   apply (auto simp add: compow_max_eq)
+  done
+
+lemma slim_btrees_sharp: "size_btree (slim_tree k a n) * k = ((k+1)^(n) - 1)"
+  apply(induction k a n rule: slim_tree.induct)
+   apply (auto simp add: height_slim_tree algebra_simps sum_list_replicate)
+  done
+
 (* TODO results for root_order/bal *)
 text "Since BTrees have special roots, we need to show the overall size seperately"
 
@@ -189,20 +204,8 @@ next
   then show ?thesis
     using Node assms(2) height_bal_tree by fastforce
 qed
-
-lemma compow_max_eq: "((max n) ^^ c) n = max n n"
-  apply (induction c)
-   apply (auto simp add: max_def)
-  done
   
 
-lemma height_full_tree: "height (full_tree k a n) = n"
-  apply(induction k a n rule: full_tree.induct)
-   apply (auto simp add: compow_max_eq)
-  done
 
-lemma full_btrees_sharp: "size_btree (full_tree k a n) * (2*k) = (2*k+1)^n - 1"
-  apply(induction k a n rule: full_tree.induct)
-   apply (auto simp add: height_full_tree algebra_simps sum_list_replicate)
-  done
+
 end

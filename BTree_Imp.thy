@@ -603,7 +603,8 @@ proof -
     done
 qed
 
-  
+declare ins.simps[code]
+export_code ins checking SML Scala
 
 lemma ins_rule:
   shows "<btree_assn k t ti * true>
@@ -698,8 +699,62 @@ next
       case False
       then show ?thesis
       proof (cases "btree_abs_search.ins k x sub")
-        case (T_i x1)
-        then show ?thesis sorry
+        case (T_i a')
+        then show ?thesis
+          apply(auto simp add: Cons list_split a_split False)
+          using False apply simp
+          apply(subst ins.simps)
+          apply vcg
+           apply auto
+          apply(rule norm_pre_ex_rule)+
+            (* at this point, we want to introduce the split, and after that tease the
+  hoare triple assumptions out of the bracket, s.t. we don't split twice *)
+          apply vcg
+           apply sep_auto
+          using list_split Cons
+          apply(simp add: split_relation_alt list_assn_append_Cons_left)
+          apply (rule impI)
+          apply(rule norm_pre_ex_rule)+
+          apply(rule hoare_triple_preI)
+          apply sep_auto
+            (* discard wrong branch *)
+          subgoal for p tsil tsin ti zs1 subi sepi zs2 _ _ suba
+            apply(subgoal_tac "sepi  = x")
+            using list_split Cons a_split
+             apply(auto  dest!:  mod_starD )[]
+            apply(auto dest!:  mod_starD list_assn_len)[]
+            done
+              (* actual induction branch *)
+          subgoal for p tsil tsin ti zs1 subi sepi zs2 _ _ n z suba sepa
+            apply (cases a, simp)
+            apply(subgoal_tac "subi = suba", simp)
+            using list_split a_split T_i False
+             apply (vcg heap: 2)
+              apply(auto split!: btupi.splits)
+              (* careful progression for manual value insertion *)
+             apply vcg
+              apply simp
+             apply vcg
+             apply simp
+            subgoal for a'i q r
+              apply(rule impI)
+              apply(simp add: list_assn_append_Cons_left)
+              apply(rule ent_ex_postI[where ?x="(tsil,tsin)"])
+              apply(rule ent_ex_postI[where ?x="ti"])
+              apply(rule ent_ex_postI[where ?x="(zs1 @ (a'i, sepi) # zs2)"])
+              apply(rule ent_ex_postI[where ?x="zs1"])
+              apply(rule ent_ex_postI[where ?x="(a'i,sep)"])
+              apply(rule ent_ex_postI[where ?x="zs2"])
+              apply sep_auto
+               apply (simp add: pure_app_eq)
+              apply(sep_auto dest!:  mod_starD list_assn_len)[]
+              done
+            apply (metis Imperative_Loops.list_assn_aux_ineq_len Pair_inject list_assn_len nth_append_length star_false_left star_false_right)
+            done
+          subgoal for p tsil tsin ti zs1 subi sepi zs2 _ _ suba
+            apply(auto dest!:  mod_starD list_assn_len)[]
+            done
+          done
       next
         case (Up_i x21 x22 x23)
         then show ?thesis sorry

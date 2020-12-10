@@ -49,10 +49,9 @@ find_consts name: while
 
 term split_fun
 
-definition split :: "('a::heap \<times> 'b::{heap,linorder}) array_list \<Rightarrow> 'b \<Rightarrow> nat Heap"
+definition split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarrow> 'b \<Rightarrow> nat Heap"
   where
-    "split l p \<equiv> 
-  let (a,n) = l in do {
+    "split \<equiv> \<lambda> (a,n) p. do {
   
   i \<leftarrow> heap_WHILET 
     (\<lambda>i. if i<n then do {
@@ -64,6 +63,7 @@ definition split :: "('a::heap \<times> 'b::{heap,linorder}) array_list \<Righta
        
   return i
 }"
+
 
 
 lemma split_rule: "< is_pfarray_cap c xs (a,n) * true> split (a,n) p <\<lambda>i. is_pfarray_cap c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
@@ -85,6 +85,42 @@ lemma split_rule: "< is_pfarray_cap c xs (a,n) * true> split (a,n) p <\<lambda>i
   using diff_less_mono2 apply blast
   apply(sep_auto simp: is_pfarray_cap_def)
   done
+
+
+definition bin_split :: "('a::heap \<times> 'b::{heap,linorder}) array_list \<Rightarrow> 'b \<Rightarrow> nat Heap"
+  where
+    "bin_split \<equiv> \<lambda>(a,n) p. do {
+  (low',high') \<leftarrow> heap_WHILET 
+    (\<lambda>(low,high). return (low < high)) 
+    (\<lambda>(low,high). let mid = ((low  + high) div 2) in
+     do {
+      (_,s) \<leftarrow> Array.nth a mid;
+      if (p < s) then return (low, mid - 1)
+      else return (mid+1,high)
+     }) 
+    (0::nat,n);
+  return low'
+}"
+
+lemma bin_split_rule: "
+sorted_less (map snd xs) \<Longrightarrow>
+< is_pfarray_cap c xs (a,n) * true>
+ bin_split (a,n) p
+ <\<lambda>l. is_pfarray_cap c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (l<n \<longrightarrow> snd (xs!l)\<ge>p)) >\<^sub>t"
+  unfolding bin_split_def
+
+  supply R = heap_WHILET_rule''[where 
+      R = "measure (\<lambda>(l,h). h-l)"
+      and I = "\<lambda>(l,h). is_pfarray_cap c xs (a,n) * \<up>(l\<le>h \<and> h \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (h<n \<longrightarrow> snd (xs!h)\<ge>p))"
+      and b = "\<lambda>(l,h). l<h \<and> h\<le>n \<and> (p < snd (xs!((l+h) div 2))) \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (h<n \<longrightarrow> snd (xs!h)\<ge>p)"
+      ]
+  thm R
+
+  apply (sep_auto  decon: R simp: less_Suc_eq is_pfarray_cap_def) []
+  
+  sorry
+  done
+
 
 
 lemma split_ismeq: "((a::nat) \<le> b \<and> X) = ((a < b \<and> X) \<or> (a = b \<and> X))"

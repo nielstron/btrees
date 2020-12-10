@@ -66,13 +66,13 @@ lemma list_assn_len: "h \<Turnstile> list_assn A xs ys \<Longrightarrow> length 
 
 lemma list_assn_Cons_left: "list_assn A (x#xs) zs = (\<exists>\<^sub>A z zzs. A x z * list_assn A xs zzs * \<up>(zs = z#zzs))"
   apply(cases zs)
-  apply(auto intro!: ent_iffI ent_ex_postI ent_ex_preI)
+   apply(auto intro!: ent_iffI ent_ex_postI ent_ex_preI)
   done
 
 
 lemma list_assn_append_left: "list_assn A (xs@ys) zs = (\<exists>\<^sub>A zs1 zs2. list_assn A xs zs1 * list_assn A ys zs2 * \<up>(zs = zs1@zs2))"
   apply(induction xs arbitrary: zs)
-  apply(sep_auto simp add: list_assn_Cons_left intro!: ent_iffI)
+   apply(sep_auto simp add: list_assn_Cons_left intro!: ent_iffI)
   apply(sep_auto simp add: list_assn_Cons_left intro!: ent_iffI)
   done
 
@@ -121,13 +121,13 @@ lemma imp_nfoldli_simps[simp,code]:
       imp_nfoldli ls c f s'
     } else return s
   })"
-  apply -
+   apply -
   unfolding imp_nfoldli_def
+   apply (subst heap.mono_body_fixp)
+    apply pf_mono
+   apply simp
   apply (subst heap.mono_body_fixp)
-  apply pf_mono
-  apply simp
-  apply (subst heap.mono_body_fixp)
-  apply pf_mono
+   apply pf_mono
   apply simp
   done
 
@@ -138,7 +138,7 @@ lemma heap_fixp_mono[partial_function_mono]:
   shows "mono_Heap (\<lambda>x. heap.fixp_fun (\<lambda>D \<sigma>. B x D \<sigma>) \<sigma>)"
   apply rule
   apply (rule ccpo.fixp_mono[OF heap.ccpo, THEN fun_ordD])
-  apply (rule mono_fun_fun_cnv, erule thin_rl, pf_mono)+
+    apply (rule mono_fun_fun_cnv, erule thin_rl, pf_mono)+
   apply (rule fun_ordI)
   apply (erule monotoneD[of "fun_ord Heap_ord" Heap_ord, rotated])
   apply pf_mono
@@ -171,7 +171,7 @@ lemma imp_nfoldli_deforest:
   apply (intro ext)
   subgoal for f s
     apply (induction "u - l" arbitrary: l u s)
-    apply (simp add: upt_conv_Cons; fail)
+     apply (simp add: upt_conv_Cons; fail)
     apply (simp add: upt_conv_Cons)
     apply (fo_rule arg_cong)
     by (auto cong: if_cong)
@@ -192,7 +192,7 @@ lemma imp_for_imp_for':
   apply (intro ext)
   subgoal for f s
     apply (induction "u - i" arbitrary: i u s)
-    apply (simp; fail)
+     apply (simp; fail)
     apply simp
     apply (fo_rule arg_cong)
     by auto
@@ -230,12 +230,12 @@ proof (intro ext)
       from Suc.prems Suc.hyps(2) have [simp]: "rev [l..<u] = (u-1)#rev [l..<u-1]"
         apply simp
         apply (subst upt_Suc_append[symmetric])
-        apply auto
+         apply auto
         done
       show ?case using Suc.hyps(1)[of "u-1"] Suc.hyps(2) Suc.prems
         apply (subst imp_for_down.simps)
         apply (cases "l < u - Suc 0")
-        apply (auto simp: Let_def cong: if_cong)
+         apply (auto simp: Let_def cong: if_cong)
         done
     qed    
   qed  
@@ -324,7 +324,7 @@ lemma fold_map_ht1:
     Heap_Monad.fold_map f xsi
   <\<lambda>rs. A * \<up>(list_all2 (\<lambda>x r. Q x r) xs rs)>\<^sub>t"
   apply (induction xs arbitrary: xsi)
-  apply (sep_auto; fail)
+   apply (sep_auto; fail)
   subgoal for x xs xsi
     by (cases xsi; sep_auto heap: assms)
   done
@@ -336,12 +336,12 @@ lemma fold_map_ht2:
     Heap_Monad.fold_map f xsi
   <\<lambda>rs. A * list_assn R xs xsi * \<up>(list_all2 (\<lambda>x r. Q x r) xs rs)>\<^sub>t"
   apply (induction xs arbitrary: xsi)
-  apply (sep_auto; fail)
+   apply (sep_auto; fail)
   subgoal for x xs xsi
     apply (cases xsi; sep_auto heap: assms)
-    apply (rule cons_rule[rotated 2], rule frame_rule, rprems)
-    apply frame_inference
-    apply frame_inference
+     apply (rule cons_rule[rotated 2], rule frame_rule, rprems)
+      apply frame_inference
+     apply frame_inference
     apply sep_auto
     done
   done
@@ -350,10 +350,10 @@ lemma fold_map_ht3:
   assumes "\<And>x xi. <A * R x xi * true> f xi <\<lambda>r. A * Q x r>\<^sub>t"
   shows "<A * list_assn R xs xsi * true> Heap_Monad.fold_map f xsi <\<lambda>rs. A * list_assn Q xs rs>\<^sub>t"
   apply (induction xs arbitrary: xsi)
-  apply (sep_auto; fail)
+   apply (sep_auto; fail)
   subgoal for x xs xsi
     apply (cases xsi; sep_auto heap: assms)
-    apply (rule Hoare_Triple.cons_pre_rule[rotated], rule frame_rule, rprems, frame_inference)
+     apply (rule Hoare_Triple.cons_pre_rule[rotated], rule frame_rule, rprems, frame_inference)
     apply sep_auto
     done
   done
@@ -377,7 +377,7 @@ proof -
     subgoal
       apply (subst merge_true_star[symmetric])
       apply (rule ent_frame_fwd[OF assms(1)])
-      apply frame_inference+
+       apply frame_inference+
       done
     subgoal
       by (rule ent_frame_fwd[OF assms(3)]) frame_inference+
@@ -399,25 +399,25 @@ proof -
     <\<lambda>r. A * (I j r \<or>\<^sub>A (\<exists>\<^sub>A i'. \<up>(i' < j \<and> \<not> c r) * I i' r))>\<^sub>t"
     using \<open>i \<le> j\<close> assms(2,3)
     apply (induction "j - i" arbitrary: i a; sep_auto)
-    apply (rule ent_star_mono, rule ent_star_mono, rule ent_refl, rule ent_disjI1_direct, rule ent_refl)
-    apply rprems
+      apply (rule ent_star_mono, rule ent_star_mono, rule ent_refl, rule ent_disjI1_direct, rule ent_refl)
+     apply rprems
     apply sep_auto
-    apply (rprems)
-    apply sep_auto+
+      apply (rprems)
+       apply sep_auto+
     apply (rule ent_star_mono, rule ent_star_mono, rule ent_refl, rule ent_disjI2')
-    apply solve_entails
-    apply simp+
+     apply solve_entails
+     apply simp+
     done
   then show ?thesis
     apply (rule cons_rule[rotated 2])
     subgoal
       apply (subst merge_true_star[symmetric])
       apply (rule ent_frame_fwd[OF assms(1)])
-      apply frame_inference+
+       apply frame_inference+
       done
     apply (rule ent_star_mono)
-    apply (rule ent_star_mono, rule ent_refl)
-    apply (solve_entails eintros: assms(5) assms(4) ent_disjE)+
+     apply (rule ent_star_mono, rule ent_refl)
+     apply (solve_entails eintros: assms(5) assms(4) ent_disjE)+
     done
 qed
 
@@ -494,16 +494,16 @@ proof -
     for as bs s
     using that
     apply (induction bs arbitrary: s as)
-    apply (sep_auto, rule ent_star_mono, rule ent_disjI1_direct, rule ent_refl; fail)
+     apply (sep_auto, rule ent_star_mono, rule ent_disjI1_direct, rule ent_refl; fail)
     apply simp
     apply sep_auto
-    apply (rule assms(2))
+     apply (rule assms(2))
     apply sep_auto
-    apply (rule assms(3))
-    apply assumption+
-    apply (rule cons_post_rule, rprems)
-    apply (simp; fail)
-    apply (sep_auto eintros del: exI)
+      apply (rule assms(3))
+       apply assumption+
+     apply (rule cons_post_rule, rprems)
+      apply (simp; fail)
+     apply (sep_auto eintros del: exI)
     subgoal for a bs s as x xb ys zs
       apply (inst_existentials "a # ys" zs)
       apply sep_auto+
@@ -516,14 +516,14 @@ proof -
     done
   then show ?thesis
     apply (rule cons_rule[rotated 2])
-    apply simp
+      apply simp
     subgoal
       apply (rule ent_frame_fwd[OF assms(1)])
-      apply solve_entails+
+       apply solve_entails+
       done
     apply (rule ent_star_mono)
-    apply (rule ent_disjE, simp, rule assms(4))
-    apply (solve_entails eintros: assms(5))
+     apply (rule ent_disjE, simp, rule assms(4))
+     apply (solve_entails eintros: assms(5))
     apply simp
     done
 qed
@@ -551,7 +551,7 @@ lemma heap_WHILET_unfold[code]: "heap_WHILET b f s =
   }"
   unfolding heap_WHILET_def
   apply (subst heap.mono_body_fixp)
-  apply pf_mono
+   apply pf_mono
   apply simp
   done
 
@@ -583,7 +583,7 @@ proof -
   qed
   then show ?thesis
     apply (rule cons_rule[rotated 2])
-    apply (intro ent_star_mono assms(2) ent_refl)
+     apply (intro ent_star_mono assms(2) ent_refl)
     apply clarsimp
     apply (intro ent_star_mono assms(5) ent_refl)
     .
@@ -618,11 +618,11 @@ proof -
   qed
   then show ?thesis
     apply (rule cons_rule[rotated 2])
-    apply (intro ent_star_mono assms(2) ent_refl)
+     apply (intro ent_star_mono assms(2) ent_refl)
     apply clarsimp
     apply (sep_auto )
     apply (erule ent_frame_fwd[OF assms(5)])
-    apply frame_inference
+     apply frame_inference
     by sep_auto
 
 qed
@@ -661,7 +661,7 @@ proof -
   qed
   then show ?thesis
     apply (rule cons_rule[rotated 2])
-    apply (intro ent_star_mono assms(2) ent_refl)
+     apply (intro ent_star_mono assms(2) ent_refl)
     apply clarsimp
     apply (intro ent_star_mono assms(5) ent_refl)
     .

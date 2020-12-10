@@ -2054,7 +2054,7 @@ proof(induction k x t rule: del.induct)
       case sep_n_x
       then have "bal (del k x sub)" "height (del k x sub) = height sub" using sub_height
         using "2.IH"(2) "2.prems"(2) list_split Cons r_split split_fun_set(1) order_impl_root_order
-        apply (metis "2.prems"(1) root_order.simps(2) some_child_sub(1))
+         apply (metis "2.prems"(1) root_order.simps(2) some_child_sub(1))
         by (metis "2.prems"(1) "2.prems"(2) list_split Cons order_impl_root_order r_split root_order.simps(2) some_child_sub(1) del_height split_fun_set(1) sub_height(2))
       moreover have "bal (Node (ls@(sub,sep)#rs) t)"
         using "2.prems"(3) list_split Cons r_split split_fun_req_alt(1) by blast
@@ -2217,7 +2217,7 @@ qed simp
 
 lemma subtrees_split2: "set (subtrees (l@r)) = set (subtrees l) \<union> set (subtrees r)"
   apply(induction r)
-  apply(auto)
+   apply(auto)
   done
 
 thm prod.split
@@ -2254,7 +2254,7 @@ proof (induction k x t rule: del.induct)
       "order k t"
       using Cons "2.prems"(3) bal_sub_height list_split split_fun_req_alt(1) apply (blast)
       using subtrees_split2 2 list_split split_fun_req_alt(1) Cons r_split subtrees_split
-      apply (metis Un_iff root_order.simps(2))
+        apply (metis Un_iff root_order.simps(2))
       using "2"(4) list_split Cons r_split split_fun_length apply auto
       done
 
@@ -2383,7 +2383,7 @@ next
           using seperators_split by auto
         then show "sepa < x" using x_in_t
           apply (elim disjE)
-          apply (metis (no_types, lifting) Un_iff assms(3) dual_order.strict_trans list.set_intros(1) seperators_in_set set_append sorted_alt.simps(2) sorted_sub_sep_impl sub_node sub_sep_cons.simps subsetD)
+            apply (metis (no_types, lifting) Un_iff assms(3) dual_order.strict_trans list.set_intros(1) seperators_in_set set_append sorted_alt.simps(2) sorted_sub_sep_impl sub_node sub_sep_cons.simps subsetD)
           using assms(3) sorted_sub_sep_impl apply blast
           using \<open>x \<in> set_btree tt\<close> assms(3) sorted_alt.simps(2) t_node apply blast
           done
@@ -2460,7 +2460,7 @@ next
           then have "\<forall>x \<in> set_btree r. sep < x"
             apply(elim disjE)
             using set_lar assms
-            apply (metis (no_types, lifting) Un_iff Un_insert_right dual_order.strict_trans insert_iff sorted_alt.simps(2) sorted_alt_split_ls sorted_sub_sep_impl subsetD sup_bot.right_neutral)
+             apply (metis (no_types, lifting) Un_iff Un_insert_right dual_order.strict_trans insert_iff sorted_alt.simps(2) sorted_alt_split_ls sorted_sub_sep_impl subsetD sup_bot.right_neutral)
             using sorted_node_i Up_i
             apply simp
             done
@@ -2519,7 +2519,7 @@ next
           using seperators_split by auto
         then show "sepa < x" using x_in_t
           apply (elim disjE)
-          apply (metis Un_iff assms(3) dual_order.strict_trans list.set_intros(1) Cons r_split seperators_in_set set_append some_child_sub(1) sorted_alt.simps(2) sorted_wrt_append sorted_wrt_sorted_left sub_node sub_sep_cons.simps subsetD)
+            apply (metis Un_iff assms(3) dual_order.strict_trans list.set_intros(1) Cons r_split seperators_in_set set_append some_child_sub(1) sorted_alt.simps(2) sorted_wrt_append sorted_wrt_sorted_left sub_node sub_sep_cons.simps subsetD)
           using \<open>x \<in> set_btree rt\<close> assms(3)  sub_sorted_lr(3)  Cons by auto
       qed auto
       then have
@@ -2538,7 +2538,7 @@ next
             then show "sub_sep_sm (a, b) (u, rsep)"
               unfolding sub_sep_sm.simps
               apply (safe)
-              apply (metis (no_types, lifting) \<open>(a, b) \<in> set ls\<close> assms(3) Cons r_split sorted_alt_sorted sorted_inorder_subsepsm sorted_wrt_split2 sub_sep_sm.simps sub_sep_sm_trans)
+               apply (metis (no_types, lifting) \<open>(a, b) \<in> set ls\<close> assms(3) Cons r_split sorted_alt_sorted sorted_inorder_subsepsm sorted_wrt_split2 sub_sep_sm.simps sub_sep_sm_trans)
               apply (metis (no_types, lifting) T_i UnE \<open>(a, b) \<in> set ls\<close> set_node_i assms(3) less_trans Cons r_split set_up_i.simps(1) singletonD sorted_alt_sorted sorted_inorder_subsepsm sorted_wrt_split2 sub_sep_sm.simps)
               done
           next
@@ -2684,9 +2684,9 @@ proof (induction k t arbitrary: sub sep rule: split_max.induct)
     have "sorted_alt (Node (butlast ts) sub)"
       unfolding sorted_alt.simps
       apply(safe)
-      apply (metis "1.prems"(2) append_butlast_last_id butlast.simps(1) sorted_alt_sorted sorted_inorder_subsepsm sorted_wrt_append)
-      apply (meson "1.prems"(2) in_set_butlastD sorted_alt.simps(2))
-      apply (metis "1.prems"(3) Leaf btree.distinct(1) btree.set_cases fst_conv height_Leaf last_split nonempty_lasttreebal.simps(2) snoc_eq_iff_butlast)
+          apply (metis "1.prems"(2) append_butlast_last_id butlast.simps(1) sorted_alt_sorted sorted_inorder_subsepsm sorted_wrt_append)
+         apply (meson "1.prems"(2) in_set_butlastD sorted_alt.simps(2))
+        apply (metis "1.prems"(3) Leaf btree.distinct(1) btree.set_cases fst_conv height_Leaf last_split nonempty_lasttreebal.simps(2) snoc_eq_iff_butlast)
       using "1.prems" apply auto[1]
       by (metis "1.prems"(3) Leaf fst_conv height_Leaf last_split nonempty_lasttreebal.simps(2) snoc_eq_iff_butlast sorted_alt.simps(1))      
     then show ?thesis
@@ -2808,10 +2808,10 @@ proof (induction k x t rule: del.induct)
         unfolding sorted_alt.simps
         apply(safe)
         using replace_subtree_sorted_wrt node_sorted_split
-        apply (metis Diff_subset sorted_alt.simps(2))
-        apply (metis (no_types, lifting) DiffD1 Un_iff insert_iff list.simps(15) node_sorted_split(1) set_append sorted_alt.simps(2) sub_sep_cons.simps)
-        apply (metis node_sorted_split(1) seperators_split sorted_alt.simps(2))
-        apply (metis Un_iff insert_iff node_sorted_split(1) sorted_alt.simps(2) subtrees_split)
+            apply (metis Diff_subset sorted_alt.simps(2))
+           apply (metis (no_types, lifting) DiffD1 Un_iff insert_iff list.simps(15) node_sorted_split(1) set_append sorted_alt.simps(2) sub_sep_cons.simps)
+          apply (metis node_sorted_split(1) seperators_split sorted_alt.simps(2))
+         apply (metis Un_iff insert_iff node_sorted_split(1) sorted_alt.simps(2) subtrees_split)
         using node_sorted_split(1) sorted_alt.simps(2) by blast
       moreover have "height (del k x sub) = height t"
         using del_height
@@ -2877,26 +2877,26 @@ qed simp
 
 lemma reduce_root_order: "\<lbrakk>k > 0; almost_order k t\<rbrakk> \<Longrightarrow> root_order k (reduce_root t)"
   apply(cases t)
-  apply(auto split!: list.splits simp add: order_impl_root_order)
+   apply(auto split!: list.splits simp add: order_impl_root_order)
   done
 
 lemma reduce_root_bal: "bal (reduce_root t) = bal t"
   apply(cases t)
-  apply(auto split!: list.splits)
+   apply(auto split!: list.splits)
   done
 
 lemma reduce_root_set: "set_btree (reduce_root t) = set_btree t"
   apply(cases t)
-  apply(simp)
+   apply(simp)
   subgoal for ts t
     apply(cases ts)
-    apply(auto)
+     apply(auto)
     done
   done
 
 lemma reduce_root_sorted: "sorted_alt (reduce_root t) = sorted_alt t"
   apply(cases t)
-  apply(auto split!: list.splits)
+   apply(auto split!: list.splits)
   done
 
 
@@ -2979,7 +2979,7 @@ proof -
   have "linear_split_help xs x prev = (prev @ takeWhile (\<lambda>(_, s). s < x) xs, dropWhile (\<lambda>(_, s). s < x) xs)"
     for prev
     apply (induction xs arbitrary: prev)
-    apply auto
+     apply auto
     done
   thus ?thesis by auto
 qed
@@ -2987,7 +2987,7 @@ qed
 interpretation btree_linear_search: split_fun linear_split
   apply unfold_locales
   unfolding linear_split_alt
-  apply (auto simp: split: list.splits)
+    apply (auto simp: split: list.splits)
   subgoal
     by (meson case_prodD set_takeWhileD)
   subgoal
@@ -2999,19 +2999,19 @@ interpretation btree_linear_search: split_fun linear_split
 
 lemma some_child_sm: "linear_split_help t y xs = (ls,(sub,sep)#rs) \<Longrightarrow> y \<le> sep"
   apply(induction t y xs rule: linear_split_help.induct)
-  apply(simp_all)
+   apply(simp_all)
   by (metis Pair_inject le_less_linear list.inject)
 
 
 
 lemma linear_split_append: "linear_split_help xs p ys = (ls,rs) \<Longrightarrow> ls@rs = ys@xs"
   apply(induction xs p ys rule: linear_split_help.induct)
-  apply(simp_all)
+   apply(simp_all)
   by (metis Pair_inject)
 
 lemma linear_split_sm: "\<lbrakk>linear_split_help xs p ys = (ls,rs); sorted_less (seperators (ys@xs)); \<forall>sep \<in> set (seperators ys). p > sep\<rbrakk> \<Longrightarrow> \<forall>sep \<in> set (seperators ls). p > sep"
   apply(induction xs p ys rule: linear_split_help.induct)
-  apply(simp_all)
+   apply(simp_all)
   by (metis prod.inject)+
 
 value "linear_split [(Leaf, 2)] (1::nat)"
@@ -3052,7 +3052,7 @@ function (sequential) binary_split_help:: "(('a::linorder) btree\<times>'a) list
   by pat_completeness auto
 termination
   apply(relation "measure (\<lambda>(ls,xs,rs,x). length xs)")
-  apply (auto)
+    apply (auto)
   by (metis append_take_drop_id length_Cons length_append lessI trans_less_add2)
 
 value "cmp (1::nat) 2"
@@ -3065,22 +3065,22 @@ value "cmp (1::nat) 2"
 
 lemma "binary_split_help as bs cs x = (ls,rs) \<Longrightarrow> (as@bs@cs) = (ls@rs)"
   apply(induction as bs cs x arbitrary: ls rs rule: binary_split_help.induct)
-  apply (auto simp add: drop_not_empty split!: list.splits )
+   apply (auto simp add: drop_not_empty split!: list.splits )
   subgoal for ls a b va rs  x lsa rsa aa ba x22
     apply(cases "cmp x ba")
-    apply auto
-    apply (metis Cons_eq_appendI append_eq_appendI append_take_drop_id)
-    apply (metis append_take_drop_id)
+      apply auto
+      apply (metis Cons_eq_appendI append_eq_appendI append_take_drop_id)
+     apply (metis append_take_drop_id)
     by (metis Cons_eq_appendI append_eq_appendI append_take_drop_id)
   done
 
 lemma "\<lbrakk>sorted_less (seperators (as@bs@cs)); binary_split_help as bs cs x = (ls,rs); \<forall>y \<in> set (seperators as). y < x\<rbrakk>
 \<Longrightarrow> \<forall>y \<in> set (seperators ls). y < x"
   apply(induction as bs cs x arbitrary: ls rs rule: binary_split_help.induct)
-  apply (auto simp add: drop_not_empty split!: list.splits)
+   apply (auto simp add: drop_not_empty split!: list.splits)
   subgoal for ls a b va rs  x lsa rsa aa ba x22 ab bb
     apply(cases "cmp x ba")
-    apply auto
+      apply auto
     oops
 
 

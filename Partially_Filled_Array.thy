@@ -25,15 +25,22 @@ lemma is_pfarray_cap_prec[safe_constraint_rules]: "precise (is_pfarray_cap c)"
   apply(simp split: prod.splits) 
   using preciseD snga_prec by fastforce
 
-definition pfa_empty where
-  "pfa_empty cap \<equiv> do {
-  a \<leftarrow> Array.new cap default;
-  return (a,0::nat)
+definition pfa_init where
+  "pfa_init cap v n \<equiv> do {
+  a \<leftarrow> Array.new cap v;
+  return (a,n)
 }"
+
+lemma pfa_init_rule[sep_heap_rules]: "n \<le> N \<Longrightarrow> < emp > pfa_init N x n <is_pfarray_cap N (replicate n x)>"
+  by (sep_auto simp: pfa_init_def is_pfarray_cap_def)
+
+definition pfa_empty where
+  "pfa_empty cap \<equiv> pfa_init cap default 0"
+
 
 
 lemma pfa_empty_rule[sep_heap_rules]: "< emp > pfa_empty N <is_pfarray_cap N []>"
-  by (sep_auto simp: pfa_empty_def arl_empty_def is_pfarray_cap_def)
+  by (sep_auto simp: pfa_empty_def is_pfarray_cap_def)
 
 
 definition "pfa_length \<equiv> arl_length"
@@ -237,7 +244,7 @@ lemma pfa_blit_rule[sep_heap_rules]:
       * is_pfarray_cap dc (take di dst @ take len (drop si src) @ drop (di+len) dst) (dsti,max (di+len) dn)
     >"
   using LEN apply(sep_auto simp add: min_nat is_pfarray_cap_def pfa_blit_def min.commute min.absorb1 heap: blit_rule)
-  apply (simp add: min.absorb1 take_drop)
+   apply (simp add: min.absorb1 take_drop)
   apply (simp add: drop_take max_def)
   done
 
@@ -280,7 +287,7 @@ lemma pfa_append_grow_full_rule[sep_heap_rules]: "n = c \<Longrightarrow>
   apply(sep_auto simp add: is_pfarray_cap_def 
       heap del: array_grow_rule)
   apply(vcg heap del: array_grow_rule heap add: array_grow_rule[of l "(Suc (length l))" a x])
-  apply simp
+   apply simp
   apply(rule ent_ex_postI[where ?x="l@[x]"])
   apply sep_auto
   done
@@ -301,7 +308,7 @@ lemma pfa_append_grow_rule[sep_heap_rules]: "
   apply(rule hoare_triple_preI)
   apply (sep_auto
       heap add: pfa_append_grow_full_rule pfa_append_grow_less_rule)
-  apply(sep_auto simp add: is_pfarray_cap_def)
+   apply(sep_auto simp add: is_pfarray_cap_def)
   apply(sep_auto simp add: is_pfarray_cap_def)
   done
 

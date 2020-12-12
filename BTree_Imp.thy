@@ -87,41 +87,105 @@ lemma split_rule: "< is_pfarray_cap c xs (a,n) * true> split (a,n) p <\<lambda>i
   done
 
 
-definition bin_split :: "('a::heap \<times> 'b::{heap,linorder}) array_list \<Rightarrow> 'b \<Rightarrow> nat Heap"
+definition bin_split :: "'b::{heap,linorder} array_list \<Rightarrow> 'b \<Rightarrow> nat Heap"
   where
     "bin_split \<equiv> \<lambda>(a,n) p. do {
   (low',high') \<leftarrow> heap_WHILET 
     (\<lambda>(low,high). return (low < high)) 
     (\<lambda>(low,high). let mid = ((low  + high) div 2) in
      do {
-      (_,s) \<leftarrow> Array.nth a mid;
-      if (p < s) then return (low, mid - 1)
-      else return (mid+1,high)
+      s \<leftarrow> Array.nth a mid;
+      if p < s then
+         return (low, mid)
+      else if p > s then
+         return (mid+1, high)
+      else return (mid,mid)
      }) 
     (0::nat,n);
   return low'
 }"
 
+
+thm sorted_wrt_nth_less
+
+
 lemma bin_split_rule: "
-sorted_less (map snd xs) \<Longrightarrow>
+sorted_less xs \<Longrightarrow>
 < is_pfarray_cap c xs (a,n) * true>
  bin_split (a,n) p
- <\<lambda>l. is_pfarray_cap c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (l<n \<longrightarrow> snd (xs!l)\<ge>p)) >\<^sub>t"
+ <\<lambda>l. is_pfarray_cap c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (l<n \<longrightarrow> xs!l\<ge>p)) >\<^sub>t"
   unfolding bin_split_def
 
   supply R = heap_WHILET_rule''[where 
       R = "measure (\<lambda>(l,h). h-l)"
-      and I = "\<lambda>(l,h). is_pfarray_cap c xs (a,n) * \<up>(l\<le>h \<and> h \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (h<n \<longrightarrow> snd (xs!h)\<ge>p))"
-      and b = "\<lambda>(l,h). l<h \<and> h\<le>n \<and> (p < snd (xs!((l+h) div 2))) \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (h<n \<longrightarrow> snd (xs!h)\<ge>p)"
+      and I = "\<lambda>(l,h). is_pfarray_cap c xs (a,n) * \<up>(l\<le>h \<and> h \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (h<n \<longrightarrow> xs!h\<ge>p))"
+      and b = "\<lambda>(l,h). l<h"
+      and Q="\<lambda>(l,h). is_pfarray_cap c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (l<n \<longrightarrow> xs!l\<ge>p)) * true"
       ]
   thm R
 
-  apply (sep_auto  decon: R simp: less_Suc_eq is_pfarray_cap_def) []
-  
-  sorry
+  apply (sep_auto decon: R simp: less_Suc_eq is_pfarray_cap_def) []
+  subgoal for l' aa l'a aaa ba j
+  proof -
+    assume 0: "n \<le> length l'a"
+    assume a: "l'a ! ((aa + n) div 2) < p"
+    moreover assume "aa < n"
+    ultimately have b: "((aa+n)div 2) < n"
+      by linarith
+    then have "(take n l'a) ! ((aa + n) div 2) < p"
+      using a by auto
+    moreover assume "sorted_less (take n l'a)"
+    ultimately have "\<And>j. j < (aa+n)div 2 \<Longrightarrow> (take n l'a) ! j < (take n l'a) ! ((aa + n) div 2)"
+      using
+        sorted_wrt_nth_less[where ?P="(<)" and ?xs="(take n l'a)" and ?j="((aa + n) div 2)"]
+      a b "0" by auto
+    moreover fix j assume "j < (aa+n) div 2"
+    ultimately show "l'a ! j < p" using "0" b
+      using \<open>take n l'a ! ((aa + n) div 2) < p\<close> dual_order.strict_trans by auto
+  qed
+  subgoal for l' aa b l'a aaa ba j
+  proof -
+    assume t0: "n \<le> length l'a"
+    assume t1: "aa < b"
+    assume a: "l'a ! ((aa + b) div 2) < p"
+    moreover assume "b \<le> n"
+    ultimately have b: "((aa+b)div 2) < n" using t1
+      by linarith
+    then have "(take n l'a) ! ((aa + b) div 2) < p"
+      using a by auto
+    moreover assume "sorted_less (take n l'a)"
+    ultimately have "\<And>j. j < (aa+b)div 2 \<Longrightarrow> (take n l'a) ! j < (take n l'a) ! ((aa + b) div 2)"
+      using
+        sorted_wrt_nth_less[where ?P="(<)" and ?xs="(take n l'a)" and ?j="((aa + b) div 2)"]
+      a b t0 by auto
+    moreover fix j assume "j < (aa+b) div 2"
+    ultimately show "l'a ! j < p" using t0 b
+      using \<open>take n l'a ! ((aa + b) div 2) < p\<close> dual_order.strict_trans by auto
+  qed
+     apply sep_auto
+      apply (metis le_less nth_take)
+     apply (metis le_less nth_take)
+  apply sep_auto
+      apply (smt ab_semigroup_add_class.add.commute dual_order.strict_trans left_add_twice length_take less_add_eq_less less_mult_imp_div_less min.absorb2 mult_2 mult_2_right nth_take sorted_wrt_iff_nth_less)
+  subgoal for l' aa b l'a aaa ba j
+  proof -
+    assume t0: "aa < b"
+    assume t1: " n \<le> length l'a"
+    assume t3: "b \<le> n"
+    assume t4: "sorted_less (take n l'a)"
+    assume t5: "j < (aa + b) div 2"
+    have "(aa+b) div 2 < n" using t3 t0 by linarith
+    then have "(take n l'a) ! j < (take n l'a) ! ((aa + b) div 2)"
+      using t0 sorted_wrt_nth_less[where ?xs="take n l'a" and ?j="((aa + b) div 2)"]
+       t1 t4 t5 by auto
+    then show ?thesis
+      using \<open>(aa + b) div 2 < n\<close> t5 by auto
+  qed
+    apply (metis nth_take order_mono_setup.refl)
+   apply sep_auto
+  apply (sep_auto simp add: is_pfarray_cap_def)
   done
-
-
+  
 
 lemma split_ismeq: "((a::nat) \<le> b \<and> X) = ((a < b \<and> X) \<or> (a = b \<and> X))"
   apply(cases "a < b")

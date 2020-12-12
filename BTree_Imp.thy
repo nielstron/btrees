@@ -108,7 +108,7 @@ definition bin_split :: "'b::{heap,linorder} array_list \<Rightarrow> 'b \<Right
 
 thm sorted_wrt_nth_less
 
-
+(* alternative: replace (\<forall>j<l. xs!j < p) by (l > 0 \<longrightarrow> xs!(l-1) < p)*)
 lemma bin_split_rule: "
 sorted_less xs \<Longrightarrow>
 < is_pfarray_cap c xs (a,n) * true>
@@ -166,7 +166,19 @@ sorted_less xs \<Longrightarrow>
       apply (metis le_less nth_take)
      apply (metis le_less nth_take)
   apply sep_auto
-      apply (smt ab_semigroup_add_class.add.commute dual_order.strict_trans left_add_twice length_take less_add_eq_less less_mult_imp_div_less min.absorb2 mult_2 mult_2_right nth_take sorted_wrt_iff_nth_less)
+  subgoal for l' aa l'a aaa ba j
+  proof -
+    assume t0: "aa < n"
+    assume t1: " n \<le> length l'a"
+    assume t4: "sorted_less (take n l'a)"
+    assume t5: "j < (aa + n) div 2"
+    have "(aa+n) div 2 < n" using t0 by linarith
+    then have "(take n l'a) ! j < (take n l'a) ! ((aa + n) div 2)"
+      using t0 sorted_wrt_nth_less[where ?xs="take n l'a" and ?j="((aa + n) div 2)"]
+       t1 t4 t5 by auto
+    then show ?thesis
+      using \<open>(aa + n) div 2 < n\<close> t5 by auto
+  qed
   subgoal for l' aa b l'a aaa ba j
   proof -
     assume t0: "aa < b"

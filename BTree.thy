@@ -130,8 +130,8 @@ fun inorder :: "'a btree \<Rightarrow> 'a list" where
 fun inorder_list where
   "inorder_list ts = (foldr (@) (map (\<lambda> (sub, sep). inorder sub @ [sep]) ts) [])"
 
-fun subtrees where "subtrees xs = (map fst xs)"
-fun seperators where "seperators xs = (map snd xs)"
+abbreviation subtrees where "subtrees xs \<equiv> (map fst xs)"
+abbreviation seperators where "seperators xs \<equiv> (map snd xs)"
 fun set_btree_pair where
   "set_btree_pair uu = (\<Union>(set_btree ` Basic_BNFs.fsts uu) \<union> Basic_BNFs.snds uu)"
 fun set_btree_list where
@@ -540,7 +540,7 @@ proof(induction t)
 
     from pair_a have "\<forall>x \<in> set (seperators list). sep < x"
       using sorted_wrt_Cons sorted_wrt_list_sorted Cons_help
-      by (metis (no_types, lifting) Cons.prems(1) list.simps(9) seperators.simps snd_conv sorted_alt.simps(2))
+      by (metis (no_types, lifting) Cons.prems(1) list.simps(9)  snd_conv sorted_alt.simps(2))
     moreover have "\<forall>t \<in> set (subtrees list). (\<forall>x \<in> set_btree t. sep < x)"
       using pair_a Cons sorted_alt.simps(2) sorted_wrt_sorted_left by metis
     ultimately have "\<forall>x \<in> set_btree (Node list t). sep < x"

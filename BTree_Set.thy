@@ -55,7 +55,7 @@ proof (cases rs)
   moreover obtain rsub rsep where a_pair: "(rsub, rsep) = a"
     by (metis surj_pair)
   moreover from assms have "sorted_less (seperators rs)"
-    by (metis map_append seperators.simps sorted_wrt_append split_fun_axioms split_fun_def)
+    by (metis map_append sorted_wrt_append split_fun_axioms split_fun_def)
   ultimately have "\<forall>rrsep \<in> set (seperators rrs). rsep < rrsep"
     by auto
   moreover have "p \<le> rsep"
@@ -783,7 +783,7 @@ proof(induction k x t rule: ins.induct)
           using Up_i split_app Cons 2 \<open>bal_up_i (ins k x sub)\<close> by auto
         moreover have "\<forall>x \<in> set (subtrees (ls@(l,a)#(r,sep)#list)). height x = height t"
           using False Up_i split_app Cons 2 \<open>bal_up_i (ins k x sub)\<close> ins_height split_res a_prod
-          by simp_all (metis "2.prems" bal.simps(2) bal_split(1) fst_conv height_up_i.simps(2) image_Un set_append set_map split_fun_set(1) subtrees.simps sup.idem sup_nat_def)
+          by simp_all (metis "2.prems" bal.simps(2) bal_split(1) fst_conv height_up_i.simps(2) image_Un set_append set_map split_fun_set(1) sup.idem sup_nat_def)
         ultimately show ?thesis using Up_i Cons 2 split_res a_prod
           by (simp del: node_i.simps add: node_i_bal)
       qed

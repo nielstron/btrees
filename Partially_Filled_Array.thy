@@ -362,6 +362,36 @@ lemma pfa_insert_grow_rule:
   by (sep_auto heap add: pfa_insert_rule[of i n "max c (Suc n)"])
 
 
+definition pfa_extend where
+"pfa_extend \<equiv> \<lambda> (a,n) (b,m). do{
+  blit b 0 a n m;
+  return (a,n+m)
+}"
+
+lemma pfa_extend_rule: 
+  "n+m \<le> c \<Longrightarrow>
+  <is_pfarray_cap c l1 (a,n) * is_pfarray_cap d l2 (b,m)>
+  pfa_extend (a,n) (b,m) 
+  <\<lambda>(a',n'). is_pfarray_cap c (l1@l2) (a',n') * \<up>(a' = a \<and> n'=n+m) * is_pfarray_cap d l2 (b,m)>\<^sub>t"
+  unfolding pfa_extend_def  
+  by (sep_auto simp add: is_pfarray_cap_def min.absorb1 min.absorb2 heap add: blit_rule)
+
+
+definition pfa_extend_grow where
+"pfa_extend_grow \<equiv> \<lambda> (a,n) (b,m). do{
+  a' \<leftarrow> array_ensure a (n+m) default;
+  blit b 0 a' n m;
+  return (a',n+m)
+}"
+lemma pfa_extend_grow_rule: 
+  "<is_pfarray_cap c l1 (a,n) * is_pfarray_cap d l2 (b,m)>
+  pfa_extend_grow (a,n) (b,m) 
+  <\<lambda>(a',n'). is_pfarray_cap (max c (n+m)) (l1@l2) (a',n') * \<up>(n'=n+m \<and> c \<ge> n) * is_pfarray_cap d l2 (b,m)>\<^sub>t"
+  unfolding pfa_extend_grow_def  
+  by (sep_auto simp add: is_pfarray_cap_def min.absorb1 min.absorb2 heap add: blit_rule)
+  
+
+
 (* copied over from array list definition *)
 
 definition "pfa_assn N A \<equiv> hr_comp (is_pfarray_cap N) (\<langle>the_pure A\<rangle>list_rel)"

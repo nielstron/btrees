@@ -528,32 +528,6 @@ proof -
     done
 qed
 
-hide_const (open) Sepref_Translate.heap_WHILET
-definition "heap_WHILET b f s \<equiv> do {
-  heap.fixp_fun (\<lambda>D s. do {
-    bv \<leftarrow> b s;
-    if bv then do {
-      s \<leftarrow> f s;
-      D s
-    } else do {return s}
-  }) s
-}"
-
-
-lemma heap_WHILET_unfold[code]: "heap_WHILET b f s = 
-  do {
-    bv \<leftarrow> b s;
-    if bv then do {
-      s \<leftarrow> f s;
-      heap_WHILET b f s
-    } else
-      return s
-  }"
-  unfolding heap_WHILET_def
-  apply (subst heap.mono_body_fixp)
-   apply pf_mono
-  apply simp
-  done
 
 
 
@@ -627,13 +601,7 @@ proof -
 
 qed
 
-(* Added by NM *)          
-lemma ent_drop_not_true: "\<exists>P. P * true \<noteq> P"
-  unfolding times_assn_def top_assn_def
-  by (metis assn_basic_inequalities(1) assn_one_left times_assn_def top_assn_def)
-
-lemma "emp * true \<noteq> emp"
-  by simp
+(* Added by NM *)
 
 lemma heap_WHILET_rule'':
   assumes

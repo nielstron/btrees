@@ -341,7 +341,7 @@ lemma pfa_insert_rule[sep_heap_rules]:
   "\<lbrakk>i \<le> n; n < c\<rbrakk> \<Longrightarrow>
   <is_pfarray_cap c l (a,n)>
   pfa_insert (a,n) i x 
-  <\<lambda>(a',n'). is_pfarray_cap c (take i l@x#drop i l) (a',n') * \<up>(n' = n+1)>"
+  <\<lambda>(a',n'). is_pfarray_cap c (take i l@x#drop i l) (a',n') * \<up>(n' = n+1 \<and> a=a')>"
   unfolding pfa_insert_def is_pfarray_cap_def 
   by (sep_auto simp add: list_update_append1 list_update_last
       Suc_diff_le drop_take min_def)
@@ -383,6 +383,7 @@ definition pfa_extend_grow where
   blit b 0 a' n m;
   return (a',n+m)
 }"
+
 lemma pfa_extend_grow_rule: 
   "<is_pfarray_cap c l1 (a,n) * is_pfarray_cap d l2 (b,m)>
   pfa_extend_grow (a,n) (b,m) 
@@ -390,7 +391,35 @@ lemma pfa_extend_grow_rule:
   unfolding pfa_extend_grow_def  
   by (sep_auto simp add: is_pfarray_cap_def min.absorb1 min.absorb2 heap add: blit_rule)
   
+definition pfa_append_extend_grow where
+"pfa_append_extend_grow \<equiv> \<lambda> (a,n) x (b,m). do{
+  a' \<leftarrow> array_ensure a (n+m+1) default;
+  a'' \<leftarrow> Array.upd n x a';
+  blit b 0 a'' (n+1) m;
+  return (a'',n+m+1)
+}"
 
+lemma pfa_append_extend_grow_rule: 
+  "<is_pfarray_cap c l1 (a,n) * is_pfarray_cap d l2 (b,m)>
+  pfa_append_extend_grow (a,n) x (b,m) 
+  <\<lambda>(a',n'). is_pfarray_cap (max c (n+m+1)) (l1@x#l2) (a',n') * \<up>(n'=n+m+1 \<and> c \<ge> n) * is_pfarray_cap d l2 (b,m)>\<^sub>t"
+  unfolding pfa_append_extend_grow_def  
+  by (sep_auto simp add: list_update_last is_pfarray_cap_def min.absorb1 min.absorb2 heap add: blit_rule)
+  
+
+definition "pfa_delete \<equiv> \<lambda>(a,n) i. do {
+  array_shl a (i+1) 1;
+  return (a,n-1)
+}"
+
+lemma pfa_delete_rule[sep_heap_rules]:
+  "i < n \<Longrightarrow>
+  <is_pfarray_cap c l (a,n)>
+  pfa_delete (a,n) i
+  <\<lambda>(a',n'). is_pfarray_cap c (take i l@drop (i+1) l) (a',n') * \<up>(n' = n-1 \<and> a=a')>"
+  unfolding pfa_delete_def is_pfarray_cap_def 
+  apply (sep_auto simp add: drop_take min_def)
+  by (metis Suc_diff_Suc diff_zero dual_order.strict_trans2 le_less_Suc_eq zero_le)
 
 (* copied over from array list definition *)
 

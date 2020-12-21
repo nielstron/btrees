@@ -81,15 +81,21 @@ fun full_tree::"nat \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a btree" w
 value "let k = (2::nat) in map (\<lambda>x. size_btree x * 2*k) (map (full_tree k (1::nat)) [0,1,2,3,4])"
 value "let k = (2::nat) in map (\<lambda>x. ((2*k+(1::nat))^(x)-1)) [0,1,2,3,4]"
 
-lemma compow_max_eq: "((max n) ^^ c) n = max n n"
-  apply (induction c)
-   apply (auto simp add: max_def)
+lemma compow_comp_id: "c > 0 \<Longrightarrow> f \<circ> f = f \<Longrightarrow> (f ^^ c) = f"
+  apply(induction c)
+   apply auto
+  by fastforce
+
+
+lemma compow_id_point: "f x = x \<Longrightarrow> (f ^^ c) x = x"
+  apply(induction c)
+   apply auto
   done
-  
+
 
 lemma height_full_tree: "height (full_tree k a n) = n"
   apply(induction k a n rule: full_tree.induct)
-   apply (auto simp add: compow_max_eq)
+   apply (auto simp add: compow_id_point)
   done
 
 lemma full_btrees_sharp: "size_btree (full_tree k a n) * (2*k) = (2*k+1)^n - 1"
@@ -153,7 +159,7 @@ value "let k = (2::nat) in map (\<lambda>x. ((k+1::nat)^(x)-1)) [0,1,2,3,4]"
 
 lemma height_slim_tree: "height (slim_tree k a n) = n"
   apply(induction k a n rule: slim_tree.induct)
-   apply (auto simp add: compow_max_eq)
+   apply (auto simp add: compow_id_point)
   done
 
 lemma slim_btrees_sharp: "size_btree (slim_tree k a n) * k = ((k+1)^(n) - 1)"

@@ -4,7 +4,6 @@ theory BTree_Imp
     Partially_Filled_Array
     Imperative_Loops
 begin
-hide_const (open) Sepref_Translate.heap_WHILET
 
 datatype 'a btnode =
   Btnode "('a btnode ref option*'a) pfarray" "'a btnode ref option"
@@ -66,7 +65,10 @@ definition split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarro
 
 
 
-lemma split_rule: "< is_pfarray_cap c xs (a,n) * true> split (a,n) p <\<lambda>i. is_pfarray_cap c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
+lemma split_rule: "
+< is_pfarray_cap c xs (a,n) * true>
+ split (a,n) p
+ <\<lambda>i. is_pfarray_cap c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
   unfolding split_def
 
   supply R = heap_WHILET_rule''[where 
@@ -798,8 +800,8 @@ lemma node_i_rule_app: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1\<rbrakk> \<Longright
    btree_assn k l li *
    id_assn a ai *
    btree_assn k r ri *
-   true> node_i k (aa, al)
-          ri <btupi_assn k (btree_abs_search.node_i k (ls @ [(l, a)]) r)>\<^sub>t"
+   true> node_i k (aa, al) ri
+ <btupi_assn k (btree_abs_search.node_i k (ls @ [(l, a)]) r)>\<^sub>t"
 proof -
   note node_i_rule[of k c "(tsi' @ [(li, ai)])" aa al "(ls @ [(l, a)])" r ri]
   moreover assume "2*k \<le> c" "c \<le> 4*k+1"
@@ -1082,6 +1084,88 @@ lemma insert_rule:
     done
   done
 
+
+
+
+(* rebalance middle tree gets a list of trees, an index pointing to
+the position of sub/sep and a last tree *)
+definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder}) btnode ref option \<times> 'a) pfarray \<Rightarrow> nat \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode Heap"
+  where
+"rebalance_middle_tree \<equiv> \<lambda> k tsi i r_ti. (
+  case r_ti of
+  None \<Rightarrow> do {
+    return (Btnode tsi r_ti)
+  } |
+  Some p_t \<Rightarrow> do {
+      ti \<leftarrow> !p_t;
+      (r_sub,sep) \<leftarrow> pfa_get tsi i;
+      case r_sub of (Some p_sub) \<Rightarrow>  do {
+      sub \<leftarrow> !p_sub;
+      l_sub \<leftarrow> pfa_length (kvs sub);
+      l_ti \<leftarrow> pfa_length (kvs ti);
+      if l_sub \<ge> k \<and> l_ti \<ge> l_ti then do {
+        return (Btnode tsi r_ti)
+      } else do {
+        l_tsi \<leftarrow> pfa_length tsi;
+        if l_tsi = (i+1) then do {
+          mts' \<leftarrow> pfa_append_extend_grow (kvs sub) ((last sub),sep) (kvs ti);
+          res_node_i \<leftarrow> node_i k mts' (last ti);
+          case res_node_i of
+            T_i u \<Rightarrow> return (Btnode tsi u) |
+            Up_i l a r \<Rightarrow> do {
+              tsi' \<leftarrow> pfa_append tsi (l,a);
+              return (Btnode tsi' r)
+            }
+        } else do {
+          (r_rsub,rsep) \<leftarrow> pfa_get tsi (i+1);
+          case r_rsub of Some p_rsub \<Rightarrow> do {
+            rsub \<leftarrow> !p_rsub;
+            mts' \<leftarrow> pfa_append_extend_grow (kvs sub) (last sub,sep) (kvs rsub);
+            res_node_i \<leftarrow> node_i k mts' (last rsub);
+            case res_node_i of
+             T_i u \<Rightarrow> do {
+              tsi' \<leftarrow> pfa_set tsi (i+1) (u,rsep);              
+              tsi'' \<leftarrow> pfa_delete tsi' i;
+              return (Btnode tsi'' r_ti)
+            } |
+             Up_i l a r \<Rightarrow> do {
+              tsi' \<leftarrow> pfa_set tsi i (l,a);
+              tsi'' \<leftarrow> pfa_set tsi' (i+1) (r,rsep);
+              return (Btnode tsi'' r_ti)
+            }
+          }
+        }
+      }
+  }
+})
+"
+
+definition rebalance_last_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder}) btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode Heap"
+  where
+"rebalance_last_tree \<equiv> \<lambda>k tsi ti. do {
+   l_tsi \<leftarrow> pfa_length tsi;
+   rebalance_middle_tree k tsi (l_tsi-1) ti
+}"
+
+partial_function (heap) split_max ::"nat \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> ('a btnode ref option \<times> 'a) Heap"
+  where
+"split_max k r_t = (case r_t of Some p_t \<Rightarrow> do {
+   t \<leftarrow> !p_t;
+   (case t of Btnode tsi r_ti \<Rightarrow>
+     case r_ti of None \<Rightarrow> do {
+      (sub,sep) \<leftarrow> pfa_last tsi;
+      tsi' \<leftarrow> pfa_butlast tsi;
+      p_t := Btnode tsi' sub;
+      return (Some p_t, sep)
+  } |
+    _ \<Rightarrow> do {
+      (sub,sep) \<leftarrow> split_max k r_ti;
+      p_t' \<leftarrow> rebalance_last_tree k tsi sub;
+      p_t := p_t';
+      return (Some p_t, sep)
+  })
+})
+"
 
 partial_function (heap) isin' :: "('a::{heap,linorder}) btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
   where

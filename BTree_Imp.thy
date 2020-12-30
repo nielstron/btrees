@@ -219,13 +219,66 @@ definition bin_split' :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Righ
   return low'
 }"
 
+
+thm nth_take
+
+lemma nth_take_eq: "take n ls = take n ls' \<Longrightarrow> i < n \<Longrightarrow> ls!i = ls'!i"
+  by (metis nth_take)
+
+lemma map_snd_sorted_less: "\<lbrakk>sorted_less (map snd xs); i < j; j < length xs\<rbrakk>
+       \<Longrightarrow> snd (xs ! i) < snd (xs ! j)"
+  by (metis (mono_tags, hide_lams) length_map less_trans nth_map sorted_wrt_iff_nth_less)
+
+lemma map_snd_sorted_lesseq: "\<lbrakk>sorted_less (map snd xs); i \<le> j; j < length xs\<rbrakk>
+       \<Longrightarrow> snd (xs ! i) \<le> snd (xs ! j)"
+  by (metis eq_iff less_imp_le map_snd_sorted_less order.not_eq_order_implies_strict)
+
 lemma bin_split'_rule: "
 sorted_less (map snd xs) \<Longrightarrow>
 < is_pfarray_cap c xs (a,n) * true>
  bin_split' (a,n) p
  <\<lambda>l. is_pfarray_cap c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd(xs!j) < p) \<and> (l<n \<longrightarrow> snd(xs!l)\<ge>p)) >\<^sub>t"
 (* this works in principle, as demonstrated above *)
-  sorry
+    unfolding bin_split'_def
+
+  supply R = heap_WHILET_rule''[where 
+      R = "measure (\<lambda>(l,h). h-l)"
+      and I = "\<lambda>(l,h). is_pfarray_cap c xs (a,n) * \<up>(l\<le>h \<and> h \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (h<n \<longrightarrow> snd (xs!h)\<ge>p))"
+      and b = "\<lambda>(l,h). l<h"
+      and Q="\<lambda>(l,h). is_pfarray_cap c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (l<n \<longrightarrow> snd (xs!l)\<ge>p)) * true"
+      ]
+  thm R
+
+  apply (sep_auto decon: R simp: less_Suc_eq is_pfarray_cap_def) []
+  
+      apply(auto dest!: sndI nth_take_eq[of n _ _ "(_ + _) div 2"])[]
+     apply(auto dest!: sndI nth_take_eq[of n _ _ "(_ + _) div 2"])[]
+    apply (sep_auto dest!: sndI )
+  subgoal for ls i ls' _ _ j
+    using map_snd_sorted_lesseq[of "take n ls'" j "(i + n) div 2"] 
+    less_mult_imp_div_less apply(auto)[]
+    done
+  subgoal for ls i j ls' _ _ j'
+    using map_snd_sorted_lesseq[of "take n ls'" j' "(i + j) div 2"] 
+    less_mult_imp_div_less apply(auto)[]
+    done
+    apply sep_auto
+  subgoal for ls i ls' _ _ j
+    using map_snd_sorted_less[of "take n ls'" j "(i + n) div 2"] 
+      less_mult_imp_div_less
+     apply(auto)[]
+    done
+  subgoal for ls i j ls' _ _ j'
+    using map_snd_sorted_less[of "take n ls'" j' "(i + j) div 2"] 
+      less_mult_imp_div_less
+     apply(auto)[]
+    done
+    apply (metis le_less nth_take_eq)
+   apply sep_auto
+  apply (sep_auto simp add: is_pfarray_cap_def)
+done
+    
+     
 
 lemma split_ismeq: "((a::nat) \<le> b \<and> X) = ((a < b \<and> X) \<or> (a = b \<and> X))"
   by auto

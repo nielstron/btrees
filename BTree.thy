@@ -12,111 +12,6 @@ subsection "General structure and concepts definition"
 text "General structure:  nat values in the leafs and nat/tree node internal node list (nat always larger than every element in the corresponding subtree)"
   (* definition heavily based on Tree234_Set, Pair structure from popl10 (malecha)/mtps08*)
 
-(*
-
-   struct {
-     key keys[10];
-     node *nodes[11];
-   } node;
-
-   struct {
-    key *keys;
-    node **nodes;
-   }
-   
-   
-   'a list     'a set
-   
-   R xs s \<longleftrightarrow> s=set xs \<and> distinct xs
-   
-   member :: 'a \<Rightarrow> 'a list \<Rightarrow> bool     
-   (\<in>) ::    'a \<Rightarrow> 'a set \<Rightarrow> bool
-   
-             ((=) \<rightarrow> R   \<rightarrow> (=)) member (\<in>)
-   
-   
-   
-   (=) xi x,  R si s  \<Longrightarrow> (=) (member xi si) ((\<in>) x s)
-   
-   
-   (A \<rightarrow> B) f g \<longleftrightarrow> \<forall>x y. A x y \<longrightarrow> B (f x) (g y)
-   
-   
-   
-   R tree_ptr tree
-   
-   
-   \<box> - empty heap
-   
-   ptr \<mapsto> x  - heap where ptr points to x
-   
-   
-   A * B - combined heap described by A and B, parts are DISJOINT
-   
-   p\<^sub>1 \<mapsto> x * p\<^sub>2 \<mapsto> y
-   
-   
-   
-   \<forall>s F. (P ** F) s \<longrightarrow> \<exists>s'. run c s = SUCCESS r s' \<and> (Q r ** F) s'
-   
-   {P} c {\<lambda>r. Q r}
-   
-   
-   \<up>\<phi> \<equiv> if \<phi> then \<box> else false
-   
-   
-   'a M  =  heap \<Rightarrow> SUCC 'a heap | FAIL
-   
-   load :: 'a ptr \<Rightarrow> 'a M
-   store :: 'a ptr \<Rightarrow> 'a \<Rightarrow> unit M
-   
-   { p \<mapsto> x } load p {\<lambda>r. \<up>(r=x) ** p \<mapsto> x }
-   
-   { p \<mapsto> y } store p x {\<lambda>_. p \<mapsto> x }
-   
-   
-   {P} c {Q} \<Longrightarrow> {P**F} c {Q**F}
-   
-
-   return :: 'a \<Rightarrow> 'a M
-   return x = \<lambda>h. SUCC x h       {\<box>} return x {\<lambda>r. r=x}
-      
-   (;) :: 'a M \<Rightarrow> ('a \<Rightarrow> 'b M) \<Rightarrow> 'b M
-   (x\<leftarrow>m; f x) s = case m s of FAIL \<Rightarrow> FAIL
-                             | SUCC x s' \<Rightarrow> f x s'   
-   
-
-   f x \<equiv> ... f ...                                
-   
-   f \<equiv> rec ( \<lambda>f x. if x<1 then return 0 else f (x-1) )
-   
-   wf <
-   \<And>x f t. (\<forall>x' t'. {P ** V t' ** t'<t} f x' {Q}) \<Longrightarrow> {P ** V t} F f x {Q}
-   --------------------------------
-   {P} rec F x {Q}
-   
-   
-   assn_list R [] [] = \<box>
-   assn_list R (x:xs) (y:ys) = R x y ** assn_list xs ys
-   assn_list _ _ _ = false
-   
-   p\<mapsto>\<^sub>a[x\<^sub>1,...,x\<^sub>n] = p+0 \<mapsto> x\<^sub>1 ** ... ** p+(n-1) \<mapsto> x\<^sub>n
-   
-   assn_array R p xs = \<exists>xs'. p\<mapsto>\<^sub>axs' ** assn_list R xs' xs
-   
-   
-   R :: 
-   
-   R p t
-   
-     R null Leaf
-     
-     R p (Node ts t) = p \<mapsto> (tsi,ti) ** R ti t ** assn_array (\<lambda>(subi,sepi) (sub,sep). R subi sub ** sepi=sep) ts tsi
-   
-     
-
-*)
-
 
 datatype 'a btree = Leaf | Node "('a btree * 'a) list" "'a btree"
 
@@ -221,9 +116,7 @@ value "inorder (Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10),
 
 
 lemma set_map_pred_eq: "(\<forall>x \<in> set (map f xs). P x) = (\<forall>x \<in> set xs. P (f x))"
-  apply(induction xs)
-   apply(auto)
-  done
+  by simp
 
 
 definition set_btree_inorder:: "'a btree \<Rightarrow> 'a set" where 
@@ -296,7 +189,7 @@ lemma height_bal_tree: "bal (Node ts t) \<Longrightarrow> height (Node ts t) = S
   by (simp add: fold_max_set)
 
 
-lemma bal_split: 
+lemma bal_split_last: 
   assumes "bal (Node (ls@(sub,sep)#rs) t)"
   shows "bal (Node (ls@rs) t)"
     and "height (Node (ls@(sub,sep)#rs) t) = height (Node (ls@rs) t)"
@@ -316,7 +209,7 @@ proof -
 qed
 
 
-lemma bal_split2: 
+lemma bal_split_right: 
   assumes "bal (Node (ls@rs) t)"
   shows "bal (Node rs t)"
     and "height (Node rs t) = height (Node (ls@rs) t)"
@@ -328,7 +221,7 @@ proof -
     by metis
 qed
 
-lemma bal_split3:
+lemma bal_split_left:
   assumes "bal (Node (ls@(a,b)#rs) t)"
   shows "bal (Node ls a)"
     and "height (Node ls a) = height (Node (ls@(a,b)#rs) t)"
@@ -349,11 +242,11 @@ lemma bal_substitute: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height t = height c;
   unfolding bal.simps
   by (metis Un_iff singletonD subtrees_split)
 
-lemma bal_substitute2: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height a = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
+lemma bal_substitute_subtree: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height a = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
   using bal_substitute
   by (metis bal.simps(2) in_set_conv_decomp some_child_sub(1))
 
-lemma bal_substitute3: "bal (Node (ls@(a,b)#rs) t) \<Longrightarrow> bal (Node (ls@(a,c)#rs) t)"
+lemma bal_substitute_key: "bal (Node (ls@(a,b)#rs) t) \<Longrightarrow> bal (Node (ls@(a,c)#rs) t)"
   unfolding bal.simps
   by (metis subtrees_split)
 
@@ -361,6 +254,7 @@ lemma bal_substitute3: "bal (Node (ls@(a,b)#rs) t) \<Longrightarrow> bal (Node (
 
 (* alt1: following knuths definition to allow for any natural number as order and resolve ambiguity *)
 (* alt2: use range [k,2*k] allowing for valid btrees from k=1 onwards *)
+(* TODO allow for length ts \<le> 2*k+1, NOTE: makes proofs uglier *)
 fun order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
   "order k Leaf = True" |
   "order k (Node ts t) = (
@@ -422,11 +316,11 @@ lemma sorted_wrt_list_sorted: "sorted_wrt sub_sep_sm xs \<Longrightarrow> sorted
 
 
 lemma sorted_wrt_sorted_left: "sorted_wrt sub_sep_sm ((sub, sep)#xs) \<Longrightarrow> t \<in> set (subtrees xs) \<Longrightarrow> \<forall>x \<in> set_btree t. x > sep"
-  by (induction xs) (auto)
+  by auto
 
 
 lemma sorted_wrt_sorted_left2: "sorted_wrt sub_sep_sm ((sub, sep)#xs) \<Longrightarrow> x \<in> set (seperators xs) \<Longrightarrow> x > sep"
-  by (induction xs) (auto)
+  by auto
 
 (* the below is independent of the inter-pair sorting *)
 lemma sorted_wrt_sorted_right: "\<forall>x \<in> set xs. sub_sep_cons x \<Longrightarrow> (t, sep) \<in> set xs \<Longrightarrow> \<forall>x \<in> set_btree t. x < sep"

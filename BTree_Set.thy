@@ -613,7 +613,7 @@ fun bal_up_i where
 
 lemma bal_list_split: "bal (Node (ls@(a,b)#rs) t) \<Longrightarrow> bal_up_i (Up_i (Node ls a) b (Node rs t))"
   unfolding bal_up_i.simps
-  by (metis bal_split(1) bal_split2 bal_split3 height_bal_tree)
+  by (metis bal_split_last(1) bal_split_right bal_split_left height_bal_tree)
 
 lemma node_i_bal:
   assumes "\<forall>x \<in> set (subtrees ts). bal x"
@@ -783,7 +783,7 @@ proof(induction k x t rule: ins.induct)
           using Up_i split_app Cons 2 \<open>bal_up_i (ins k x sub)\<close> by auto
         moreover have "\<forall>x \<in> set (subtrees (ls@(l,a)#(r,sep)#list)). height x = height t"
           using False Up_i split_app Cons 2 \<open>bal_up_i (ins k x sub)\<close> ins_height split_res a_prod
-          by simp_all (metis "2.prems" bal.simps(2) bal_split(1) fst_conv height_up_i.simps(2) image_Un set_append set_map split_fun_set(1) sup.idem sup_nat_def)
+          by simp_all (metis "2.prems" bal.simps(2) bal_split_last(1) fst_conv height_up_i.simps(2) image_Un set_append set_map split_fun_set(1) sup.idem sup_nat_def)
         ultimately show ?thesis using Up_i Cons 2 split_res a_prod
           by (simp del: node_i.simps add: node_i_bal)
       qed
@@ -1618,7 +1618,7 @@ proof(induction k x t rule: del.induct)
     next
       case sep_x_Leaf
       then have "height (Node ts t) = height (Node (ls@rs) t)"
-        using bal_split(2) "2.prems"(3) a_split list_split Cons split_fun_req_alt(1)
+        using bal_split_last(2) "2.prems"(3) a_split list_split Cons split_fun_req_alt(1)
         by fastforce
       then show ?thesis
         using a_split list_split Cons sep_x_Leaf 2 by auto
@@ -1960,7 +1960,7 @@ proof (cases t)
       have "height_up_i (node_i k (mts@(mt,sep)#rts) rt) = height (Node (mts@(mt,sep)#rts) rt)"
         using node_i_height by blast
       also have "\<dots> = Suc (height rt)"
-        by (metis Un_iff  \<open>height rsub = height t\<close> assms bal.simps(2) bal_split height_bal_tree height_up_i.simps(2) height_list_split list.set_intros(1) Cons max.idem r_node r_split set_append some_child_sub(1) sub_heights(1) sub_node)
+        by (metis Un_iff  \<open>height rsub = height t\<close> assms bal.simps(2) bal_split_last height_bal_tree height_up_i.simps(2) height_list_split list.set_intros(1) Cons max.idem r_node r_split set_append some_child_sub(1) sub_heights(1) sub_node)
       also have "\<dots> = height rsub"
         using height_bal_tree r_node rsub_height(2) by fastforce
       finally have 1: "height_up_i (node_i k (mts@(mt,sep)#rts) rt) = height rsub" by simp
@@ -2059,7 +2059,7 @@ proof(induction k x t rule: del.induct)
       moreover have "bal (Node (ls@(sub,sep)#rs) t)"
         using "2.prems"(3) list_split Cons r_split split_fun_req_alt(1) by blast
       ultimately have "bal (Node (ls@(del k x sub,sep)#rs) t)"
-        using bal_substitute2[of ls sub sep rs t "del k x sub"] by metis
+        using bal_substitute_subtree[of ls sub sep rs t "del k x sub"] by metis
       then have "bal (rebalance_middle_tree k ls (del k x sub) sep rs t)"
         using rebalance_middle_tree_bal[of ls "del k x sub" sep rs t k] by metis
       then show ?thesis
@@ -2067,7 +2067,7 @@ proof(induction k x t rule: del.induct)
     next
       case sep_x_Leaf
       moreover have "bal (Node (ls@rs) t)"
-        using bal_split list_split split_fun_req_alt(1) r_split
+        using bal_split_last list_split split_fun_req_alt(1) r_split
         by (metis "2.prems"(3) Cons)
       ultimately show ?thesis
         using 2 list_split Cons r_split by auto
@@ -2085,9 +2085,9 @@ proof(induction k x t rule: del.induct)
       moreover have "bal (Node (ls@(sub,sep)#rs) t)"
         using "2.prems"(3) list_split Cons r_split split_fun_req_alt(1) by blast
       ultimately have "bal (Node (ls@(sub_s,sep)#rs) t)"
-        using bal_substitute2[of ls sub sep rs t "sub_s"] by metis
+        using bal_substitute_subtree[of ls sub sep rs t "sub_s"] by metis
       then have "bal (Node (ls@(sub_s,max_s)#rs) t)"
-        using bal_substitute3 by metis
+        using bal_substitute_seperator by metis
       then have "bal (rebalance_middle_tree k ls sub_s max_s rs t)"
         using rebalance_middle_tree_bal[of ls sub_s max_s rs t k] by metis
       then show ?thesis

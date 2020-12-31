@@ -48,9 +48,9 @@ find_consts name: while
 
 term split_fun
 
-definition split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarrow> 'b \<Rightarrow> nat Heap"
+definition linear_split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarrow> 'b \<Rightarrow> nat Heap"
   where
-    "split \<equiv> \<lambda> (a,n) p. do {
+    "linear_split \<equiv> \<lambda> (a,n) p. do {
   
   i \<leftarrow> heap_WHILET 
     (\<lambda>i. if i<n then do {
@@ -65,11 +65,11 @@ definition split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarro
 
 
 
-lemma split_rule: "
+lemma linear_split_rule: "
 < is_pfarray_cap c xs (a,n) * true>
- split (a,n) p
+ linear_split (a,n) p
  <\<lambda>i. is_pfarray_cap c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
-  unfolding split_def
+  unfolding linear_split_def
 
   supply R = heap_WHILET_rule''[where 
       R = "measure (\<lambda>i. n - i)"
@@ -89,9 +89,9 @@ lemma split_rule: "
   done
 
 
-definition bin_split :: "'b::{heap,linorder} array_list \<Rightarrow> 'b \<Rightarrow> nat Heap"
+definition bin'_split :: "'b::{heap,linorder} array_list \<Rightarrow> 'b \<Rightarrow> nat Heap"
   where
-    "bin_split \<equiv> \<lambda>(a,n) p. do {
+    "bin'_split \<equiv> \<lambda>(a,n) p. do {
   (low',high') \<leftarrow> heap_WHILET 
     (\<lambda>(low,high). return (low < high)) 
     (\<lambda>(low,high). let mid = ((low  + high) div 2) in
@@ -111,12 +111,12 @@ definition bin_split :: "'b::{heap,linorder} array_list \<Rightarrow> 'b \<Right
 thm sorted_wrt_nth_less
 
 (* alternative: replace (\<forall>j<l. xs!j < p) by (l > 0 \<longrightarrow> xs!(l-1) < p)*)
-lemma bin_split_rule: "
+lemma bin'_split_rule: "
 sorted_less xs \<Longrightarrow>
 < is_pfarray_cap c xs (a,n) * true>
- bin_split (a,n) p
+ bin'_split (a,n) p
  <\<lambda>l. is_pfarray_cap c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (l<n \<longrightarrow> xs!l\<ge>p)) >\<^sub>t"
-  unfolding bin_split_def
+  unfolding bin'_split_def
 
   supply R = heap_WHILET_rule''[where 
       R = "measure (\<lambda>(l,h). h-l)"
@@ -201,9 +201,9 @@ sorted_less xs \<Longrightarrow>
   done
 
 
-definition bin_split' :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarrow> 'b \<Rightarrow> nat Heap"
+definition bin_split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarrow> 'b \<Rightarrow> nat Heap"
   where
-    "bin_split' \<equiv> \<lambda>(a,n) p. do {
+    "bin_split \<equiv> \<lambda>(a,n) p. do {
   (low',high') \<leftarrow> heap_WHILET 
     (\<lambda>(low,high). return (low < high)) 
     (\<lambda>(low,high). let mid = ((low  + high) div 2) in
@@ -233,13 +233,13 @@ lemma map_snd_sorted_lesseq: "\<lbrakk>sorted_less (map snd xs); i \<le> j; j < 
        \<Longrightarrow> snd (xs ! i) \<le> snd (xs ! j)"
   by (metis eq_iff less_imp_le map_snd_sorted_less order.not_eq_order_implies_strict)
 
-lemma bin_split'_rule: "
+lemma bin_split_rule: "
 sorted_less (map snd xs) \<Longrightarrow>
 < is_pfarray_cap c xs (a,n) * true>
- bin_split' (a,n) p
+ bin_split (a,n) p
  <\<lambda>l. is_pfarray_cap c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd(xs!j) < p) \<and> (l<n \<longrightarrow> snd(xs!l)\<ge>p)) >\<^sub>t"
 (* this works in principle, as demonstrated above *)
-    unfolding bin_split'_def
+    unfolding bin_split_def
 
   supply R = heap_WHILET_rule''[where 
       R = "measure (\<lambda>(l,h). h-l)"
@@ -368,9 +368,80 @@ lemma snd_map_help:
   "x < length tsi \<Longrightarrow> snd (tsi!x) = ((map snd tsi)!x)"
   by auto
 
-find_theorems "<_>_<_>"
+(* new, added for the "interesting part" *)
 
-lemma split_imp_abs_split[sep_heap_rules]: "<
+lemma abs_split_split_map:
+  assumes "n < length xs" 
+    and "\<forall>i < n. snd(xs!i) < p"
+    and " snd (xs!n) \<ge> (p::'a::linorder)"
+  shows "abs_split xs p = (take n xs, drop n xs)"
+  using assms  apply(auto dest!: abs_split_split)
+  by (metis (no_types, lifting) assms(1) in_set_conv_nth length_take less_imp_le min.absorb2 nth_take snd_conv)
+
+find_theorems takeWhile
+
+lemma abs_split_eq_taken_dropn: "abs_split as x = (take (length (takeWhile (\<lambda>(uu, s). s < x) as)) as, drop (length (takeWhile (\<lambda>(uu, s). s < x) as)) as)"
+  unfolding abs_split_def
+  using dropWhile_eq_drop takeWhile_eq_take
+  by auto
+
+
+lemma length_map_takeWhile_eq: "map f as = map f' bs \<Longrightarrow> 
+      length (takeWhile f as) = length (takeWhile f' bs)"
+proof -
+  assume map_eq: "map f as = map f' bs"
+  then have "length as = length bs"
+    using map_eq_imp_length_eq by blast
+  then show ?thesis
+    using map_eq
+  proof(induction as bs rule: list_induct2)
+    case (Cons x xs y ys)
+    then show ?case
+    proof (cases "f x")
+      case True
+      then show ?thesis
+        using Cons.IH Cons.prems by auto
+    next
+      case False
+      then show ?thesis
+        using Cons.prems by auto
+    qed
+  qed auto
+qed
+
+lemma map_snd_lambda: "map f as = map f' bs \<Longrightarrow> map (P \<circ> f) as = map (P \<circ> f') bs"
+  by (metis map_map)
+thm map_map
+
+lemma snd_simp: "snd = (\<lambda>(uu,s). s)"
+  by auto
+
+lemma concat_snd: "P \<circ> (\<lambda>(uu,s). s) = (\<lambda>(uu,s). P s)"
+  by auto
+
+lemma length_takeWhile_eq_snd: "map snd as = map snd bs \<Longrightarrow>
+   (length (takeWhile (\<lambda>(uu, s). s < x) as)) = (length (takeWhile (\<lambda>(uu, s). s < x) bs ))"
+proof -
+  assume "map snd as = map snd bs"
+  then have "map (\<lambda>(uu,s). s) as = map (\<lambda>(uu,s). s) bs"
+    by (simp add: snd_simp concat_snd)
+  then have "map (\<lambda>y. y < x) (map (\<lambda>(uu,s). s) as) = map (\<lambda>y. y < x) (map (\<lambda>(uu,s). s) bs)"
+    by simp
+  then have "map (\<lambda>(uu,s). s < x) as = map (\<lambda>(uu,s). s < x) bs"
+    by (simp add: concat_snd)
+  then show ?thesis
+    using length_map_takeWhile_eq[of "\<lambda>(uu,s). s < x" as "\<lambda>(uu,s). s < x" bs]
+    by simp
+qed
+
+
+lemma split_rule_abs_split: 
+  assumes split_rule: "\<And> c xs a n p. P c xs a n p \<Longrightarrow>  <is_pfarray_cap c xs (a, n) *
+ true> split (a, n) (p::'a::{heap,linorder}) <\<lambda>r. is_pfarray_cap c xs (a, n) *
+                 \<up> (r \<le> n \<and>
+                    (\<forall>j<r. snd (xs ! j) < p) \<and> (r < n \<longrightarrow> p \<le> snd (xs ! r)))>\<^sub>t"
+  shows
+"P c tsi a n p \<Longrightarrow> <
     is_pfarray_cap c tsi (a,n)
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
@@ -381,8 +452,19 @@ lemma split_imp_abs_split[sep_heap_rules]: "<
     * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
   thm split_rule
   apply (sep_auto heap: split_rule dest!: mod_starD id_assn_list
-      simp add: list_assn_prod_map split_ismeq )
-    apply(simp_all add: is_pfarray_cap_def)
+      simp add: list_assn_prod_map split_ismeq)
+(* the interesting path: finding the correct rules for automatic rewriting:
+    apply(auto dest!: hoare_triple_preI list_assn_len
+          simp add: is_pfarray_cap_def split_relation_def min.absorb1 min.absorb2 )[]
+  subgoal for x _ _ _ _ as bs ls
+    by (smt abs_split_split_map le_antisym le_trans length_map less_imp_le_nat linorder_neqE_nat nth_take order_mono_setup.refl prod.inject snd_map_help(1))
+  subgoal for x _ _ _ _ as bs ls
+    by (metis \<open>\<And>x ls bs be bb as ae ab. \<lbrakk>in_range (ab, bb); seperators ts = seperators (take (length ts) ls); x < length ts; \<forall>j<x. snd (ls ! j) < p; p \<le> snd (ls ! x); (as, bs) = abs_split ts p; (ae, be) \<Turnstile> a \<mapsto>\<^sub>a ls; c = length ls; length ts \<le> length ls; tsi = take (length ts) ls; n = length ts\<rbrakk> \<Longrightarrow> as = take x ts\<close> abs_split_eq_taken_dropn length_take min_simps(2) snd_conv takeWhile_eq_take)
+    apply(auto dest!: hoare_triple_preI list_assn_len
+          simp add: is_pfarray_cap_def split_relation_def min.absorb1 min.absorb2 )[]
+stops here...
+*)
+      apply(simp_all add: is_pfarray_cap_def)
     apply(auto)
 proof -
 
@@ -432,7 +514,7 @@ proof -
       by (auto simp add: in_set_conv_nth  min.absorb2)+
     moreover assume "p \<le> snd (l' ! x)"
     then have "case l'!x of (_,s) \<Rightarrow> \<not>(s < p)"
-      by (simp add: case_prod_unfold x_sm_len)
+      by (simp add: case_prod_unfold)
     then have "case ts!x of (_,s) \<Rightarrow> \<not>(s < p)"
       using heap_init x_sm_len x_sm_len_ts
       by (metis (mono_tags, lifting) case_prod_unfold length_map length_take min.absorb2 nth_take snd_map_help(2))
@@ -445,118 +527,36 @@ proof -
   qed
 qed
 
-(* since we have shown the abstract behavior for sorted lists
-the proof from above needs nearly no amendmend 
-TODO show that the \<forall>< etc relation entails the split_relation*)
-lemma bin_split'_imp_abs_split[sep_heap_rules]: "
-sorted_less (map snd ts) \<Longrightarrow> <
+
+lemma linear_split_imp_abs_split[sep_heap_rules]: "<
     is_pfarray_cap c tsi (a,n)
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
-    bin_split' (a,n) p 
+    linear_split (a,n) p 
   <\<lambda>i. 
     is_pfarray_cap c tsi (a,n)
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
     * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
-  thm split_rule
+  thm  split_rule_abs_split[OF linear_split_rule]
+  by (sep_auto heap: split_rule_abs_split[OF linear_split_rule])
+
+(* since we have shown the abstract behavior for sorted lists
+the proof from above needs nearly no amendmend *)
+lemma bin_split_imp_abs_split[sep_heap_rules]: "
+sorted_less (map snd ts) \<Longrightarrow> <
+    is_pfarray_cap c tsi (a,n)
+  * list_assn (A \<times>\<^sub>a id_assn) ts tsi
+  * true> 
+    bin_split (a,n) p 
+  <\<lambda>i. 
+    is_pfarray_cap c tsi (a,n)
+    * list_assn (A \<times>\<^sub>a id_assn) ts tsi
+    * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
   apply(rule hoare_triple_preI)
-  apply (sep_auto heap: bin_split'_rule dest!: mod_starD id_assn_list
-      simp add: list_assn_prod_map split_ismeq )
-    apply(simp_all add: is_pfarray_cap_def)
-    apply(auto)
-proof -
-
-  fix h l' assume heap_init:
-    "h \<Turnstile> a \<mapsto>\<^sub>a l'"
-    "map snd ts = (map snd (take n l'))"
-    "n \<le> length l'"
-
-
-  show full_thm: "\<forall>j<n. snd (l' ! j) < p \<Longrightarrow>
-       split_relation ts (abs_split ts p) n"
-  proof -
-    assume sm_list: "\<forall>j<n. snd (l' ! j) < p"
-    then have "\<forall>j < length (map snd (take n l')). ((map snd (take n l'))!j) < p"
-      by simp
-    then have "\<forall>j<length (map snd ts). ((map snd ts)!j) < p"
-      using heap_init by simp
-    then have "\<forall>(_,s) \<in> set ts. s < p"
-      by (metis case_prod_unfold in_set_conv_nth length_map nth_map)
-    then have "abs_split ts p = (ts, [])"
-      using abs_split_full[of ts p] by simp
-    then show "split_relation ts (abs_split ts p) n"
-      using split_relation_length
-      by (metis heap_init(2) heap_init(3) length_map length_take min.absorb2)
-
-  qed
-  then show "\<forall>j<n. snd (l' ! j) < p \<Longrightarrow>
-       p \<le> snd (take n l' ! n) \<Longrightarrow>
-       split_relation ts (abs_split ts p) n"
-    by simp
-
-  show part_thm: "\<And>x. x < n \<Longrightarrow>
-       \<forall>j<x. snd (l' ! j) < p \<Longrightarrow>
-       p \<le> snd (l' ! x) \<Longrightarrow> split_relation ts (abs_split ts p) x"
-  proof -
-    fix x assume x_sm_len: "x < n"
-    moreover assume sm_list: "\<forall>j<x. snd (l' ! j) < p"
-    ultimately have "\<forall>j<x. ((map snd l') ! j) < p"
-      using heap_init
-      by auto
-    then have "\<forall>j<x. ((map snd ts)!j) < p"
-      using heap_init  x_sm_len
-      by auto
-    moreover have x_sm_len_ts: "x < n"
-      using heap_init x_sm_len by auto
-    ultimately have "\<forall>(_,x) \<in> set (take x ts). x < p"
-      by (auto simp add: in_set_conv_nth  min.absorb2)+
-    moreover assume "p \<le> snd (l' ! x)"
-    then have "case l'!x of (_,s) \<Rightarrow> \<not>(s < p)"
-      by (simp add: case_prod_unfold x_sm_len)
-    then have "case ts!x of (_,s) \<Rightarrow> \<not>(s < p)"
-      using heap_init x_sm_len x_sm_len_ts
-      by (metis (mono_tags, lifting) case_prod_unfold length_map length_take min.absorb2 nth_take snd_map_help(2))
-    ultimately have "abs_split ts p = (take x ts, drop x ts)"
-      using x_sm_len_ts abs_split_split[of x ts p] heap_init
-      by (metis length_map length_take min.absorb2)
-    then show "split_relation ts (abs_split ts p) x"
-      using x_sm_len_ts 
-      by (metis append_take_drop_id heap_init(2) heap_init(3) length_map length_take less_imp_le_nat min.absorb2 split_relation_alt)
-  qed
-qed
-
-(*
-  apply (sep_auto) []
-  apply (sep_auto) []
-  apply (sep_auto simp: less_Suc_eq) []
-  apply (rule ent_refl)
-  apply (sep_auto) []
-  
-    
-  thm sep_decon_rules
-  apply (sep_auto heap: R simp: less_Suc_eq)
-  find_theorems "_ < Suc _" "(\<or>)"
-  
-  oops
-  apply (vcg (ss) heap: R)
-  apply (sep_auto) []
-  apply (sep_auto) []
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply simp  
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  apply (vcg (ss))
-  
-*)
-
+  thm split_rule_abs_split[OF bin_split_rule]
+  apply (sep_auto heap: split_rule_abs_split[OF bin_split_rule])
+   apply(auto dest!: mod_starD id_assn_list simp add: list_assn_prod_map)
+  done
 
 partial_function (heap) isin :: "('a::{heap,linorder}) btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
   where
@@ -565,7 +565,7 @@ partial_function (heap) isin :: "('a::{heap,linorder}) btnode ref option \<Right
      None \<Rightarrow> return False |
      (Some a) \<Rightarrow> do {
        node \<leftarrow> !a;
-       i \<leftarrow> split (kvs node) x;
+       i \<leftarrow> linear_split (kvs node) x;
        tsl \<leftarrow> pfa_length (kvs node);
        if i < tsl then do {
          s \<leftarrow> pfa_get (kvs node) i;
@@ -601,7 +601,7 @@ next
     case [simp]: Nil
     show ?thesis
       apply(subst isin.simps)
-      apply(sep_auto heap: split_imp_abs_split)
+      apply(sep_auto heap: linear_split_imp_abs_split)
         apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
        apply(rule hoare_triple_preI)
        apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
@@ -618,7 +618,7 @@ next
       then show ?thesis
         apply(simp split: list.splits prod.splits)
         apply(subst isin.simps)
-        apply(sep_auto heap: split_imp_abs_split)
+        apply(sep_auto heap: linear_split_imp_abs_split)
          apply(rule hoare_triple_preI)
          apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
         apply(rule hoare_triple_preI)
@@ -631,7 +631,7 @@ next
         apply safe
         using False apply simp
         apply(subst isin.simps)
-        apply(sep_auto heap: split_imp_abs_split)
+        apply(sep_auto heap: linear_split_imp_abs_split)
           (*eliminate vacuous case*)
           apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!:  mod_starD list_assn_len)[]
           (* simplify towards induction step *)
@@ -805,7 +805,7 @@ partial_function (heap) ins :: "nat \<Rightarrow> 'a \<Rightarrow> ('a::{heap,li
     return (Up_i None x None) |
   (Some a) \<Rightarrow> do {
     node \<leftarrow> !a;
-    i \<leftarrow> split (kvs node) x;
+    i \<leftarrow> linear_split (kvs node) x;
     tsl \<leftarrow> pfa_length (kvs node);
     if i < tsl then do {
       s \<leftarrow> pfa_get (kvs node) i;
@@ -903,7 +903,7 @@ next
       case (T_i a)
       then show ?thesis
         apply(subst ins.simps)
-        apply(sep_auto heap: split_imp_abs_split)
+        apply(sep_auto heap: linear_split_imp_abs_split)
         subgoal for p tsil tsin tti
           using Nil list_split
           by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)
@@ -926,7 +926,7 @@ next
       case (Up_i l a r)
       then show ?thesis
         apply(subst ins.simps)
-        apply(sep_auto heap: split_imp_abs_split)
+        apply(sep_auto heap: linear_split_imp_abs_split)
         subgoal for p tsil tsin tti
           using Nil list_split
           by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)                 
@@ -954,7 +954,7 @@ next
       case True
       show ?thesis
         apply(subst ins.simps)
-        apply(sep_auto heap: split_imp_abs_split)
+        apply(sep_auto heap: linear_split_imp_abs_split)
         subgoal for p tsil tsin tti tsi j subi
           using Cons list_split a_split True
           by sep_auto
@@ -1227,7 +1227,7 @@ partial_function (heap) isin' :: "('a::{heap,linorder}) btnode ref option \<Righ
      None \<Rightarrow> return False |
      (Some a) \<Rightarrow> do {
        node \<leftarrow> !a;
-       i \<leftarrow> bin_split' (kvs node) x;
+       i \<leftarrow> bin_split (kvs node) x;
        tsl \<leftarrow> pfa_length (kvs node);
        if i < tsl then do {
          s \<leftarrow> pfa_get (kvs node) i;
@@ -1260,7 +1260,7 @@ next
     case [simp]: Nil
     show ?thesis
       apply(subst isin.simps)
-      apply(sep_auto heap: split_imp_abs_split)
+      apply(sep_auto heap: bin_split_imp_abs_split)
         apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
        apply(rule hoare_triple_preI)
        apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
@@ -1277,7 +1277,7 @@ next
       then show ?thesis
         apply(simp split: list.splits prod.splits)
         apply(subst isin.simps)
-        apply(sep_auto heap: split_imp_abs_split)
+        apply(sep_auto heap: bin_split_imp_abs_split)
          apply(rule hoare_triple_preI)
          apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
         apply(rule hoare_triple_preI)
@@ -1290,7 +1290,7 @@ next
         apply safe
         using False apply simp
         apply(subst isin.simps)
-        apply(sep_auto heap: split_imp_abs_split)
+        apply(sep_auto heap: bin_split_imp_abs_split)
           (*eliminate vacuous case*)
           apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!:  mod_starD list_assn_len)[]
           (* simplify towards induction step *)
@@ -1333,7 +1333,7 @@ partial_function (heap) ins' :: "nat \<Rightarrow> 'a \<Rightarrow> ('a::{heap,l
     return (Up_i None x None) |
   (Some a) \<Rightarrow> do {
     node \<leftarrow> !a;
-    i \<leftarrow> bin_split' (kvs node) x;
+    i \<leftarrow> bin_split (kvs node) x;
     tsl \<leftarrow> pfa_length (kvs node);
     if i < tsl then do {
       s \<leftarrow> pfa_get (kvs node) i;
@@ -1397,7 +1397,7 @@ next
       case (T_i a)
       then show ?thesis
         apply(subst ins'.simps)
-        apply(sep_auto heap: split_imp_abs_split)
+        apply(sep_auto heap: bin_split_imp_abs_split)
         subgoal for p tsil tsin tti
           using Nil list_split
           by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)
@@ -1420,7 +1420,7 @@ next
       case (Up_i l a r)
       then show ?thesis
         apply(subst ins'.simps)
-        apply(sep_auto heap: split_imp_abs_split)
+        apply(sep_auto heap: bin_split_imp_abs_split)
         subgoal for p tsil tsin tti
           using Nil list_split
           by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)                 
@@ -1451,7 +1451,7 @@ next
       case True
       show ?thesis
         apply(subst ins'.simps)
-        apply(sep_auto heap: split_imp_abs_split)
+        apply(sep_auto heap: bin_split_imp_abs_split)
         subgoal for p tsil tsin tti tsi j subi
           using Cons list_split a_split True
           by sep_auto

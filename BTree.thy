@@ -66,6 +66,7 @@ thm btree.set
 value "height_alt (Node [] (Leaf::nat btree))"
 value "height (Node [] (Leaf::nat btree))"
 
+
 lemma seperators_split:
   "set (seperators (l@(a,b)#r)) = set (seperators l) \<union> set (seperators r) \<union> {b}"
   by auto

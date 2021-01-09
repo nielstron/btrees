@@ -8,7 +8,8 @@ text "Textbooks usually provide some proofs relating the maxmimum and minimum he
 for a given number of nodes. We therefore introduce this counting and show the respective proofs."
 
 
-text "The default size function does not suit our needs in this case.
+
+text "The default size function does not suit our needs.
  We would like to count the number of nodes in the tree only, not regarding the number of keys."
 
 (* we want a different counting method,
@@ -17,7 +18,6 @@ fun size_btree::"'a btree \<Rightarrow> nat" where
   "size_btree Leaf = 0" |
   "size_btree (Node ts t) = 1 + sum_list (map size_btree (subtrees ts)) + (size_btree t)"
 
-find_theorems "height Leaf"
 
 (* maximum number of nodes for given height *)
 subsection "Maximum number of nodes for a given height"
@@ -33,8 +33,10 @@ lemma sum_list_distrib: "sum_list (map f xs) * (c::nat) = sum_list (map (\<lambd
    apply(auto simp add: add_mult_distrib)
   done
 
+abbreviation "upper_bound k h \<equiv> (2*k+1)^h - 1"
+
 lemma size_height_upper_bound: 
-  "\<lbrakk>order k t; bal t\<rbrakk> \<Longrightarrow> size_btree t * (2*k) \<le> (2*k+1)^(height t) - 1"
+  "\<lbrakk>order k t; bal t\<rbrakk> \<Longrightarrow> size_btree t * (2*k) \<le> upper_bound k (height t)"
 proof(induction t rule: size_btree.induct)
   case (2 ts t)
   let ?sub_height = "((2 * k + 1) ^ height t - 1)"
@@ -93,21 +95,38 @@ lemma compow_id_point: "f x = x \<Longrightarrow> (f ^^ c) x = x"
   done
 
 
-lemma height_full_tree: "height (full_tree k a n) = n"
-  apply(induction k a n rule: full_tree.induct)
+lemma height_full_tree: "height (full_tree k a h) = h"
+  apply(induction k a h rule: full_tree.induct)
    apply (auto simp add: compow_id_point)
   done
 
-lemma full_btrees_sharp: "size_btree (full_tree k a n) * (2*k) = (2*k+1)^n - 1"
-  apply(induction k a n rule: full_tree.induct)
+lemma bal_full_tree: "bal (full_tree k a h)"
+  apply(induction k a h rule: full_tree.induct)
+   apply auto
+  done
+
+lemma order_full_tree: "order k (full_tree k a h)"
+  apply(induction k a h rule: full_tree.induct)
+   apply auto
+  done
+
+lemma full_btrees_sharp: "size_btree (full_tree k a h) * (2*k) = upper_bound k h"
+  apply(induction k a h rule: full_tree.induct)
    apply (auto simp add: height_full_tree algebra_simps sum_list_replicate)
   done
+
+lemma upper_bound_sharp:
+  "t = full_tree k () h \<Longrightarrow> height t = h \<and> order k t \<and> bal t \<and> upper_bound k h = size_btree t * (2*k)"
+  by (simp add: bal_full_tree height_full_tree order_full_tree full_btrees_sharp)
+
 
 (* maximum number of nodes *)
 subsection "Maximum height for a given number of nodes"
 
+abbreviation "lower_bound k h \<equiv> ((k+1)^h - 1)"
+
 lemma size_height_lower_bound: 
-  "\<lbrakk>order k t; bal t\<rbrakk> \<Longrightarrow> ((k+1)^(height t) - 1) \<le> size_btree t * k"
+  "\<lbrakk>order k t; bal t\<rbrakk> \<Longrightarrow> lower_bound k (height t) \<le> size_btree t * k"
 proof(induction t rule: size_btree.induct)
   case (2 ts t)
   let ?sub_height = "((k + 1) ^ height t - 1)"
@@ -157,15 +176,29 @@ value "let k = (2::nat) in map (\<lambda>x. size_btree x * k) (map (slim_tree k 
 value "let k = (2::nat) in map (\<lambda>x. ((k+1::nat)^(x)-1)) [0,1,2,3,4]"
 
 
-lemma height_slim_tree: "height (slim_tree k a n) = n"
-  apply(induction k a n rule: slim_tree.induct)
+lemma height_slim_tree: "height (slim_tree k a h) = h"
+  apply(induction k a h rule: slim_tree.induct)
    apply (auto simp add: compow_id_point)
   done
 
-lemma slim_btrees_sharp: "size_btree (slim_tree k a n) * k = ((k+1)^(n) - 1)"
-  apply(induction k a n rule: slim_tree.induct)
-   apply (auto simp add: height_slim_tree algebra_simps sum_list_replicate)
+lemma bal_slim_tree: "bal (slim_tree k a h)"
+  apply(induction k a h rule: full_tree.induct)
+   apply auto
   done
+
+lemma order_slim_tree: "order k (slim_tree k a h)"
+  apply(induction k a h rule: full_tree.induct)
+   apply auto
+  done
+
+lemma slim_trees_sharp: "size_btree (slim_tree k a h) * k = lower_bound k h"
+  apply(induction k a h rule: slim_tree.induct)
+   apply (auto simp add: height_slim_tree algebra_simps sum_list_replicate compow_id_point)
+  done
+
+lemma lower_bound_sharp:
+  "t = slim_tree k () h \<Longrightarrow> height t = h \<and> order k t \<and> bal t \<and> lower_bound k h = size_btree t * k"
+  by (simp add: bal_slim_tree height_slim_tree order_slim_tree slim_trees_sharp)
 
 (* TODO results for root_order/bal *)
 text "Since BTrees have special roots, we need to show the overall size seperately"
@@ -175,9 +208,6 @@ lemma size_root_height_lower_bound:
     and "bal t"
   shows "2*((k+1)^(height t - 1) - 1) \<le> size_btree t * k"
 proof (cases t)
-  case Leaf
-  then show ?thesis by simp
-next
   case (Node ts t)
   let ?sub_height = "((k + 1) ^ height t - 1)"
   from Node have "?sub_height \<le> length ts * ?sub_height"
@@ -209,8 +239,81 @@ next
     by linarith
   then show ?thesis
     using Node assms(2) height_bal_tree by fastforce
+qed simp
+
+lemma size_root_height_upper_bound: 
+  assumes "root_order k t"
+    and "bal t"
+  shows "size_btree t * (2*k) \<le> (2*k+1)^(height t) - 1"
+proof(cases t)
+  case (Node ts t)
+  let ?sub_height = "((2 * k + 1) ^ height t - 1)"
+  have "sum_list (map size_btree (subtrees ts)) * (2*k) =
+        sum_list (map (\<lambda>t. size_btree t * (2 * k)) (subtrees ts))"
+    using sum_list_mult_const by metis
+  also have "\<dots> \<le> sum_list (map (\<lambda>x.?sub_height) (subtrees ts))"
+    using Node
+      sum_list_mono[of "subtrees ts" "\<lambda>x. size_btree x * (2*k)"  "\<lambda>x. (2*k+1)^(height t) - 1"]
+      size_height_upper_bound assms
+    by fastforce
+  also have "\<dots> = sum_list (replicate (length ts) ?sub_height)"
+    using map_replicate_const[of ?sub_height "subtrees ts"] length_map
+    by simp
+  also have "\<dots> = (length ts)*(?sub_height)"
+    using sum_list_replicate by simp
+  also have "\<dots> \<le> (2*k)*?sub_height"
+    using assms Node
+    by simp
+  finally have "sum_list (map size_btree (subtrees ts))*(2*k) \<le> ?sub_height*(2*k)"
+    by simp
+  moreover have "(size_btree t)*(2*k) \<le> ?sub_height"
+    using Node assms size_height_upper_bound
+    by auto
+  ultimately have "(size_btree (Node ts t))*(2*k) \<le> 
+         2*k
+        + ?sub_height * (2*k)
+        + ?sub_height"
+    unfolding size_btree.simps add_mult_distrib
+    by linarith
+  also have "\<dots> =  2*k + (2*k)*((2 * k + 1) ^ height t) - 2*k + (2 * k + 1) ^ height t - 1"
+    by (simp add: diff_mult_distrib2 mult.assoc mult.commute)
+  also have "\<dots> = (2*k)*((2 * k + 1) ^ height t) + (2 * k + 1) ^ height t - 1"
+    by simp
+  also have "\<dots> = (2*k+1)^(Suc(height t)) - 1"
+    by simp
+  finally show ?thesis
+    by (metis Node assms(2) height_bal_tree)
+qed simp
+
+lemma root_order_imp_divmuleq: "root_order k t \<Longrightarrow> (size_btree t * k) div k = size_btree t"
+  using root_order.elims(2) by fastforce
+
+lemma size_root_height_lower_bound_simp:
+  assumes "root_order k t"
+    and "bal t"
+  shows "2*((k+1)^(height t - 1) - 1) div k \<le> size_btree t"
+proof -
+  have "2*((k+1)^(height t - 1) - 1) div k \<le> (size_btree t * k) div k"
+    using size_root_height_lower_bound[OF assms] div_le_mono
+    by blast
+  also have "\<dots> = size_btree t"
+    using root_order_imp_divmuleq[OF assms(1)]
+    by simp
+  finally show ?thesis .
 qed
-  
+
+lemma size_root_height_upper_bound_simp:
+  assumes "root_order k t"
+    and "bal t"
+  shows "size_btree t \<le> ((2*k+1)^(height t) - 1) div (2*k)"
+proof -
+  have "size_btree t = (size_btree t * (2*k)) div (2*k)"
+    using root_order_imp_divmuleq[OF assms(1)]
+    by simp
+  also have "\<dots> \<le> ((2*k+1)^(height t) - 1) div (2*k)"
+    using div_le_mono size_root_height_upper_bound[OF assms] by blast
+  finally show ?thesis .
+qed
 
 
 

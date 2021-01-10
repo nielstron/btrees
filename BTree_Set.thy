@@ -1306,6 +1306,81 @@ simp add: node_i_inorder)
    we can apply ins_list_snoc/ins_list_sorted  *)
   oops
 
+
+(* generalize ins_list_sorted since its cumbersome to express inorder_list ts as xs @ [a] *)
+  thm ins_list_sorted1
+
+lemma ins_list_sorted3: "sorted_less (xs @ [a]) \<Longrightarrow>
+  a < x \<Longrightarrow> ins_list x (xs @ a # ys) = xs @ a # ins_list x ys"
+  using ins_list_sorted by fastforce
+
+lemma ins_list_split:
+  assumes "split_fun ts x = (ls, rs)"
+    and "t' = Node ts t"
+    and "sorted_less (inorder t')"
+  shows "ins_list x (inorder t') = inorder_list ls @ ins_list x (inorder_list rs @ inorder t)"
+proof (cases ls)
+  case Nil
+  then show ?thesis
+    using assms by (auto dest!: split_fun_req(1))
+next
+  case Cons
+  then obtain ls' sub sep where ls_tail_split: "ls = ls' @ [(sub,sep)]"
+    by (metis list.distinct(1) rev_exhaust surj_pair)
+  moreover have "sep < x"
+  proof -
+    have "sep \<in> set (separators ls)"
+      by (simp add: ls_tail_split)
+    moreover have "sorted_less (separators ts)"
+      using assms sorted_inorder_subsepsm sorted_wrt_list_sorted
+      by auto
+    ultimately show "sep < x"
+      using split_fun_req(2) assms(1)
+      by blast
+  qed
+  moreover have "sorted_less (inorder_list ls)"
+    using assms sorted_wrt_append split_fun_req_alt(1) by fastforce
+  ultimately show ?thesis using assms(2) split_fun_req(1)[OF assms(1)]
+      ins_list_sorted3[of "inorder_list ls' @ inorder sub" sep]
+    by auto
+qed
+
+lemma ins_sorted_inorder: "sorted_less (inorder t) \<Longrightarrow> (inorder_up_i (ins k (x::('a::linorder)) t)) = ins_list x (inorder t)"
+proof(induction k x t rule: ins.induct)
+case (1 k x)
+  then show ?case by auto
+next
+case (2 k x ts t)
+  then obtain ls rs where list_split: "split_fun ts x = (ls,rs)"
+    by (cases "split_fun ts x")
+  then show ?case
+  proof (cases rs)
+    case Nil
+    then show ?thesis
+    proof (cases "ins k x t")
+      case (T_i a)
+      then have IH:"inorder a = ins_list x (inorder t)"
+        using "2.IH"(1) "2.prems" list_split local.Nil sorted_inorder_last
+        by auto
+      then have "inorder_up_i (ins k x (Node ts t)) = inorder_list ls @ inorder a"
+        using list_split T_i Nil by (auto dest!: split_fun_req(1))
+      also have "\<dots> = inorder_list ls @ (ins_list x (inorder t))"
+        by (simp add: IH)
+      also have "\<dots> = ins_list x (inorder_list ts @ inorder t)"
+        using ins_list_split[of ts x ls rs "Node ts t" t]
+        using "2.prems" list_split Nil by auto
+      finally show ?thesis
+        using list_split Nil T_i by auto
+    next
+      case (Up_i l a r)
+      then show ?thesis sorry
+    qed
+  next
+    case (Cons a list)
+    then show ?thesis sorry
+  qed
+qed
+
 thm ins.induct
 thm btree.induct
 

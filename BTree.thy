@@ -27,17 +27,15 @@ fun inorder :: "'a btree \<Rightarrow> 'a list" where
   "inorder (Node ts t) = concat (map (\<lambda> (sub, sep). inorder sub @ [sep]) ts) @ inorder t"
 
 
-fun inorder_list where
-  "inorder_list ts = concat (map (\<lambda> (sub, sep). inorder sub @ [sep]) ts)"
+abbreviation "inorder_list ts \<equiv> concat (map (\<lambda> (sub, sep). inorder sub @ [sep]) ts)"
 
-find_theorems concat
+(* this abbreviation makes handling the list much easier *)
+thm inorder.simps
 
 abbreviation subtrees where "subtrees xs \<equiv> (map fst xs)"
 abbreviation separators where "separators xs \<equiv> (map snd xs)"
-fun set_btree_pair where
-  "set_btree_pair uu = (\<Union>(set_btree ` Basic_BNFs.fsts uu) \<union> Basic_BNFs.snds uu)"
-fun set_btree_list where
-  "set_btree_list ts = (\<Union>uu\<in>set ts. set_btree_pair uu)"
+abbreviation "set_btree_pair uu \<equiv> (\<Union>(set_btree ` Basic_BNFs.fsts uu) \<union> Basic_BNFs.snds uu)"
+abbreviation "set_btree_list ts \<equiv> (\<Union>uu\<in>set ts. set_btree_pair uu)"
 
 
 lemma set_btree_split: 
@@ -487,7 +485,7 @@ proof(induction t rule: sorted_btree.induct)
 qed auto
 
 lemma sorted_inorder_subtrees:
-  "sorted_less (inorder_list ts) \<Longrightarrow> \<forall>x \<in> set (subtrees ts). sorted_less (inorder x)"
+  "sorted_less (inorder_list ts) \<Longrightarrow> \<forall> sub \<in> set (subtrees ts). sorted_less (inorder sub)"
 proof(induction ts)
   case (Cons a ts)
   then obtain sub sep where "a = (sub,sep)"
@@ -497,11 +495,14 @@ proof(induction ts)
   moreover have "set (subtrees (a#ts)) = set (subtrees ts) \<union> {sub}"
     using \<open>a = (sub,sep)\<close> by auto
   moreover have "sorted_less (inorder_list ts)"
-    unfolding inorder_list.simps
     using Cons.prems sorted_wrt_append by fastforce
   ultimately show ?case using Cons
     by auto
 qed auto
+
+lemma sorted_inorder_subtrees_induct:
+  "sorted_less (inorder_list (ls@(sub,sep)#rs)) \<Longrightarrow> sorted_less (inorder sub)"
+  by (simp add: sorted_wrt_append)
 
 lemma sorted_inorder_last: "sorted_less (inorder (Node ts t)) \<Longrightarrow> sorted_less (inorder t)"
   by (simp add: sorted_wrt_append)
@@ -518,7 +519,6 @@ proof(induction ts)
     using set_btree_inorder_set_btree sorted_pair_list
     by fastforce
   moreover have "sorted_less (inorder_list ts)"
-    unfolding inorder_list.simps
     using Cons.prems sorted_wrt_append by fastforce
   ultimately show ?case using Cons         
     using \<open>a = (sub,sep)\<close> by auto
@@ -583,6 +583,7 @@ lemma sorted_sorted_btree: "sorted_less (inorder t) \<Longrightarrow> sorted_btr
 lemma sorted_btree_eq: "sorted_less (inorder t) = sorted_btree t"
   using sorted_btree_sorted sorted_sorted_btree by blast
 
-find_theorems foldr "(@)"
+find_theorems concat
+find_theorems sorted_wrt "(@)"
 
 end

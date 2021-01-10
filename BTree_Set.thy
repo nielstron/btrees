@@ -46,6 +46,15 @@ begin
 
 thm split_fun_req
 
+
+lemma split_fun_drule:
+  assumes "split_fun ts p = (ls,rs)"
+    and "sorted_less (separators ts)"
+  shows "ls@rs = ts"
+    and "\<forall>sep \<in> set (separators ls). p > sep"
+    and "case rs of [] \<Rightarrow> True | (sub,sep)#rrs \<Rightarrow> p \<le> sep"
+  using split_fun_req assms by auto
+
 lemma split_fun_req3_alt: 
   assumes "split_fun xs p = (ls,rs)"
     and "sorted_less (separators xs)"
@@ -112,11 +121,11 @@ fun isin:: "'a btree \<Rightarrow> 'a \<Rightarrow> bool" where
 (* proofs *)
 (* showing that isin implies the set containment is easy *)
 
-lemma "isin n x \<Longrightarrow> x \<in> set_btree n"
-  apply(induction n x rule:isin.induct)
-  using split_fun_axioms apply(auto split!: list.splits)
-   apply blast
-  by (metis fst_conv fsts.intros split_fun_set(1) split_fun_set(5))
+lemma "isin t x \<Longrightarrow> x \<in> set_btree t"
+  apply(induction t)
+  using split_fun_axioms apply(auto split!: list.splits if_splits dest!: split_fun_set(1))
+   apply force+
+  done
 
 (* explicit proof *)
 lemma isin_impl_set: "isin n x \<Longrightarrow> x \<in> set_btree n"
@@ -1271,7 +1280,31 @@ proof (induction k x t rule: ins.induct)
   qed
 qed simp
 
+fun inorder_up_i where
+  "inorder_up_i (T_i t) = inorder t" |
+  "inorder_up_i (Up_i l a r) = inorder l @ [a] @ inorder r"
 
+
+lemma node_i_inorder: "inorder_up_i (node_i k ts t) = inorder (Node ts t)"
+  apply(cases "length ts \<le> 2*k")
+   apply (auto split!: list.splits)
+(* we want to only transform in one direction here.. *)
+   supply R = sym[OF append_take_drop_id, of "map _ ts" "(length ts div 2)"]
+  thm R
+  apply(subst R)
+  apply (simp del: append_take_drop_id add: take_map drop_map)
+  done
+
+
+lemma ins_sorted_inorder: "sorted_less (inorder t) \<Longrightarrow> (inorder_up_i (ins k (x::('a::linorder)) t)) = ins_list x (inorder t)"
+  apply(induction k x t rule: ins.induct)
+  using split_fun_axioms apply (auto split!: prod.splits list.splits up_i.splits simp del: node_i.simps
+simp add: node_i_inorder)
+  thm split_fun_drule
+     apply(drule split_fun_req(1), simp) (* no! *)
+(* from here on we need an explicit proof, showing that
+   we can apply ins_list_snoc/ins_list_sorted  *)
+  oops
 
 thm ins.induct
 thm btree.induct

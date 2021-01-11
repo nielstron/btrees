@@ -444,7 +444,7 @@ lemma node_i_order:
 
   apply(cases "node_i k ts t")
   using node_i_root_order node_i_order_helper assms apply fastforce
-   apply (metis node_i_root_order assms(2,3,4) le0 length_greater_0_conv list.size(3) node_i.simps order_up_i.simps(2) root_order_up_i.simps(2) up_i.distinct(1))
+  apply (metis node_i_root_order assms(2,3,4) le0 length_greater_0_conv list.size(3) node_i.simps order_up_i.simps(2) root_order_up_i.simps(2) up_i.distinct(1))
   done
 
 
@@ -796,16 +796,16 @@ fun inorder_up_i where
 lemma node_i_inorder: "inorder_up_i (node_i k ts t) = inorder (Node ts t)"
   apply(cases "length ts \<le> 2*k")
    apply (auto split!: list.splits)
-(* we want to only transform in one direction here.. *)
-   supply R = sym[OF append_take_drop_id, of "map _ ts" "(length ts div 2)"]
+    (* we want to only transform in one direction here.. *)
+  supply R = sym[OF append_take_drop_id, of "map _ ts" "(length ts div 2)"]
   thm R
   apply(subst R)
   apply (simp del: append_take_drop_id add: take_map drop_map)
   done
 
 corollary node_i_inorder_simps:
-"node_i k ts t = T_i t' \<Longrightarrow> inorder t' = inorder (Node ts t)"
-"node_i k ts t = Up_i l a r \<Longrightarrow> inorder l @ a # inorder r = inorder (Node ts t)"
+  "node_i k ts t = T_i t' \<Longrightarrow> inorder t' = inorder (Node ts t)"
+  "node_i k ts t = Up_i l a r \<Longrightarrow> inorder l @ a # inorder r = inorder (Node ts t)"
    apply (metis inorder_up_i.simps(1) node_i_inorder)
   by (metis append_Cons inorder_up_i.simps(2) node_i_inorder self_append_conv2)
 
@@ -813,8 +813,8 @@ corollary node_i_inorder_simps:
 lemma ins_sorted_inorder: "sorted_less (inorder t) \<Longrightarrow> (inorder_up_i (ins k (x::('a::linorder)) t)) = ins_list x (inorder t)"
   apply(induction k x t rule: ins.induct)
   using split_fun_axioms apply (auto split!: prod.splits list.splits up_i.splits simp del: node_i.simps
-simp add:  node_i_inorder node_i_inorder_simps)
-(* from here on we prefer an explicit proof, showing how to apply the IH  *)
+      simp add:  node_i_inorder node_i_inorder_simps)
+    (* from here on we prefer an explicit proof, showing how to apply the IH  *)
   oops
 
 
@@ -894,10 +894,10 @@ declare node_i_inorder [simp add]
 
 lemma ins_inorder: "sorted_less (inorder t) \<Longrightarrow> (inorder_up_i (ins k x t)) = ins_list x (inorder t)"
 proof(induction k x t rule: ins.induct)
-case (1 k x)
+  case (1 k x)
   then show ?case by auto
 next
-case (2 k x ts t)
+  case (2 k x ts t)
   then obtain ls rs where list_split: "split_fun ts x = (ls,rs)"
     by (cases "split_fun ts x")
   then have list_conc: "ts = ls@rs"
@@ -911,7 +911,7 @@ case (2 k x ts t)
       then have IH:"inorder a = ins_list x (inorder t)"
         using "2.IH"(1) "2.prems" list_split local.Nil sorted_inorder_last
         by auto
-      
+
       have "inorder_up_i (ins k x (Node ts t)) = inorder_list ls @ inorder a"
         using list_split T_i Nil by (auto simp add: list_conc)
       also have "\<dots> = inorder_list ls @ (ins_list x (inorder t))"
@@ -924,7 +924,7 @@ case (2 k x ts t)
       case (Up_i l a r)
       then have IH:"inorder_up_i (Up_i l a r) = ins_list x (inorder t)"
         using "2.IH"(1) "2.prems" list_split local.Nil sorted_inorder_last by auto
-      
+
       have "inorder_up_i (ins k x (Node ts t)) = inorder_list ls @ inorder_up_i (Up_i l a r)"
         using list_split Up_i Nil by (auto simp add: list_conc)
       also have "\<dots> = inorder_list ls @ ins_list x (inorder t)"
@@ -1370,10 +1370,10 @@ lemma rebalance_middle_tree_inorder:
   apply (cases t)
   using assms node_i_inorder 
    apply (auto
-          split!: btree.splits up_i.splits list.splits
-          simp del: node_i.simps
-          simp add: node_i_inorder_simps
-    )
+      split!: btree.splits up_i.splits list.splits
+      simp del: node_i.simps
+      simp add: node_i_inorder_simps
+      )
   done
 
 lemma rebalance_last_tree_inorder:
@@ -2004,12 +2004,12 @@ proof (induction k x t rule: del.induct)
         using del_list_split[of ts x ls "(sub,sep)#rs" t]
         apply auto
         using del_list_sorted1[of "inorder sub" sep "inorder_list rs @ inorder t" x]
-              sorted_wrt_append
+          sorted_wrt_append
         by auto
       also have "\<dots> = inorder_list ls @ inorder_pair (split_max k sub) @ inorder_list rs @ inorder t"
         using sym[OF split_max_inorder[of sub k]]
         using order_bal_nonempty_lasttreebal[of k sub] "2.prems"
-              list_conc h_split Cons sep_x_Node
+          list_conc h_split Cons sep_x_Node
         by (auto simp del: split_max.simps simp add: order_impl_root_order)
       also have "\<dots> = inorder_list ls @ inorder ssub @ ssep # inorder_list rs @ inorder t"
         using split_split by auto

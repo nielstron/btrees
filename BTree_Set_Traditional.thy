@@ -1,5 +1,5 @@
 theory BTree_Set_Traditional
-imports BTree_Set
+  imports BTree_Set
 begin
 
 (* For documentation purposes, the traditional way proofs
@@ -170,12 +170,12 @@ fun sorted_up_i where
 
 lemma sorted_btree_split_rs: "sorted_btree (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> sorted_btree (Node rs t) \<and>  (\<forall>r \<in> set (separators rs). sep < r)"
   apply(induction ls)
-   apply(auto)
+  apply(auto)
   done
 
 lemma sorted_btree_split_ls: "sorted_btree (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> sorted_btree (Node ls sub) \<and>  (\<forall>l \<in> set (separators ls). l < sep)"
   apply(induction ls)
-   apply(auto)
+  apply(auto)
   done
 
 lemma up_i_sorted:
@@ -311,7 +311,7 @@ next
 next
   fix s assume "s \<in> set (subtrees (ls @ (sub, sep) # rs))"
   then show "sorted_btree s"
-   by (metis Un_iff assms(1) assms(5) singletonD sorted_btree.simps(2) subtrees_split)
+    by (metis Un_iff assms(1) assms(5) singletonD sorted_btree.simps(2) subtrees_split)
 next
   show "sorted_btree t" using assms(5) by simp
 qed
@@ -367,7 +367,7 @@ proof (induction k x t rule: ins.induct)
     have sub_lists_sorted:
       "sorted_wrt sub_sep_sm (ls@(sub,sep)#[])"
       "sorted_wrt sub_sep_sm ((sub,sep)#list)"
-       apply (metis (mono_tags, lifting) "2.prems" a_split list_split Cons sorted_btree.simps(2) sorted_wrt_Cons sorted_wrt_split split_fun_req_alt(1) sorted_wrt1)
+      apply (metis (mono_tags, lifting) "2.prems" a_split list_split Cons sorted_btree.simps(2) sorted_wrt_Cons sorted_wrt_split split_fun_req_alt(1) sorted_wrt1)
       apply (metis (mono_tags, lifting) "2.prems" list_split a_split Cons sorted_btree.simps(2) sorted_wrt_Cons sorted_wrt_split split_fun_req_alt(1))
       done
     have ts_split: "ts = ls@(sub,sep)#list"
@@ -527,12 +527,12 @@ qed simp
 
 lemma tree_i_sorted: "sorted_up_i u \<Longrightarrow> sorted_btree (tree_i u)"
   apply(cases u)
-   apply(auto)
+  apply(auto)
   done
 
 lemma tree_i_set: "set_up_i u = set_btree (tree_i u)"
   apply(cases u)
-   apply(auto)
+  apply(auto)
   done
 
 lemma insert_sorted: "sorted_btree t \<Longrightarrow> sorted_btree (insert k x t)"
@@ -734,7 +734,7 @@ proof(induction k x t rule: del.induct)
       using "2.prems"(3) bal_sub_height list_split split_fun_req_alt(1) by blast
     from Cons list_split have x_not_sub: "x \<notin> set_btree_list rs" "x \<notin> set_btree_list ls" "x \<notin> set_btree t"
       using sorted_split_contains 2
-      (*FIXME by (metis list.simps(5) sorted_btree.simps(2))+*)
+        (*FIXME by (metis list.simps(5) sorted_btree.simps(2))+*)
       sorry
     from Cons obtain sub sep where a_split: "a = (sub,sep)" by (cases a)
     consider (sep_n_x) "sep \<noteq> x" |
@@ -755,12 +755,12 @@ proof(induction k x t rule: del.induct)
         using set_btree_split by auto
       also have "\<dots> = (set_btree_list ls \<union> set_btree sub \<union> {sep} \<union> set_btree_list rs \<union> set_btree t) - {x}"
         using sorted_split_contains sep_n_x x_not_sub sub_set
-        proof -
-          have "set_btree t - {x} \<union> ({sep} - {x} \<union> (set_btree sub - {x} \<union> (set_btree_list ls - {x})) \<union> (set_btree_list rs - {x})) = set_btree t \<union> ({sep} \<union> (set_btree sub - {x} \<union> set_btree_list ls) \<union> set_btree_list rs)"
-            using sep_n_x x_not_sub(1) x_not_sub(2) x_not_sub(3) by auto
-          then show ?thesis
-            using sub_set by auto
-        qed
+      proof -
+        have "set_btree t - {x} \<union> ({sep} - {x} \<union> (set_btree sub - {x} \<union> (set_btree_list ls - {x})) \<union> (set_btree_list rs - {x})) = set_btree t \<union> ({sep} \<union> (set_btree sub - {x} \<union> set_btree_list ls) \<union> set_btree_list rs)"
+          using sep_n_x x_not_sub(1) x_not_sub(2) x_not_sub(3) by auto
+        then show ?thesis
+          using sub_set by auto
+      qed
       also have "\<dots> = set_btree (Node (ls@(sub,sep)#rs) t) - {x}"
         by auto
       finally show ?thesis unfolding del.simps
@@ -899,7 +899,7 @@ next
           using separators_split by auto
         then show "sepa < x" using x_in_t
           apply (elim disjE)
-            apply (metis (no_types, lifting) Un_iff assms(3) dual_order.strict_trans list.set_intros(1) separators_in_set set_append sorted_btree.simps(2) sorted_sub_sep_impl sub_node sub_sep_cons.simps subsetD)
+          apply (metis (no_types, lifting) Un_iff assms(3) dual_order.strict_trans list.set_intros(1) separators_in_set set_append sorted_btree.simps(2) sorted_sub_sep_impl sub_node sub_sep_cons.simps subsetD)
           using assms(3) sorted_sub_sep_impl apply blast
           using \<open>x \<in> set_btree tt\<close> assms(3) sorted_btree.simps(2) t_node apply blast
           done
@@ -976,7 +976,7 @@ next
           then have "\<forall>x \<in> set_btree r. sep < x"
             apply(elim disjE)
             using set_lar assms
-             apply (metis (no_types, lifting) Un_iff Un_insert_right dual_order.strict_trans insert_iff sorted_btree.simps(2) sorted_btree_split_ls sorted_sub_sep_impl subsetD sup_bot.right_neutral)
+            apply (metis (no_types, lifting) Un_iff Un_insert_right dual_order.strict_trans insert_iff sorted_btree.simps(2) sorted_btree_split_ls sorted_sub_sep_impl subsetD sup_bot.right_neutral)
             using sorted_node_i Up_i
             apply simp
             done
@@ -1035,7 +1035,7 @@ next
           using separators_split by auto
         then show "sepa < x" using x_in_t
           apply (elim disjE)
-            apply (metis Un_iff assms(3) dual_order.strict_trans list.set_intros(1) Cons r_split separators_in_set set_append some_child_sub(1) sorted_btree.simps(2) sorted_wrt_append sorted_wrt_sorted_left sub_node sub_sep_cons.simps subsetD)
+          apply (metis Un_iff assms(3) dual_order.strict_trans list.set_intros(1) Cons r_split separators_in_set set_append some_child_sub(1) sorted_btree.simps(2) sorted_wrt_append sorted_wrt_sorted_left sub_node sub_sep_cons.simps subsetD)
           using \<open>x \<in> set_btree rt\<close> assms(3)  sub_sorted_lr(3)  Cons by auto
       qed auto
       then have
@@ -1054,7 +1054,7 @@ next
             then show "sub_sep_sm (a, b) (u, rsep)"
               unfolding sub_sep_sm.simps
               apply (safe)
-               apply (metis (no_types, lifting) \<open>(a, b) \<in> set ls\<close> assms(3) Cons r_split sorted_btree_sorted sorted_inorder_subsepsm sorted_wrt_split2 sub_sep_sm.simps sub_sep_sm_trans)
+              apply (metis (no_types, lifting) \<open>(a, b) \<in> set ls\<close> assms(3) Cons r_split sorted_btree_sorted sorted_inorder_subsepsm sorted_wrt_split2 sub_sep_sm.simps sub_sep_sm_trans)
               apply (metis (no_types, lifting) T_i UnE \<open>(a, b) \<in> set ls\<close> set_node_i assms(3) less_trans Cons r_split set_up_i.simps(1) singletonD sorted_btree_sorted sorted_inorder_subsepsm sorted_wrt_split2 sub_sep_sm.simps)
               done
           next
@@ -1199,9 +1199,9 @@ proof (induction k t arbitrary: sub sep rule: split_max.induct)
     have "sorted_btree (Node (butlast ts) sub)"
       unfolding sorted_btree.simps
       apply(safe)
-          apply (metis "1.prems"(2) append_butlast_last_id butlast.simps(1) sorted_btree_sorted sorted_inorder_subsepsm sorted_wrt_append)
-         apply (meson "1.prems"(2) in_set_butlastD sorted_btree.simps(2))
-        apply (metis "1.prems"(3) Leaf btree.distinct(1) btree.set_cases fst_conv height_Leaf last_split nonempty_lasttreebal.simps(2) snoc_eq_iff_butlast)
+      apply (metis "1.prems"(2) append_butlast_last_id butlast.simps(1) sorted_btree_sorted sorted_inorder_subsepsm sorted_wrt_append)
+      apply (meson "1.prems"(2) in_set_butlastD sorted_btree.simps(2))
+      apply (metis "1.prems"(3) Leaf btree.distinct(1) btree.set_cases fst_conv height_Leaf last_split nonempty_lasttreebal.simps(2) snoc_eq_iff_butlast)
       using "1.prems" apply auto[1]
       by (metis "1.prems"(3) Leaf fst_conv height_Leaf last_split nonempty_lasttreebal.simps(2) snoc_eq_iff_butlast sorted_btree.simps(1))      
     then show ?thesis
@@ -1323,10 +1323,10 @@ proof (induction k x t rule: del.induct)
         unfolding sorted_btree.simps
         apply(safe)
         using replace_subtree_sorted_wrt node_sorted_split
-            apply (metis Diff_subset sorted_btree.simps(2))
-           apply (metis (no_types, lifting) DiffD1 Un_iff insert_iff list.simps(15) node_sorted_split(1) set_append sorted_btree.simps(2) sub_sep_cons.simps)
-          apply (metis node_sorted_split(1) separators_split sorted_btree.simps(2))
-         apply (metis Un_iff insert_iff node_sorted_split(1) sorted_btree.simps(2) subtrees_split)
+        apply (metis Diff_subset sorted_btree.simps(2))
+        apply (metis (no_types, lifting) DiffD1 Un_iff insert_iff list.simps(15) node_sorted_split(1) set_append sorted_btree.simps(2) sub_sep_cons.simps)
+        apply (metis node_sorted_split(1) separators_split sorted_btree.simps(2))
+        apply (metis Un_iff insert_iff node_sorted_split(1) sorted_btree.simps(2) subtrees_split)
         using node_sorted_split(1) sorted_btree.simps(2) by blast
       moreover have "height (del k x sub) = height t"
         using del_height
@@ -1393,16 +1393,16 @@ qed simp
 
 lemma reduce_root_set: "set_btree (reduce_root t) = set_btree t"
   apply(cases t)
-   apply(simp)
+  apply(simp)
   subgoal for ts t
     apply(cases ts)
-     apply(auto)
+    apply(auto)
     done
   done
 
 lemma reduce_root_sorted: "sorted_btree (reduce_root t) = sorted_btree t"
   apply(cases t)
-   apply(auto split!: list.splits)
+  apply(auto split!: list.splits)
   done
 
 

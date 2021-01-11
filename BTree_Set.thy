@@ -376,7 +376,7 @@ lemma node_i_root_order:
 proof (cases "length ts \<le> 2*k")
   case True
   then show ?thesis
-    using set_map_pred_eq assms
+    using assms
     by simp
 next
   case False
@@ -422,7 +422,7 @@ lemma node_i_order_helper:
 proof (cases "length ts \<le> 2*k")
   case True
   then show ?thesis
-    using set_map_pred_eq assms
+    using assms
     by simp
 next
   case False
@@ -867,7 +867,7 @@ proof -
       by fastforce
   qed
   moreover have "sorted_less (inorder_pair (sub,sep))"
-    using assms set_btree_inorder_set_btree sorted_inorder_list_subcons sorted_inorder_subtrees_induct sorted_pair_list split_fun_req_alt(1)
+    using assms set_btree_inorder sorted_inorder_list_subcons sorted_inorder_subtrees_induct sorted_pair_list split_fun_req_alt(1)
     by fastforce
   ultimately show ?thesis
     using ins_list_sorted[of "inorder sub" "sep"]

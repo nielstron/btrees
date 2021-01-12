@@ -100,6 +100,19 @@ lemma [termination_simp]:"(ls, (sub, sep) # rs) = split_fun t y \<Longrightarrow
       size sub < Suc (size_list (\<lambda>x. Suc (size (fst x))) t  + size l)"
   by (metis group_cancel.add1 plus_1_eq_Suc some_child_sub(1) split_fun_set(1) subtree_smaller trans_less_add1)
 
+(* another useful fact from  the requirements *)
+lemma split_fun_req4: 
+  assumes "sorted_less (separators ts)"
+    and "split_fun ts x = (ls@[(sub,sep)], rs)"
+  shows "sep < x"
+proof -
+  have "sep \<in> set (separators (ls@[(sub,sep)]))"
+    by simp
+  then show "sep < x"
+    using split_fun_req(2) assms
+    by blast
+qed
+
 subsection "isin Function"
 
 fun isin:: "'a btree \<Rightarrow> 'a \<Rightarrow> bool" where
@@ -114,183 +127,118 @@ fun isin:: "'a btree \<Rightarrow> 'a \<Rightarrow> bool" where
     )
    | [] \<Rightarrow> isin t y))"
 
-(* proofs *)
-(* showing that isin implies the set containment is easy *)
+thm isin_simps
+(* copied from List_Ins_Del *)
+lemma sorted_ConsD: "sorted_less (y # xs) \<Longrightarrow> x \<le> y \<Longrightarrow> x \<notin> set xs"
+  by (auto simp: sorted_Cons_iff)
 
-lemma "isin t x \<Longrightarrow> x \<in> set_btree t"
-  apply(induction t)
-  using split_fun_axioms apply(auto split!: list.splits if_splits dest!: split_fun_set(1))
-   apply force+
-  done
-
-(* explicit proof *)
-lemma isin_impl_set: "isin n x \<Longrightarrow> x \<in> set_btree n"
-proof(induction n x rule: isin.induct)
-  case (2 ts t x)
-  then obtain ls rs where list_split[simp]: "split_fun ts x = (ls,rs)" by auto
-  then have "rs \<noteq> [] \<or> (rs = [] \<and> isin t x)"
-    using 2
-    by auto
-  then show ?case
-  proof
-    assume "rs \<noteq> []"
-    then obtain sub sep list where rs_split[simp]: "rs = (sub,sep)#list"
-      by (cases rs) auto
-    then show "x \<in> set_btree (Node ts t)"
-    proof (cases "x = sep")
-      assume "x = sep"
-      then have "x \<in> set (separators ts)"
-        by (metis list_split rs_split some_child_sub(2) split_fun_set(1))
-      then show "x \<in> set_btree (Node ts t)"
-        by (metis set_btree_induct)
-    next
-      assume "x \<noteq> sep"
-      then have "x \<in> set_btree sub"
-        using 2 by auto
-      then show "x \<in> set_btree (Node ts t)"
-        by (metis list_split rs_split child_subset fst_eqD split_fun_set(1) subsetD)
-    qed
-  qed (auto simp add: "2.IH")
-qed simp
+lemma sorted_snocD: "sorted_less (xs @ [y]) \<Longrightarrow> y \<le> x \<Longrightarrow> x \<notin> set xs"
+  by (auto simp: sorted_snoc_iff)
 
 
-(* from the split_fun axioms, we may follow the isin requirements *)
-lemma split_fun_separator_match:
-  assumes "sorted_less (separators xs)" 
-    and "x \<in> set (separators xs)" 
-    and "split_fun xs x = (ls,rs)"
-  shows "snd (hd rs) = x"
-    and "rs \<noteq> []"
-proof -
-  have "x \<in> set (separators (ls@rs))"
-    using assms split_fun_req_alt(1)
-    by blast
-  also have "x \<notin> set (separators ls)"
-    using assms(1,3) split_fun_req_alt(2)
-    by blast
-  ultimately have "x \<in> set (separators rs)"
+lemmas isin_simps2 = sorted_lems sorted_ConsD sorted_snocD
+(*-----------------------------*)
+
+lemma isin_sorted: "sorted_less (xs@a#ys) \<Longrightarrow>
+  (x \<in> set (xs@a#ys)) = (if x < a then x \<in> set xs else x \<in>  set (a#ys))"
+  by (auto simp: isin_simps2)
+
+(* lift to split_fun *)
+
+
+lemma isin_sorted_split:
+  assumes "sorted_less (inorder (Node ts t))"
+    and "split_fun ts x = (ls, rs)"
+  shows "x \<in> set (inorder (Node ts t)) = (x \<in> set (inorder_list rs @ inorder t))"
+proof (cases ls)
+  case Nil
+  then have "ts = rs"
+    using assms by (auto dest!: split_fun_req(1))
+  then show ?thesis by simp
+next
+  case Cons
+  then obtain ls' sub sep where ls_tail_split: "ls = ls' @ [(sub,sep)]"
+    by (metis list.simps(3) rev_exhaust surj_pair)
+  then have "sep < x"
+    using split_fun_req4[of ts x ls' sub sep rs]
+    using sorted_inorder_separators[OF assms(1)]
+    using assms
     by simp
-  then show "rs \<noteq> []"
-    by auto
-  then obtain psub psep list where rs_split[simp]: "rs = (psub, psep)#list"
-    by (cases rs) auto
-  then have "(\<forall>y \<in> set (separators list). x < y)"
-    using split_fun_req_alt(3)[of xs x ls rs] assms Cons
-    by auto
-  then have "x = psep"
-    using \<open>x \<in> set (separators rs)\<close>
-    by auto
-  then show "snd (hd rs) = x"
-    by auto
-qed
-
-
-lemma split_fun_subtree_match:
-  assumes "\<exists>sub \<in> set (subtrees xs). x \<in> set_btree sub"
-    and "sorted_wrt sub_sep_sm xs"
-    and "\<forall>x \<in> set xs. sub_sep_cons x"
-    and "split_fun xs x = (ls,rs)"
-  shows "x \<in> set_btree (fst (hd rs))"
-    and "rs \<noteq> []"
-proof -
-  have "\<forall> sep \<in> set (separators ls). sep < x"
-    using assms(2,4) split_fun_req_alt(2) sorted_wrt_list_sorted
-    by fastforce
-  then have "\<forall> (sub, sep) \<in> set ls. x \<notin> set_btree sub"
-    by (metis (no_types, lifting) Un_iff assms(3,4) case_prodI2 not_less_iff_gr_or_eq set_append some_child_sub(2) split_fun_req_alt(1) sub_sep_cons.simps)
-  moreover have "\<exists>sub \<in> set (subtrees (ls@rs)). x \<in> set_btree sub"
-    using assms(1,4) split_fun_req_alt(1)
-    by blast
-  ultimately have "\<exists>sub \<in> set (subtrees rs). x \<in> set_btree sub"
-    by auto
-  then show "rs \<noteq> []"
-    by auto
-  then obtain psub psep list where rs_split[simp]: "rs = (psub,psep)#list"
-    by (metis eq_snd_iff hd_Cons_tl)
-  then have "x \<le> psep"
-    using  split_fun_req_alt(3)[of xs x ls rs] assms Cons sorted_wrt_list_sorted
-    by fastforce
-  moreover have "\<forall>t \<in> set (subtrees list). \<forall>x \<in> set_btree t. psep < x"
-    using sorted_wrt_sorted_left rs_split assms(2,4) split_fun_req_alt(1) sorted_wrt_append sorted_wrt_list_sorted
-    by blast
-  ultimately have "\<forall>t \<in> set (subtrees list). x \<notin> set_btree t"
-    using leD
-    by blast
-  then have "x \<in> set_btree psub"
-    using \<open>\<exists>sub\<in>set (subtrees rs). x \<in> set_btree sub\<close>
-    by auto
-  then show "x \<in> set_btree (fst (hd rs))"
-    by simp
-qed
-
-(* Additional proof for last tree *)
-lemma split_fun_last_empty: 
-  assumes "x \<in> set_btree t"
-    and "(\<forall>sep \<in> set (separators ts). \<forall>y \<in> set_btree t. sep < y)"
-    and "\<forall>x \<in> set ts. sub_sep_cons x"
-    and "sorted_less (separators ts)"
-    and "split_fun ts x = (ls,rs)"
-  shows "rs = []"
-proof (cases rs)
-  case (Cons r list)
-  then obtain sub sep where r_pair: "r = (sub,sep)"
-    by (cases r)
-  then have "x \<le> sep" 
-    using assms split_fun_req_alt Cons r_pair
-    by fastforce
-  then have "False"
-    by (metis r_pair assms(1,2,5) leD Cons some_child_sub(2) split_fun_set(1))
   then show ?thesis
-    by simp
-qed simp
+    using assms(1) sym[OF split_fun_req(1)[OF assms(2)]] ls_tail_split
+    using isin_sorted[of "inorder_list ls' @ inorder sub" sep "inorder_list rs @ inorder t" x]
+    by auto
+qed
 
-
-lemma set_impl_isin: "sorted_btree t \<Longrightarrow> x \<in> set_btree t \<Longrightarrow> isin t x"
-proof (induction t x rule: isin.induct)
-  case (2 ts t x)
-  obtain ls rs where list_split: "split_fun ts x = (ls,rs)"
-    by fastforce
-  from 2 have "x \<in> set (separators ts) \<or> (\<exists>sub \<in> set (subtrees ts). x \<in> set_btree sub) \<or> x \<in> set_btree t"
-    by (meson set_btree_induct)
-  then show ?case
-  proof (elim disjE)
-    assume assms: "x \<in> set (separators ts)"
-    then have "snd (hd rs) = x" "rs \<noteq> []"
-      using list_split split_fun_separator_match assms 2 sorted_wrt_list_sorted
-      by (metis sorted_btree.simps(2))+
-    then show "isin (Node ts t) x"
-      using list_split
-      by (cases rs) auto
-  next
-    assume assms: "(\<exists>sub \<in> set (subtrees ts). x \<in> set_btree sub)"
-    then have "x \<in> set_btree (fst (hd rs))" "rs \<noteq> []"
-      using list_split split_fun_subtree_match "2.prems"(1) assms
-      by auto
-    moreover have "fst (hd rs) \<in> set (subtrees ts)"
-      using calculation(2) list_split split_fun_req_alt(1)
+lemma isin_sorted_split_right:
+  assumes "split_fun ts x = (ls, (sub,sep)#rs)"
+    and "sorted_less (inorder (Node ts t))"
+    and "sep \<noteq> x"
+  shows "x \<in> set (inorder_list ((sub,sep)#rs) @ inorder t) = (x \<in> set (inorder sub))"
+proof -
+  from assms have "x < sep"
+  proof -
+    from assms have "sorted_less (separators ts)"
+      by (simp add: sorted_inorder_separators)
+    then show ?thesis
+      using split_fun_req(3)
+      using assms
       by fastforce
-    ultimately show "isin (Node ts t) x" 
-      using 2 list_split
-      unfolding isin.simps
-      by (cases rs) (fastforce)+
+  qed
+  moreover have "sorted_less (inorder_list ((sub,sep)#rs) @ inorder t)"
+    using assms sorted_wrt_append split_fun_req_alt(1)
+    by fastforce
+  ultimately show ?thesis
+    using isin_sorted[of "inorder sub" "sep" "inorder_list rs @ inorder t" x]
+    by simp
+qed
+
+
+lemma isin_set_inorder: "sorted_less (inorder t) \<Longrightarrow> isin t x = (x \<in> set (inorder t))"
+proof(induction t x rule: isin.induct)
+  case (2 ts t x)
+  then obtain ls rs where list_split: "split_fun ts x = (ls, rs)"
+    by (meson surj_pair)
+  then have list_conc: "ts = ls @ rs" 
+    using split_fun_req(1) by auto
+  show ?case
+  proof (cases rs)
+    case Nil
+    then have "isin (Node ts t) x = isin t x"
+      by (simp add: list_split)
+    also have "\<dots> = (x \<in> set (inorder t))"
+      using "2.IH"(1) list_split Nil
+      using "2.prems" sorted_inorder_induct_last by auto
+    also have "\<dots> = (x \<in> set (inorder (Node ts t)))"
+      using isin_sorted_split[of ts t x ls rs]
+      using "2.prems" list_split list_conc Nil
+      by simp
+    finally show ?thesis .
   next
-    assume assms: "x \<in> set_btree t"
-    then have "rs = []" 
-      using split_fun_last_empty "2.prems"(1) list_split
-      using sorted_btree.simps(2) sorted_wrt_list_sorted
-      by blast
-    then show "isin (Node ts t) x"
-      using "2.IH"(1) "2.prems"(1) assms list_split
-      by auto
+    case (Cons a list)
+    then obtain sub sep where a_split: "a = (sub,sep)"
+      by (cases a)
+    then show ?thesis
+    proof (cases "x = sep")
+      case True
+      then show ?thesis
+        using list_conc Cons a_split list_split
+        by auto
+    next
+      case False
+      then have "isin (Node ts t) x = isin sub x"
+        using list_split Cons a_split False
+        by auto
+      also have "\<dots> = (x \<in> set (inorder sub))"
+        by (metis (mono_tags, lifting) "2.IH"(2) "2.prems" False a_split inorder.simps(2) list_split local.Cons some_child_sub(1) sorted_inorder_list_subtrees sorted_wrt_append split_fun_set(1))
+      also have "\<dots> = (x \<in> set (inorder (Node ts t)))"
+        using isin_sorted_split[OF "2.prems" list_split]
+        using isin_sorted_split_right "2.prems" list_split Cons a_split False
+        by simp
+      finally show ?thesis  .
+    qed
   qed
 qed auto
-
-lemma isin_set: "sorted_btree t \<Longrightarrow> isin t y = (y \<in> set_btree t)"
-  using isin_impl_set set_impl_isin
-  by fastforce
-
-corollary isin_set_inorder: "sorted_less (inorder t) \<Longrightarrow> isin t y = (y \<in> set (inorder t))"
-  by (simp add: isin_set set_inorder_btree sorted_btree_eq)
 
 
 (* TODO time proof *)
@@ -834,16 +782,10 @@ next
   then obtain ls' sub sep where ls_tail_split: "ls = ls' @ [(sub,sep)]"
     by (metis list.distinct(1) rev_exhaust surj_pair)
   moreover have "sep < x"
-  proof -
-    have "sep \<in> set (separators ls)"
-      by (simp add: ls_tail_split)
-    moreover have "sorted_less (separators ts)"
-      using assms sorted_inorder_subsepsm sorted_wrt_list_sorted sorted_inorder_impl_list
-      by auto
-    ultimately show "sep < x"
-      using split_fun_req(2) assms(1)
-      by blast
-  qed
+    using split_fun_req4[of ts x ls' sub sep rs]
+    using sorted_inorder_separators
+    using assms(1) assms(2) ls_tail_split
+    by auto
   moreover have "sorted_less (inorder_list ls)"
     using assms sorted_wrt_append split_fun_req_alt(1) by fastforce
   ultimately show ?thesis using assms(2) split_fun_req(1)[OF assms(1)]
@@ -860,15 +802,14 @@ proof -
   from assms have "x < sep"
   proof -
     from assms have "sorted_less (separators ts)"
-      by (simp add: sorted_inorder_list_subsepsm sorted_wrt_list_sorted)
+      by (simp add: sorted_inorder_list_separators)
     then show ?thesis
       using split_fun_req(3)
       using assms
       by fastforce
   qed
   moreover have "sorted_less (inorder_pair (sub,sep))"
-    using assms set_btree_inorder sorted_inorder_list_subcons sorted_inorder_subtrees_induct sorted_pair_list split_fun_req_alt(1)
-    by fastforce
+    by (metis (no_types, lifting) assms(1) assms(2) concat.simps(2) concat_append list.simps(9) map_append sorted_wrt_append split_fun_req_alt(1))
   ultimately show ?thesis
     using ins_list_sorted[of "inorder sub" "sep"]
     by auto
@@ -909,7 +850,7 @@ next
     proof (cases "ins k x t")
       case (T_i a)
       then have IH:"inorder a = ins_list x (inorder t)"
-        using "2.IH"(1) "2.prems" list_split local.Nil sorted_inorder_last
+        using "2.IH"(1) "2.prems" list_split local.Nil sorted_inorder_induct_last
         by auto
 
       have "inorder_up_i (ins k x (Node ts t)) = inorder_list ls @ inorder a"
@@ -923,7 +864,7 @@ next
     next
       case (Up_i l a r)
       then have IH:"inorder_up_i (Up_i l a r) = ins_list x (inorder t)"
-        using "2.IH"(1) "2.prems" list_split local.Nil sorted_inorder_last by auto
+        using "2.IH"(1) "2.prems" list_split local.Nil sorted_inorder_induct_last by auto
 
       have "inorder_up_i (ins k x (Node ts t)) = inorder_list ls @ inorder_up_i (Up_i l a r)"
         using list_split Up_i Nil by (auto simp add: list_conc)
@@ -940,8 +881,8 @@ next
       by (cases h)
 
     then have sorted_inorder_sub: "sorted_less (inorder sub)"
-      using "2.prems" list_conc local.Cons sorted_inorder_impl_list sorted_inorder_subtrees_induct
-      by blast
+      using "2.prems" list_conc local.Cons sorted_inorder_induct_subtree
+      by fastforce
     then show ?thesis
     proof(cases "x = sep")
       case True
@@ -1111,8 +1052,6 @@ fun reduce_root where
 
 fun delete where "delete k x t = reduce_root (del k x t)"
 
-thm node_i_height
-find_theorems height
 
 (* invariant for intermediate states at deletion
 in particular we allow for an underflow to 0 subtrees *)
@@ -1863,16 +1802,9 @@ next
   then obtain ls' sub sep where ls_tail_split: "ls = ls' @ [(sub,sep)]"
     by (metis list.distinct(1) rev_exhaust surj_pair)
   moreover have "sep < x"
-  proof -
-    have "sep \<in> set (separators ls)"
-      by (simp add: ls_tail_split)
-    moreover have "sorted_less (separators ts)"
-      using assms sorted_inorder_subsepsm sorted_wrt_list_sorted sorted_inorder_impl_list
-      by auto
-    ultimately show "sep < x"
-      using split_fun_req(2) assms(1)
-      by blast
-  qed
+    using split_fun_req4[of ts x ls' sub sep rs]
+    using assms(1) assms(2) ls_tail_split sorted_inorder_separators
+    by blast
   moreover have "sorted_less (inorder_list ls)"
     using assms sorted_wrt_append split_fun_req_alt(1) by fastforce
   ultimately show ?thesis using assms(2) split_fun_req(1)[OF assms(1)]
@@ -1891,7 +1823,7 @@ proof -
   from assms have "x < sep"
   proof -
     from assms have "sorted_less (separators ts)"
-      using sorted_inorder_subsepsm sorted_wrt_list_sorted by blast
+      using sorted_inorder_separators by blast
     then show ?thesis
       using split_fun_req(3)
       using assms
@@ -1924,7 +1856,7 @@ proof (induction k x t rule: del.induct)
   proof (cases rs)
     case Nil
     then have IH: "inorder (del k x t) = del_list x (inorder t)"
-      by (metis "2.IH"(1) "2.prems" bal.simps(2) list_split order_impl_root_order root_order.simps(2) sorted_inorder_last)
+      by (metis "2.IH"(1) "2.prems" bal.simps(2) list_split order_impl_root_order root_order.simps(2) sorted_inorder_induct_last)
     have "inorder (del k x (Node ts t)) = inorder (rebalance_last_tree k ts (del k x t))"
       using list_split Nil list_conc by auto
     also have "\<dots> = inorder_list ts @ inorder (del k x t)"
@@ -1960,7 +1892,7 @@ proof (induction k x t rule: del.induct)
     proof cases
       case sep_n_x
       then have IH: "inorder (del k x sub) = del_list x (inorder sub)"
-        by (metis (no_types, lifting) "2.IH"(2) "2.prems"(1) "2.prems"(2) "2.prems"(4) bal.simps(2) h_split list_conc list_split local.Cons node_sorted_split(3) order_impl_root_order root_order.simps(2) some_child_sub(1) sorted_inorder_impl_list sorted_inorder_subtrees_induct split_fun_set(1))
+        by (metis "2.IH"(2) "2.prems"(1) "2.prems"(2) bal.simps(2) bal_split_left(1) h_split list_split local.Cons node_sorted_split(1) node_sorted_split(3) order_impl_root_order root_order.simps(2) some_child_sub(1) sorted_inorder_induct_subtree split_fun_set(1))
       from sep_n_x have "inorder (del k x (Node ts t)) = inorder (rebalance_middle_tree k ls (del k x sub) sep rs t)"
         using list_split Cons h_split by auto
       also have "\<dots> = inorder (Node (ls@(del k x sub, sep)#rs) t)"
@@ -1986,8 +1918,8 @@ proof (induction k x t rule: del.induct)
     next
       case sep_x_Leaf
       then have "del_list x (inorder (Node ts t)) = inorder (Node (ls@rs) t)"
-        using list_split list_conc h_split Cons "2.prems"(4)
-        using del_list_split[of ts x ls "(sub,sep)#rs" t]
+        using list_conc h_split Cons
+        using del_list_split[OF list_split "2.prems"(4)]
         by simp
       also have "\<dots> = inorder (del k x (Node ts t))"
         using list_split sep_x_Leaf list_conc h_split Cons
@@ -2001,8 +1933,7 @@ proof (induction k x t rule: del.induct)
         by simp
       then have "del_list x (inorder (Node ts t)) = inorder_list ls @ inorder sub @ inorder_list rs @ inorder t"
         using list_split list_conc h_split Cons "2.prems"(4)
-        using del_list_split[of ts x ls "(sub,sep)#rs" t]
-        apply auto
+        using del_list_split[OF list_split "2.prems"(4)]
         using del_list_sorted1[of "inorder sub" sep "inorder_list rs @ inorder t" x]
           sorted_wrt_append
         by auto
@@ -2017,9 +1948,10 @@ proof (induction k x t rule: del.induct)
       proof -
         have "height t = height ssub"
           using split_max_height
-          by (metis "2.prems"(1) "2.prems"(2) "2.prems"(3) bal.simps(2) btree.distinct(1) h_split list_split local.Cons order_bal_nonempty_lasttreebal order_impl_root_order root_order.simps(2) sep_x_Node some_child_sub(1) split_fun.split_fun_set(1) split_fun_axioms split_split)
+          by (metis "2.prems"(1,2,3) bal.simps(2) btree.distinct(1) h_split list_split local.Cons order_bal_nonempty_lasttreebal order_impl_root_order root_order.simps(2) sep_x_Node some_child_sub(1) split_fun_set(1) split_split)
         moreover have "case rs of [] \<Rightarrow> True | (rsub, rsep) # list \<Rightarrow> height rsub = height t"
-          using "2.prems"(3) bal_sub_height list_conc local.Cons by blast
+          using "2.prems"(3) bal_sub_height list_conc local.Cons
+          by blast
         ultimately show ?thesis
           using rebalance_middle_tree_inorder
           by auto

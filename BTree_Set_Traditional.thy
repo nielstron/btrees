@@ -312,8 +312,20 @@ lemma sorted_btree_eq: "sorted_less (inorder t) = sorted_btree t"
 context split_fun
 begin
 
+(* previously format of used lemmas *)
+lemma split_fun_req2:
+"\<lbrakk>split_fun xs p = (ls, rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow>
+\<forall>sep \<in> set (separators ls). p > sep"
+  apply(cases ls)
+   apply simp
+  using split_fun_req(2)
+  sorry
 
-
+lemma split_fun_req3: "\<lbrakk>split_fun xs p = (ls, rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow>
+case rs of [] \<Rightarrow> True | (sub,sep)#rrs \<Rightarrow> p \<le> sep"
+  apply(cases rs)
+  using split_fun_req(3)
+  by auto
 
 lemma split_fun_req3_alt: 
   assumes "split_fun xs p = (ls,rs)"
@@ -328,17 +340,17 @@ proof (cases rs)
   ultimately have "\<forall>rrsep \<in> set (separators rrs). rsep < rrsep"
     by auto
   moreover have "p \<le> rsep"
-    using a_pair assms(1) assms(2) local.Cons split_fun_req(3)
+    using a_pair assms(1) assms(2) local.Cons split_fun_req3
     by fastforce
   ultimately show ?thesis
     using Cons a_pair
     by auto
 qed simp
 
-lemmas split_fun_req_alt =  split_fun_req(2) split_fun_req3_alt
+lemmas split_fun_req_alt = split_fun_req(1) split_fun_req2 split_fun_req3_alt
 
 lemma split_fun_set_ls: "split_fun ts x = (ls,[]) \<Longrightarrow> set ls = set ts"
-  using split_fun_req_alt by fastforce
+  using split_fun_conc by fastforce
 
 
 (* proofs *)
@@ -814,7 +826,7 @@ proof (induction k x t rule: ins.induct)
       have "set_up_i (ins k x t) = set_btree t \<union> {x}"
         by (simp add: ins_set)
       then show ?thesis
-        using list_split Nil ls_sorted sorted_wrt_list_sorted split_fun.split_fun_req_alt(1) split_fun.split_fun_req_alt(2) split_fun_axioms
+        using list_split Nil ls_sorted sorted_wrt_list_sorted split_fun_req_alt
         by fastforce
     qed
     show ?thesis

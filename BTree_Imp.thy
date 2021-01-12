@@ -291,7 +291,7 @@ interpretation btree_abs_search: split_fun abs_split
   unfolding abs_split_def
     apply (auto simp: split: list.splits)
   subgoal
-    by (meson case_prodD set_takeWhileD)
+    by (metis (no_types, lifting) append_is_Nil_conv append_self_conv case_prodD dropWhile_append1 list.simps(3) takeWhile_dropWhile_id takeWhile_eq_all_conv takeWhile_idem takeWhile_tail)
   subgoal
     by (metis case_prod_conv hd_dropWhile le_less_linear list.sel(1) list.simps(3))
   done
@@ -1242,7 +1242,7 @@ partial_function (heap) isin' :: "('a::{heap,linorder}) btnode ref option \<Righ
 )"
 
 
-lemma  "sorted_alt t \<Longrightarrow> <btree_assn k t ti * true> isin ti x <\<lambda>r. btree_assn k t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
+lemma  "sorted_less (inorder t) \<Longrightarrow> <btree_assn k t ti * true> isin ti x <\<lambda>r. btree_assn k t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
 proof(induction t x arbitrary: ti rule: btree_abs_search.isin.induct)
   case (1 x)
   then show ?case
@@ -1264,7 +1264,7 @@ next
         apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
        apply(rule hoare_triple_preI)
        apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
-      using 2(3) apply(sep_auto heap: "2.IH"(1)[of ls "[]"])
+      using 2(3) apply(sep_auto heap: "2.IH"(1)[of ls "[]"] simp add: sorted_wrt_append)
       done
   next
     case [simp]: (Cons h rrs)
@@ -1301,7 +1301,7 @@ next
         apply(rule hoare_triple_preI)
         subgoal for p tsi n ti xsi suba sepa zs1 z zs2 _
           apply(subgoal_tac "z = (suba, sepa)", simp)
-          using 2(3) apply(sep_auto heap:"2.IH"(2)[of ls rs h rrs sub sep])
+          using 2(3) apply(sep_auto heap:"2.IH"(2)[of ls rs h rrs sub sep] simp add: sorted_wrt_append)
           using list_split Cons h_split apply simp_all
             (* proof that previous assumptions hold later *)
           apply(rule P_imp_Q_implies_P)
@@ -1371,7 +1371,7 @@ partial_function (heap) ins' :: "nat \<Rightarrow> 'a \<Rightarrow> ('a::{heap,l
 
 declare  btree_abs_search.ins.simps [simp]
 lemma ins'_rule:
-  "sorted_alt t \<Longrightarrow> <btree_assn k t ti * true>
+  "sorted_less (inorder t) \<Longrightarrow> <btree_assn k t ti * true>
   ins' k x ti
   <\<lambda>r. btupi_assn k (btree_abs_search.ins k x t) r>\<^sub>t"
 proof (induction k x t arbitrary: ti rule: btree_abs_search.ins.induct)
@@ -1384,11 +1384,10 @@ next
   case (2 k x ts t)
   obtain ls rrs where list_split: "abs_split ts x = (ls,rrs)"
     by (cases "abs_split ts x")
-  have [simp]: "sorted_less (seperators ts)"
-    using "2.prems" sorted_alt_sorted sorted_inorder_subsepsm sorted_wrt_list_sorted
-    by blast
-  have [simp]: "sorted_alt t"
-    using "2.prems" by simp
+  have [simp]: "sorted_less (separators ts)"
+    using "2.prems" sorted_inorder_separators by simp
+  have [simp]: "sorted_less (inorder t)"
+    using "2.prems" sorted_inorder_induct_last by simp
   show ?case
   proof (cases rrs)
     case Nil
@@ -1443,9 +1442,9 @@ next
     case (Cons a rs)
     obtain sub sep where a_split: "a = (sub,sep)"
       by (cases a)
-    then have [simp]: "sorted_alt sub"
-      using "2.prems" btree_abs_search.split_fun_axioms btree_linear_search.sorted_alt_split_ls list_split local.Cons sorted_alt.simps(2) split_fun.split_fun_req_alt(1)
-      by blast
+    then have [simp]: "sorted_less (inorder sub)"
+      using "2.prems" btree_abs_search.split_fun_axioms list_split Cons sorted_inorder_induct_subtree split_fun_def
+      by fastforce
     then show ?thesis
     proof(cases "x = sep")
       case True
@@ -1611,7 +1610,7 @@ definition insert' :: "nat \<Rightarrow> ('a::{heap,default,linorder}) \<Rightar
 }"
 
 lemma insert'_rule:
-  assumes "k > 0" "sorted_alt t"
+  assumes "k > 0" "sorted_less (inorder t)"
   shows "<btree_assn k t ti * true>
   insert' k x ti
   <\<lambda>r. btree_assn k (btree_abs_search.insert k x t) r>\<^sub>t"

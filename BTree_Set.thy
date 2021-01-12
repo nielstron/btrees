@@ -40,20 +40,13 @@ locale split_fun =
   fixes split_fun ::  "(('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> (('a btree\<times>'a) list \<times> ('a btree\<times>'a) list)"
   assumes split_fun_req:
     "\<lbrakk>split_fun xs p = (ls,rs)\<rbrakk> \<Longrightarrow> ls @ rs = xs"
-    "\<lbrakk>split_fun xs p = (ls,rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> \<forall>sep \<in> set (separators ls). p > sep"
-    "\<lbrakk>split_fun xs p = (ls,rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> case rs of [] \<Rightarrow> True | (sub,sep)#rrs \<Rightarrow> p \<le> sep"
+    "\<lbrakk>split_fun xs p = (ls@[(sub,sep)],rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> sep < p"
+    "\<lbrakk>split_fun xs p = (ls,(sub,sep)#rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> p \<le> sep"
 begin
 
-thm split_fun_req
+lemmas split_fun_conc = split_fun_req(1)
+lemmas split_fun_sorted = split_fun_req(2,3)
 
-
-lemma split_fun_drule:
-  assumes "split_fun ts p = (ls,rs)"
-    and "sorted_less (separators ts)"
-  shows "ls@rs = ts"
-    and "\<forall>sep \<in> set (separators ls). p > sep"
-    and "case rs of [] \<Rightarrow> True | (sub,sep)#rrs \<Rightarrow> p \<le> sep"
-  using split_fun_req assms by auto
 
 lemma split_fun_req3_alt: 
   assumes "split_fun xs p = (ls,rs)"
@@ -75,7 +68,7 @@ proof (cases rs)
     by auto
 qed simp
 
-lemmas split_fun_req_alt = split_fun_req(1) split_fun_req(2) split_fun_req3_alt
+lemmas split_fun_req_alt = split_fun_conc split_fun_req(2) split_fun_req3_alt
 
 
 
@@ -153,7 +146,7 @@ lemma isin_sorted_split:
 proof (cases ls)
   case Nil
   then have "ts = rs"
-    using assms by (auto dest!: split_fun_req(1))
+    using assms by (auto dest!: split_fun_conc)
   then show ?thesis by simp
 next
   case Cons
@@ -165,7 +158,7 @@ next
     using assms
     by simp
   then show ?thesis
-    using assms(1) sym[OF split_fun_req(1)[OF assms(2)]] ls_tail_split
+    using assms(1) sym[OF split_fun_conc[OF assms(2)]] ls_tail_split
     using isin_sorted[of "inorder_list ls' @ inorder sub" sep "inorder_list rs @ inorder t" x]
     by auto
 qed
@@ -200,7 +193,7 @@ proof(induction t x rule: isin.induct)
   then obtain ls rs where list_split: "split_fun ts x = (ls, rs)"
     by (meson surj_pair)
   then have list_conc: "ts = ls @ rs" 
-    using split_fun_req(1) by auto
+    using split_fun_conc by auto
   show ?case
   proof (cases rs)
     case Nil
@@ -776,7 +769,7 @@ lemma ins_list_split:
 proof (cases ls)
   case Nil
   then show ?thesis
-    using assms by (auto dest!: split_fun_req(1))
+    using assms by (auto dest!: split_fun_conc)
 next
   case Cons
   then obtain ls' sub sep where ls_tail_split: "ls = ls' @ [(sub,sep)]"
@@ -788,7 +781,7 @@ next
     by auto
   moreover have "sorted_less (inorder_list ls)"
     using assms sorted_wrt_append split_fun_req_alt(1) by fastforce
-  ultimately show ?thesis using assms(2) split_fun_req(1)[OF assms(1)]
+  ultimately show ?thesis using assms(2) split_fun_conc[OF assms(1)]
     using ins_list_sorted[of "inorder_list ls' @ inorder sub" sep]
     by auto
 qed
@@ -1796,7 +1789,7 @@ lemma del_list_split:
 proof (cases ls)
   case Nil
   then show ?thesis
-    using assms by (auto dest!: split_fun_req(1))
+    using assms by (auto dest!: split_fun_conc)
 next
   case Cons
   then obtain ls' sub sep where ls_tail_split: "ls = ls' @ [(sub,sep)]"
@@ -1807,7 +1800,7 @@ next
     by blast
   moreover have "sorted_less (inorder_list ls)"
     using assms sorted_wrt_append split_fun_req_alt(1) by fastforce
-  ultimately show ?thesis using assms(2) split_fun_req(1)[OF assms(1)]
+  ultimately show ?thesis using assms(2) split_fun_conc[OF assms(1)]
     using del_list_sorted[of "inorder_list ls' @ inorder sub" sep]
     by auto
 qed
@@ -1831,7 +1824,7 @@ proof -
   qed
   moreover have "sorted_less (inorder sub @ sep # inorder_list rs @ inorder t)"
     using assms sorted_wrt_append[where xs="inorder_list ls"] 
-    by (auto dest!: split_fun_req(1))
+    by (auto dest!: split_fun_conc)
   ultimately show ?thesis
     using del_list_sorted[of "inorder sub" "sep"]
     by auto
@@ -2068,7 +2061,7 @@ interpretation btree_linear_search: split_fun linear_split
   unfolding linear_split_alt
     apply (auto simp: split: list.splits)
   subgoal
-    by (meson case_prodD set_takeWhileD)
+    by (metis (no_types, lifting) case_prodD in_set_conv_decomp takeWhile_eq_all_conv takeWhile_idem)
   subgoal
     by (metis case_prod_conv hd_dropWhile le_less_linear list.sel(1) list.simps(3))
   done
@@ -2104,16 +2097,23 @@ lemma linear_split_gr:
 
 
 lemma linear_split_req:
-  assumes  "linear_split xs p = (ls,rs)"
+  assumes  "linear_split xs p = (ls,(sub,sep)#rs)"
     and "sorted_less (separators xs)"
-  shows "\<forall>sep \<in> set (separators ls). p > sep"
-    and "(case rs of [] \<Rightarrow> True | (_,sep)#_ \<Rightarrow> p \<le> sep)"
-  using assms linear_split_sm linear_split_gr by fastforce+
+  shows  "p \<le> sep"
+  using assms linear_split_gr by fastforce
+
+lemma linear_split_req2:
+  assumes  "linear_split xs p = (ls@[(sub,sep)],rs)"
+    and "sorted_less (separators xs)"
+  shows  "sep < p"
+  using linear_split_sm[of xs p "[]" "ls@[(sub,sep)]" rs]
+  using assms(1) assms(2) btree_linear_search.split_fun_req4 by blast
+  
 
 definition "linear_insert = insert linear_split"
 
 interpretation btree_linear_search: split_fun linear_split
-  by (simp add: linear_split_req linear_split_append split_fun_def)
+  by (simp add: linear_split_req linear_split_req2 linear_split_append split_fun_def)
 
 (* it *is* possible to define a binary split predicate..
 however even proving that it terminates is uncomfortable *)

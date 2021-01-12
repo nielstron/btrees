@@ -335,7 +335,7 @@ proof (cases rs)
     by auto
 qed simp
 
-lemmas split_fun_req_alt = split_fun_req(1) split_fun_req(2) split_fun_req3_alt
+lemmas split_fun_req_alt =  split_fun_req(2) split_fun_req3_alt
 
 lemma split_fun_set_ls: "split_fun ts x = (ls,[]) \<Longrightarrow> set ls = set ts"
   using split_fun_req_alt by fastforce

@@ -276,14 +276,14 @@ fun root_order_up_i where
 lemma node_i_root_order:
   assumes "length ts > 0"
     and "length ts \<le> 4*k+1"
-    and "\<forall>x \<in> set ts. order k (fst x)"
+    and "\<forall>x \<in> set (subtrees ts). order k x"
     and "order k t"
   shows "root_order_up_i k (node_i k ts t)"
 proof (cases "length ts \<le> 2*k")
   case True
   then show ?thesis
     using assms
-    by simp
+    by (simp add: node_i.simps)
 next
   case False
   then obtain ls sub sep rs where split_half_ts: 
@@ -316,20 +316,20 @@ next
     using set_take_subset assms split_half_ts
     by fastforce
   from o_r o_l show ?thesis
-    by (simp add: False split_half_ts)
+    by (simp add: node_i.simps False split_half_ts)
 qed
 
 lemma node_i_order_helper:
   assumes "length ts \<ge> k"
     and "length ts \<le> 4*k+1"
-    and "\<forall>x \<in> set ts. order k (fst x)"
+    and "\<forall>x \<in> set (subtrees ts). order k x"
     and "order k t"
   shows "case (node_i k ts t) of T_i t \<Rightarrow> order k t | _ \<Rightarrow> True"
 proof (cases "length ts \<le> 2*k")
   case True
   then show ?thesis
     using assms
-    by simp
+    by (simp add: node_i.simps)
 next
   case False
   then obtain sub sep rs where 
@@ -337,14 +337,14 @@ next
     using split_half_not_empty[of ts]
     by auto
   then show ?thesis
-    using assms by auto
+    using assms by (simp add: node_i.simps)
 qed
 
 
 lemma node_i_order:
   assumes "length ts \<ge> k"
     and "length ts \<le> 4*k+1"
-    and "\<forall>x \<in> set ts. order k (fst x)"
+    and "\<forall>x \<in> set (subtrees ts). order k x"
     and "order k t"
   shows "order_up_i k (node_i k ts t)"
 
@@ -1993,6 +1993,8 @@ next
     by auto
 qed simp+
 
+(* if we remove this, a lot of proofs fail in BTree_Set_Traditional because... well *)
+declare node_i.simps[simp del]
 
 end
 

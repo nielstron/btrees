@@ -559,10 +559,10 @@ proof (cases "length ts \<le> 2*k")
     by metis
   also have "\<dots> = set_up_i (node_i k ts t)"
     using False split_half_ts
-    by simp
+    by (simp add: node_i.simps)
   finally show ?thesis
     by simp
-qed simp
+qed (simp add: node_i.simps)
 
 
 lemma ins_set: "set_up_i (ins k x t) = set_btree t \<union> {x}"
@@ -710,8 +710,8 @@ proof(cases "length ts \<le> 2*k")
     by (metis append_take_drop_id)
   then show ?thesis
     using False split_half_ts
-    by simp
-qed simp
+    by (simp add: node_i.simps)
+qed (simp add: node_i.simps)
 
 thm btree.set
 thm sorted_wrt_append
@@ -848,7 +848,7 @@ proof (induction k x t rule: ins.induct)
         by (metis Up_i ins_sorted ls_sorted)
       then show ?thesis
         using 2 Up_i list_split Nil  node_i_sorted[of "ls@[(l,a)]" r]
-        by (simp del: node_i.simps)
+        by simp
     qed
   next
     case (Cons a list)
@@ -1005,8 +1005,9 @@ proof (induction k x t rule: ins.induct)
             by fastforce
         qed
         then show ?thesis using 2 a_split list_split Cons False Up_i
-          apply (simp del: node_i.simps add: node_i_sorted)
-          sorry (* FIXME this used to work *)
+          by (simp del: node_i.simps add: node_i_sorted)
+          (* FIXME this used to work, and works now, that node_i.simps were deleted from the simpset
+                  inside the first definition. however only deleting it here did not work at all - as in had no effect*)
       qed
     qed
   qed

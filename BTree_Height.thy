@@ -17,9 +17,9 @@ text "The default size function does not suit our needs as it regards the length
 
 fun nodes::"'a btree \<Rightarrow> nat" where
   "nodes Leaf = 0" |
-  "nodes (Node ts t) = 1 + sum_list (map nodes (subtrees ts)) + (nodes t)"
+  "nodes (Node ts t) = 1 + (\<Sum>t\<leftarrow>subtrees ts. nodes t) + (nodes t)"
 
-
+thm nodes.simps
 
 (* maximum number of nodes for given height *)
 subsection "Maximum number of nodes for a given height"
@@ -28,11 +28,6 @@ subsection "Maximum number of nodes for a given height"
 lemma sum_list_replicate: "sum_list (replicate n c) = n*c"
   apply(induction n)
    apply(auto simp add: ring_class.ring_distribs(2))
-  done
-
-lemma sum_list_distrib: "sum_list (map f xs) * (c::nat) = sum_list (map (\<lambda>x. f x * c) xs)"
-  apply(induction xs)
-   apply(auto simp add: add_mult_distrib)
   done
 
 abbreviation "bound k h \<equiv> ((k+1)^h - 1)"
@@ -142,8 +137,7 @@ proof(induction t rule: nodes.induct)
   also have "\<dots> \<le> sum_list (map (\<lambda>t. nodes t * k) (subtrees ts))"
     using 2 by (simp add: sum_list_mono)
   also have "\<dots> = sum_list (map nodes (subtrees ts)) * k"
-    find_theorems "sum_list _ * _"
-    using sum_list_distrib[of nodes "subtrees ts" k] by simp
+    using sum_list_mult_const[of nodes k "subtrees ts"] by auto
   finally have "sum_list (map nodes (subtrees ts))*k \<ge> ?sub_height*k"
     by simp
   moreover have "(nodes t)*k \<ge> ?sub_height"
@@ -226,7 +220,7 @@ proof (cases t)
       nodes_height_lower_bound assms
     by fastforce
   also have "\<dots> = sum_list (map nodes (subtrees ts)) * k"
-    using sum_list_distrib[of nodes "subtrees ts" k] by simp
+    using sum_list_mult_const[of nodes k "subtrees ts"] by simp
   finally have "sum_list (map nodes (subtrees ts))*k \<ge> ?sub_height"
     by simp
 

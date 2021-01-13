@@ -1223,7 +1223,7 @@ proof(induction k x t rule: del.induct)
     then have rs_height: "case rs of [] \<Rightarrow> True | (rsub,rsep)#_ \<Rightarrow> height rsub = height t" (* notice the difference if rsub and t are switched *)
       using "2.prems"(3) bal_sub_height list_split split_fun_req_alt(1) by blast
     from Cons list_split have x_not_sub: "x \<notin> set_btree_list rs" "x \<notin> set_btree_list ls" "x \<notin> set_btree t"
-      using sorted_split_contains 2
+      using sorted_split_contains 2    
         (*FIXME by (metis list.simps(5) sorted_btree.simps(2))+*)
       sorry
     from Cons obtain sub sep where a_split: "a = (sub,sep)" by (cases a)

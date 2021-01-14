@@ -27,7 +27,7 @@ fun inorder :: "'a btree \<Rightarrow> 'a list" where
   "inorder (Node ts t) = concat (map (\<lambda> (sub, sep). inorder sub @ [sep]) ts) @ inorder t"
 
 abbreviation "inorder_pair  \<equiv> \<lambda>(sub,sep). inorder sub @ [sep]"
-abbreviation "inorder_list ts \<equiv> concat (map (\<lambda> a. inorder_pair a) ts)"
+abbreviation "inorder_list ts \<equiv> concat (map inorder_pair ts)"
 
 
 (* this abbreviation makes handling the list much easier *)
@@ -39,12 +39,6 @@ abbreviation "set_btree_pair uu \<equiv> (\<Union>(set_btree ` Basic_BNFs.fsts u
 abbreviation "set_btree_list ts \<equiv> (\<Union>uu\<in>set ts. set_btree_pair uu)"
 
 
-lemma set_btree_split: 
-  "set_btree (Node (l@(sub,sep)#r) t) = set_btree (Node (l@r) t) \<union> set_btree sub \<union> {sep}"
-  "set_btree (Node ts t) = set_btree_list ts \<union> set_btree t"
-  "set_btree_list (ls@m#rs) = set_btree_list ls \<union> set_btree_pair m \<union> set_btree_list rs"
-  "set_btree (Node (ls@m#rs) t) = set_btree_list ls \<union> set_btree_pair m \<union> set_btree_list rs \<union> set_btree t"
-  by auto
 
 class height =
   fixes height :: "'a \<Rightarrow> nat"
@@ -64,43 +58,36 @@ end
 lemma height_Leaf: "height t = 0 \<longleftrightarrow> t = Leaf"
   by (induction t) (auto)
 
-(* not sure if required but appearently already present for coding equivalence *)
-lemma set_eq_fold: "fold max xs n = Max (set xs \<union> {n})"
-  by (metis Max.set_eq_fold Un_insert_right list.simps(15) sup_bot.right_neutral)
-
 thm btree.set
 
-value "height_alt (Node [] (Leaf::nat btree))"
-value "height (Node [] (Leaf::nat btree))"
-
-
+(* auxiliary lemmas when handling sets *)
 lemma separators_split:
   "set (separators (l@(a,b)#r)) = set (separators l) \<union> set (separators r) \<union> {b}"
-  by auto
+  by simp
 
 lemma subtrees_split:
   "set (subtrees (l@(a,b)#r)) = set (subtrees l) \<union> set (subtrees r) \<union> {a}"
-  by auto
+  by simp
 
 
 
-lemma fold_max_max: "max (a::(_::linorder)) (fold max bs b) = fold max bs (max a b)"
+lemma max_fold_max: "max (a::(_::linorder)) (fold max bs b) = fold max bs (max a b)"
   apply(induction bs arbitrary: a b)
    apply(auto simp add: max.left_commute)
   done
 
-lemma max_sep_fold_max: "max (fold max as (a::(_::linorder))) (fold max bs b) = (fold max (as@a#bs) b)"
+lemma max_fold_max_append_last: "max (fold max as (a::(_::linorder))) (fold max bs b) = (fold max (as@a#bs) b)"
   apply(induction as arbitrary: a bs b)
-   apply(auto simp add: max.assoc max.left_commute fold_max_max)
+   apply(auto simp add: max.assoc max.left_commute max_fold_max)
   done
 
 
-lemma fold_max_extract:"fold max (l@a#r) n = max (a::_::linorder) (fold max (l@r) n)"
-  apply(induction r arbitrary: l a n)
-   apply(auto simp add: fold_max_max max.left_commute)
+lemma fold_max_extract:"fold max (ls@a#rs) n = max (a::_::linorder) (fold max (ls@rs) n)"
+  apply(induction rs arbitrary: ls a n)
+   apply(auto simp add: max_fold_max max.left_commute)
   done
 
-lemma fold_max_append: "fold max bs (max (a::(_::linorder)) b) = fold max (bs@[a]) b"
+lemma fold_max_append_last: "fold max bs (max (a::(_::linorder)) b) = fold max (bs@[a]) b"
   apply(induction bs arbitrary: a b)
    apply(auto simp add: max.left_commute)
   done
@@ -108,16 +95,16 @@ lemma fold_max_append: "fold max bs (max (a::(_::linorder)) b) = fold max (bs@[a
 lemma height_btree_order:
   "height (Node (ls@[a]) t) = height (Node (a#ls) t)"
   apply(induction ls arbitrary: a t)
-   apply(simp_all add: fold_max_max max.left_commute)
+   apply(simp_all add: max_fold_max max.left_commute)
   done
 
-lemma height_btree_swap: 
+lemma height_btree_sub: 
   "height (Node ((sub,x)#ls) t) = max (height (Node ls t)) (Suc (height sub))"
-  by (auto simp add: fold_max_max max.commute)
+  by (auto simp add: max_fold_max max.commute)
 
-lemma height_btree_swap2: 
+lemma height_btree_last: 
   "height (Node ((sub,x)#ls) t) = max (height (Node ls sub)) (Suc (height t))"
-  by (auto simp add: fold_max_max max.commute)
+  by (auto simp add: max_fold_max max.commute)
 
 value "(Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
 value "inorder (Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
@@ -262,7 +249,7 @@ fun order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
 
 
 (* the invariant for the root of the btree *)
-fun root_order where
+fun root_order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
   "root_order k Leaf = True" |
   "root_order k (Node ts t) = (
   (length ts > 0) \<and>
@@ -270,6 +257,7 @@ fun root_order where
   (\<forall>s \<in> set (subtrees ts). order k s) \<and>
    order k t
 )"
+
 
 
 lemma order_impl_root_order: "\<lbrakk>k > 0; order k t\<rbrakk> \<Longrightarrow> root_order k t"
@@ -298,19 +286,9 @@ corollary sorted_inorder_separators: "sorted_less (inorder (Node ts t)) \<Longri
 
 lemma sorted_inorder_list_subtrees:
   "sorted_less (inorder_list ts) \<Longrightarrow> \<forall> sub \<in> set (subtrees ts). sorted_less (inorder sub)"
-proof(induction ts)
-  case (Cons a ts)
-  then obtain sub sep where "a = (sub,sep)"
-    by (cases a)
-  then have "sorted_less (inorder sub)"
-    using Cons by (simp add: sorted_wrt_append)
-  moreover have "set (subtrees (a#ts)) = set (subtrees ts) \<union> {sub}"
-    using \<open>a = (sub,sep)\<close> by auto
-  moreover have "sorted_less (inorder_list ts)"
-    using Cons.prems sorted_wrt_append by fastforce
-  ultimately show ?case using Cons
-    by auto
-qed auto
+  apply(induction ts)
+   apply (auto simp add: sorted_lems)+
+  done
 
 corollary sorted_inorder_subtrees: "sorted_less (inorder (Node ts t)) \<Longrightarrow> \<forall> sub \<in> set (subtrees ts). sorted_less (inorder sub)"
   using sorted_inorder_list_subtrees sorted_wrt_append by auto

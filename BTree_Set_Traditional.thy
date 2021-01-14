@@ -10,6 +10,14 @@ it appears that for some reason, removing "node_i.simps" does not work anymore
 *)
 
 
+lemma set_btree_split: 
+  "set_btree (Node (l@(sub,sep)#r) t) = set_btree (Node (l@r) t) \<union> set_btree sub \<union> {sep}"
+  "set_btree (Node ts t) = set_btree_list ts \<union> set_btree t"
+  "set_btree_list (ls@m#rs) = set_btree_list ls \<union> set_btree_pair m \<union> set_btree_list rs"
+  "set_btree (Node (ls@m#rs) t) = set_btree_list ls \<union> set_btree_pair m \<union> set_btree_list rs \<union> set_btree t"
+  by auto
+
+
 (* idea: make sorted_list a sorted_wrt *)
 find_theorems sorted_wrt
 thm sorted_wrt_append

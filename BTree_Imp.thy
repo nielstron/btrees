@@ -46,7 +46,7 @@ fun btree_assn :: "nat \<Rightarrow> 'a::heap btree \<Rightarrow> 'a btnode ref 
 
 find_consts name: while
 
-term split_fun
+term split
 
 definition linear_split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarrow> 'b \<Rightarrow> nat Heap"
   where
@@ -286,7 +286,7 @@ lemma split_ismeq: "((a::nat) \<le> b \<and> X) = ((a < b \<and> X) \<or> (a = b
 
 definition "abs_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
 
-interpretation btree_abs_search: split_fun abs_split
+interpretation btree_abs_search: split abs_split
   apply unfold_locales
   unfolding abs_split_def
     apply (auto simp: split: list.splits)
@@ -437,7 +437,7 @@ qed
 
 lemma split_rule_abs_split: 
   assumes split_rule: "\<And> c xs a n p. P c xs a n p \<Longrightarrow>  <is_pfarray_cap c xs (a, n) *
- true> split (a, n) (p::'a::{heap,linorder}) <\<lambda>r. is_pfarray_cap c xs (a, n) *
+ true> split_fun (a, n) (p::'a::{heap,linorder}) <\<lambda>r. is_pfarray_cap c xs (a, n) *
                  \<up> (r \<le> n \<and>
                     (\<forall>j<r. snd (xs ! j) < p) \<and> (r < n \<longrightarrow> p \<le> snd (xs ! r)))>\<^sub>t"
   shows
@@ -445,7 +445,7 @@ lemma split_rule_abs_split:
     is_pfarray_cap c tsi (a,n)
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
-    split (a,n) p 
+    split_fun (a,n) p 
   <\<lambda>i. 
     is_pfarray_cap c tsi (a,n)
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
@@ -1443,7 +1443,7 @@ next
     obtain sub sep where a_split: "a = (sub,sep)"
       by (cases a)
     then have [simp]: "sorted_less (inorder sub)"
-      using "2.prems" btree_abs_search.split_fun_axioms list_split Cons sorted_inorder_induct_subtree split_fun_def
+      using "2.prems" btree_abs_search.split_axioms list_split Cons sorted_inorder_induct_subtree split_def
       by fastforce
     then show ?thesis
     proof(cases "x = sep")

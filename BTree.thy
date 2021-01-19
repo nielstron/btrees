@@ -128,26 +128,6 @@ lemma some_child_sub:
   using assms by force+ 
 
 
-(* idea: we show that if any element is in the set_btree_inorder of a tree, then it must be in the list or in the subtree given by btree_list_choose,
-show the latter by case distinction on the compare of btree_list *)
-
-lemma set_btree_list_induct:
-  "x \<in> set_btree_list ts = (x \<in> set (separators ts) \<or> (\<exists>sub \<in> set (subtrees ts). x \<in> set_btree sub))"
-  by (induction ts) auto
-
-lemma set_btree_induct:
-  "x \<in> set_btree (Node ts t) = (x \<in> set (separators ts) \<or> (\<exists>sub \<in> set (subtrees ts). x \<in> set_btree sub) \<or> x \<in> set_btree t)"
-  by (induction ts) auto
-
-
-lemma separators_in_set:
-  "set (separators ts) \<subseteq> set_btree (Node ts t)"
-  by auto
-
-lemma subtrees_in_set:
-  "s \<in> set (subtrees ts) \<Longrightarrow> set_btree s \<subseteq> set_btree (Node ts t)"
-  by auto
-
 
 fun bal:: "'a btree \<Rightarrow> bool" where
   "bal Leaf = True" |
@@ -160,8 +140,6 @@ fun bal:: "'a btree \<Rightarrow> bool" where
 lemma bal_all_subtrees_equal: "bal (Node ts t) \<Longrightarrow> (\<forall>s1 \<in> set (subtrees ts). \<forall>s2 \<in> set (subtrees ts). height s1 = height s2)"
   by (metis BTree.bal.simps(2))
 
-
-find_theorems fold max
 
 lemma fold_max_set: "\<forall>x \<in> set t. x = f \<Longrightarrow> fold max t f = f"
   apply(induction t)

@@ -26,8 +26,8 @@ fun
 
 instance btnode :: (heap) heap
   apply (rule heap_class.intro)
-   apply (rule countable_classI [of "btnode_encode"])
-   apply (metis btnode_encode.elims from_nat_to_nat fst_conv snd_conv)
+  apply (rule countable_classI [of "btnode_encode"])
+  apply (metis btnode_encode.elims from_nat_to_nat fst_conv snd_conv)
   ..
 
 
@@ -79,11 +79,11 @@ lemma linear_split_rule: "
   thm R
 
   apply (sep_auto  decon: R simp: less_Suc_eq is_pfarray_cap_def) []
-      apply (metis nth_take snd_eqD)
-     apply (metis nth_take snd_eqD)
-    apply (sep_auto simp: is_pfarray_cap_def less_Suc_eq)+
-     apply (metis dual_order.strict_trans nth_take)
-    apply (metis nth_take)
+  apply (metis nth_take snd_eqD)
+  apply (metis nth_take snd_eqD)
+  apply (sep_auto simp: is_pfarray_cap_def less_Suc_eq)+
+  apply (metis dual_order.strict_trans nth_take)
+  apply (metis nth_take)
   using diff_less_mono2 apply blast
   apply(sep_auto simp: is_pfarray_cap_def)
   done
@@ -140,7 +140,7 @@ sorted_less xs \<Longrightarrow>
     ultimately have "\<And>j. j < (aa+n)div 2 \<Longrightarrow> (take n l'a) ! j < (take n l'a) ! ((aa + n) div 2)"
       using
         sorted_wrt_nth_less[where ?P="(<)" and ?xs="(take n l'a)" and ?j="((aa + n) div 2)"]
-      a b "0" by auto
+        a b "0" by auto
     moreover fix j assume "j < (aa+n) div 2"
     ultimately show "l'a ! j < p" using "0" b
       using \<open>take n l'a ! ((aa + n) div 2) < p\<close> dual_order.strict_trans by auto
@@ -159,14 +159,14 @@ sorted_less xs \<Longrightarrow>
     ultimately have "\<And>j. j < (aa+b)div 2 \<Longrightarrow> (take n l'a) ! j < (take n l'a) ! ((aa + b) div 2)"
       using
         sorted_wrt_nth_less[where ?P="(<)" and ?xs="(take n l'a)" and ?j="((aa + b) div 2)"]
-      a b t0 by auto
+        a b t0 by auto
     moreover fix j assume "j < (aa+b) div 2"
     ultimately show "l'a ! j < p" using t0 b
       using \<open>take n l'a ! ((aa + b) div 2) < p\<close> dual_order.strict_trans by auto
   qed
-     apply sep_auto
-      apply (metis le_less nth_take)
-     apply (metis le_less nth_take)
+  apply sep_auto
+  apply (metis le_less nth_take)
+  apply (metis le_less nth_take)
   apply sep_auto
   subgoal for l' aa l'a aaa ba j
   proof -
@@ -177,7 +177,7 @@ sorted_less xs \<Longrightarrow>
     have "(aa+n) div 2 < n" using t0 by linarith
     then have "(take n l'a) ! j < (take n l'a) ! ((aa + n) div 2)"
       using t0 sorted_wrt_nth_less[where ?xs="take n l'a" and ?j="((aa + n) div 2)"]
-       t1 t4 t5 by auto
+        t1 t4 t5 by auto
     then show ?thesis
       using \<open>(aa + n) div 2 < n\<close> t5 by auto
   qed
@@ -191,12 +191,12 @@ sorted_less xs \<Longrightarrow>
     have "(aa+b) div 2 < n" using t3 t0 by linarith
     then have "(take n l'a) ! j < (take n l'a) ! ((aa + b) div 2)"
       using t0 sorted_wrt_nth_less[where ?xs="take n l'a" and ?j="((aa + b) div 2)"]
-       t1 t4 t5 by auto
+        t1 t4 t5 by auto
     then show ?thesis
       using \<open>(aa + b) div 2 < n\<close> t5 by auto
   qed
-    apply (metis nth_take order_mono_setup.refl)
-   apply sep_auto
+  apply (metis nth_take order_mono_setup.refl)
+  apply sep_auto
   apply (sep_auto simp add: is_pfarray_cap_def)
   done
 
@@ -238,8 +238,8 @@ sorted_less (map snd xs) \<Longrightarrow>
 < is_pfarray_cap c xs (a,n) * true>
  bin_split (a,n) p
  <\<lambda>l. is_pfarray_cap c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd(xs!j) < p) \<and> (l<n \<longrightarrow> snd(xs!l)\<ge>p)) >\<^sub>t"
-(* this works in principle, as demonstrated above *)
-    unfolding bin_split_def
+  (* this works in principle, as demonstrated above *)
+  unfolding bin_split_def
 
   supply R = heap_WHILET_rule''[where 
       R = "measure (\<lambda>(l,h). h-l)"
@@ -250,35 +250,35 @@ sorted_less (map snd xs) \<Longrightarrow>
   thm R
 
   apply (sep_auto decon: R simp: less_Suc_eq is_pfarray_cap_def) []
-  
-      apply(auto dest!: sndI nth_take_eq[of n _ _ "(_ + _) div 2"])[]
-     apply(auto dest!: sndI nth_take_eq[of n _ _ "(_ + _) div 2"])[]
-    apply (sep_auto dest!: sndI )
+
+  apply(auto dest!: sndI nth_take_eq[of n _ _ "(_ + _) div 2"])[]
+  apply(auto dest!: sndI nth_take_eq[of n _ _ "(_ + _) div 2"])[]
+  apply (sep_auto dest!: sndI )
   subgoal for ls i ls' _ _ j
     using map_snd_sorted_lesseq[of "take n ls'" j "(i + n) div 2"] 
-    less_mult_imp_div_less apply(auto)[]
+      less_mult_imp_div_less apply(auto)[]
     done
   subgoal for ls i j ls' _ _ j'
     using map_snd_sorted_lesseq[of "take n ls'" j' "(i + j) div 2"] 
-    less_mult_imp_div_less apply(auto)[]
+      less_mult_imp_div_less apply(auto)[]
     done
-    apply sep_auto
+  apply sep_auto
   subgoal for ls i ls' _ _ j
     using map_snd_sorted_less[of "take n ls'" j "(i + n) div 2"] 
       less_mult_imp_div_less
-     apply(auto)[]
+    apply(auto)[]
     done
   subgoal for ls i j ls' _ _ j'
     using map_snd_sorted_less[of "take n ls'" j' "(i + j) div 2"] 
       less_mult_imp_div_less
-     apply(auto)[]
+    apply(auto)[]
     done
-    apply (metis le_less nth_take_eq)
-   apply sep_auto
+  apply (metis le_less nth_take_eq)
+  apply sep_auto
   apply (sep_auto simp add: is_pfarray_cap_def)
-done
-    
-     
+  done
+
+
 
 lemma split_ismeq: "((a::nat) \<le> b \<and> X) = ((a < b \<and> X) \<or> (a = b \<and> X))"
   by auto
@@ -289,7 +289,7 @@ definition "abs_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<l
 interpretation btree_abs_search: split abs_split
   apply unfold_locales
   unfolding abs_split_def
-    apply (auto simp: split: list.splits)
+  apply (auto simp: split: list.splits)
   subgoal
     by (metis (no_types, lifting) append_is_Nil_conv append_self_conv case_prodD dropWhile_append1 list.simps(3) takeWhile_dropWhile_id takeWhile_eq_all_conv takeWhile_idem takeWhile_tail)
   subgoal
@@ -306,8 +306,8 @@ lemma split_relation_alt:
 
 lemma split_relation_map: "split_relation as (ls,rs) i \<Longrightarrow> split_relation (map f as) (map f ls, map f rs) i"
   apply(induction as arbitrary: ls rs i)
-   apply(auto simp add: split_relation_def take_map drop_Cons')
-   apply (metis list.simps(9) take_map)
+  apply(auto simp add: split_relation_def take_map drop_Cons')
+  apply (metis list.simps(9) take_map)
   apply (simp add: drop_map)
   done
 
@@ -331,7 +331,7 @@ lemma abs_split_split:
     and " (case (xs!n) of (_,s) \<Rightarrow> \<not>(s < p))"
   shows "abs_split xs p = (take n xs, drop n xs)"
   using assms  apply (auto simp add: abs_split_def)
-   apply (metis (mono_tags, lifting) id_take_nth_drop old.prod.case takeWhile_eq_all_conv takeWhile_tail)
+  apply (metis (mono_tags, lifting) id_take_nth_drop old.prod.case takeWhile_eq_all_conv takeWhile_tail)
   by (metis (no_types, lifting) Cons_nth_drop_Suc case_prod_conv dropWhile.simps(2) dropWhile_append2 id_take_nth_drop)
 
 
@@ -343,13 +343,13 @@ thm index_to_elem_all[of ts "\<lambda>x. snd x < p"]
 
 lemma list_assn_all: "h \<Turnstile> (list_assn (\<up>\<circ>\<circ>P) xs ys) \<Longrightarrow> (\<forall>i<length xs. P (xs!i) (ys!i))"
   apply(induction "\<up>\<circ>\<circ>P" xs ys rule: list_assn.induct)
-     apply(auto simp add: less_Suc_eq_0_disj)
+  apply(auto simp add: less_Suc_eq_0_disj)
   done
 
 (* simp? not sure if it always makes things more easy *)
 lemma list_assn_prod_map: "list_assn (A \<times>\<^sub>a B) xs ys = list_assn B (map snd xs) (map snd ys) * list_assn A (map fst xs) (map fst ys)"
   apply(induct "(A \<times>\<^sub>a B)" xs ys rule: list_assn.induct)
-     apply(auto simp add: ab_semigroup_mult_class.mult.left_commute ent_star_mono star_aci(2) star_assoc)
+  apply(auto simp add: ab_semigroup_mult_class.mult.left_commute ent_star_mono star_aci(2) star_assoc)
   done
 
 find_theorems Id
@@ -358,7 +358,7 @@ find_theorems Id
 (* concrete *)
 lemma id_assn_list: "h \<Turnstile> list_assn id_assn (xs::'a list) ys \<Longrightarrow> xs = ys"
   apply(induction "id_assn::('a \<Rightarrow> 'a \<Rightarrow> assn)" xs ys rule: list_assn.induct)
-     apply(auto simp add: less_Suc_eq_0_disj pure_def)
+  apply(auto simp add: less_Suc_eq_0_disj pure_def)
   done
 
 
@@ -441,7 +441,7 @@ lemma split_rule_abs_split:
                  \<up> (r \<le> n \<and>
                     (\<forall>j<r. snd (xs ! j) < p) \<and> (r < n \<longrightarrow> p \<le> snd (xs ! r)))>\<^sub>t"
   shows
-"P c tsi a n p \<Longrightarrow> <
+    "P c tsi a n p \<Longrightarrow> <
     is_pfarray_cap c tsi (a,n)
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
@@ -453,7 +453,7 @@ lemma split_rule_abs_split:
   thm split_rule
   apply (sep_auto heap: split_rule dest!: mod_starD id_assn_list
       simp add: list_assn_prod_map split_ismeq)
-(* the interesting path: finding the correct rules for automatic rewriting:
+    (* the interesting path: finding the correct rules for automatic rewriting:
     apply(auto dest!: hoare_triple_preI list_assn_len
           simp add: is_pfarray_cap_def split_relation_def min.absorb1 min.absorb2 )[]
   subgoal for x _ _ _ _ as bs ls
@@ -464,8 +464,8 @@ lemma split_rule_abs_split:
           simp add: is_pfarray_cap_def split_relation_def min.absorb1 min.absorb2 )[]
 stops here...
 *)
-      apply(simp_all add: is_pfarray_cap_def)
-    apply(auto)
+  apply(simp_all add: is_pfarray_cap_def)
+  apply(auto)
 proof -
 
   fix h l' assume heap_init:
@@ -555,7 +555,7 @@ sorted_less (map snd ts) \<Longrightarrow> <
   apply(rule hoare_triple_preI)
   thm split_rule_abs_split[OF bin_split_rule]
   apply (sep_auto heap: split_rule_abs_split[OF bin_split_rule])
-   apply(auto dest!: mod_starD id_assn_list simp add: list_assn_prod_map)
+  apply(auto dest!: mod_starD id_assn_list simp add: list_assn_prod_map)
   done
 
 partial_function (heap) isin :: "('a::{heap,linorder}) btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
@@ -589,7 +589,7 @@ proof(induction t x arbitrary: ti rule: btree_abs_search.isin.induct)
   then show ?case
     apply(subst isin.simps)
     apply (cases ti)
-     apply (auto simp add: return_cons_rule)
+    apply (auto simp add: return_cons_rule)
     done
 next
   case (2 ts t x)
@@ -602,9 +602,9 @@ next
     show ?thesis
       apply(subst isin.simps)
       apply(sep_auto heap: linear_split_imp_abs_split)
-        apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
-       apply(rule hoare_triple_preI)
-       apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
+      apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
+      apply(rule hoare_triple_preI)
+      apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
       apply(sep_auto heap: "2.IH"(1)[of ls "[]"])
       done
   next
@@ -619,8 +619,8 @@ next
         apply(simp split: list.splits prod.splits)
         apply(subst isin.simps)
         apply(sep_auto heap: linear_split_imp_abs_split)
-         apply(rule hoare_triple_preI)
-         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
+        apply(rule hoare_triple_preI)
+        apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
         apply(rule hoare_triple_preI)
         apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
         done
@@ -633,7 +633,7 @@ next
         apply(subst isin.simps)
         apply(sep_auto heap: linear_split_imp_abs_split)
           (*eliminate vacuous case*)
-          apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!:  mod_starD list_assn_len)[]
+        apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!:  mod_starD list_assn_len)[]
           (* simplify towards induction step *)
         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
 
@@ -1102,7 +1102,7 @@ fun insert::"nat \<Rightarrow> 'a \<Rightarrow> 'a btree \<Rightarrow> 'a btree"
 *)
 
 definition insert :: "nat \<Rightarrow> ('a::{heap,default,linorder}) \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option Heap" where
-"insert \<equiv> \<lambda>k x ti. do {
+  "insert \<equiv> \<lambda>k x ti. do {
   ti' \<leftarrow> ins k x ti;
   case ti' of
      T\<^sub>i sub \<Rightarrow> return sub |
@@ -1120,12 +1120,12 @@ lemma insert_rule:
   <\<lambda>r. btree_assn k (btree_abs_search.insert k x t) r>\<^sub>t"
   unfolding insert_def
   apply(cases "btree_abs_search.ins k x t")
-   apply(sep_auto split!: btupi.splits heap: ins_rule)
+  apply(sep_auto split!: btupi.splits heap: ins_rule)
   using assms
   apply(vcg heap: ins_rule)
   apply(simp split!: btupi.splits)
   apply(vcg)
-   apply simp
+  apply simp
   apply simp
   apply vcg
   apply auto[]
@@ -1144,7 +1144,7 @@ lemma insert_rule:
 the position of sub/sep and a last tree *)
 definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder}) btnode ref option \<times> 'a) pfarray \<Rightarrow> nat \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode Heap"
   where
-"rebalance_middle_tree \<equiv> \<lambda> k tsi i r_ti. (
+    "rebalance_middle_tree \<equiv> \<lambda> k tsi i r_ti. (
   case r_ti of
   None \<Rightarrow> do {
     return (Btnode tsi r_ti)
@@ -1195,14 +1195,14 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
 
 definition rebalance_last_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder}) btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode Heap"
   where
-"rebalance_last_tree \<equiv> \<lambda>k tsi ti. do {
+    "rebalance_last_tree \<equiv> \<lambda>k tsi ti. do {
    l_tsi \<leftarrow> pfa_length tsi;
    rebalance_middle_tree k tsi (l_tsi-1) ti
 }"
 
 partial_function (heap) split_max ::"nat \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> ('a btnode ref option \<times> 'a) Heap"
   where
-"split_max k r_t = (case r_t of Some p_t \<Rightarrow> do {
+    "split_max k r_t = (case r_t of Some p_t \<Rightarrow> do {
    t \<leftarrow> !p_t;
    (case t of Btnode tsi r_ti \<Rightarrow>
      case r_ti of None \<Rightarrow> do {
@@ -1248,7 +1248,7 @@ proof(induction t x arbitrary: ti rule: btree_abs_search.isin.induct)
   then show ?case
     apply(subst isin.simps)
     apply (cases ti)
-     apply (auto simp add: return_cons_rule)
+    apply (auto simp add: return_cons_rule)
     done
 next
   case (2 ts t x)
@@ -1261,9 +1261,9 @@ next
     show ?thesis
       apply(subst isin.simps)
       apply(sep_auto heap: bin_split_imp_abs_split)
-        apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
-       apply(rule hoare_triple_preI)
-       apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
+      apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
+      apply(rule hoare_triple_preI)
+      apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
       using 2(3) apply(sep_auto heap: "2.IH"(1)[of ls "[]"] simp add: sorted_wrt_append)
       done
   next
@@ -1278,8 +1278,8 @@ next
         apply(simp split: list.splits prod.splits)
         apply(subst isin.simps)
         apply(sep_auto heap: bin_split_imp_abs_split)
-         apply(rule hoare_triple_preI)
-         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
+        apply(rule hoare_triple_preI)
+        apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
         apply(rule hoare_triple_preI)
         apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
         done
@@ -1292,7 +1292,7 @@ next
         apply(subst isin.simps)
         apply(sep_auto heap: bin_split_imp_abs_split)
           (*eliminate vacuous case*)
-          apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!:  mod_starD list_assn_len)[]
+        apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!:  mod_starD list_assn_len)[]
           (* simplify towards induction step *)
         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
 
@@ -1598,7 +1598,7 @@ fun insert::"nat \<Rightarrow> 'a \<Rightarrow> 'a btree \<Rightarrow> 'a btree"
 *)
 
 definition insert' :: "nat \<Rightarrow> ('a::{heap,default,linorder}) \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option Heap" where
-"insert' \<equiv> \<lambda>k x ti. do {
+  "insert' \<equiv> \<lambda>k x ti. do {
   ti' \<leftarrow> ins' k x ti;
   case ti' of
      T\<^sub>i sub \<Rightarrow> return sub |
@@ -1616,12 +1616,12 @@ lemma insert'_rule:
   <\<lambda>r. btree_assn k (btree_abs_search.insert k x t) r>\<^sub>t"
   unfolding insert'_def
   apply(cases "btree_abs_search.ins k x t")
-   apply(sep_auto split!: btupi.splits heap: ins'_rule[OF assms(2)])
+  apply(sep_auto split!: btupi.splits heap: ins'_rule[OF assms(2)])
   using assms
   apply(vcg heap: ins'_rule[OF assms(2)])
   apply(simp split!: btupi.splits)
   apply(vcg)
-   apply simp
+  apply simp
   apply simp
   apply vcg
   apply auto[]

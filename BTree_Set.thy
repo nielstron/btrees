@@ -81,17 +81,17 @@ subsection "isin Function"
 fun isin:: "'a btree \<Rightarrow> 'a \<Rightarrow> bool" where
   "isin (Leaf) y = False" |
   "isin (Node ts t) y = (
-  case split ts y of (_,rs) \<Rightarrow>
-   (case rs of
-   (sub,sep)#_ \<Rightarrow>
-    (if y = sep
-        then True
-        else isin sub y
-    )
-   | [] \<Rightarrow> isin t y))"
+      case split ts y of (_,(sub,sep)#rs) \<Rightarrow> (
+          if y = sep then
+             True
+          else
+             isin sub y
+      )
+   | (_,[]) \<Rightarrow> isin t y
+  )"
 
 thm isin_simps
-(* copied from comment in List_Ins_Del *)
+  (* copied from comment in List_Ins_Del *)
 lemma sorted_ConsD: "sorted_less (y # xs) \<Longrightarrow> x \<le> y \<Longrightarrow> x \<notin> set xs"
   by (auto simp: sorted_Cons_iff)
 
@@ -100,7 +100,7 @@ lemma sorted_snocD: "sorted_less (xs @ [y]) \<Longrightarrow> y \<le> x \<Longri
 
 
 lemmas isin_simps2 = sorted_lems sorted_ConsD sorted_snocD
-(*-----------------------------*)
+  (*-----------------------------*)
 
 lemma isin_sorted: "sorted_less (xs@a#ys) \<Longrightarrow>
   (x \<in> set (xs@a#ys)) = (if x < a then x \<in> set xs else x \<in> set (a#ys))"
@@ -344,7 +344,7 @@ lemma node\<^sub>i_order:
   apply(cases "node\<^sub>i k ts t")
   using node\<^sub>i_root_order node\<^sub>i_order_helper assms apply fastforce
   apply (metis node\<^sub>i_root_order assms(2,3,4) le0 length_greater_0_conv
-        list.size(3) node\<^sub>i.simps order_up\<^sub>i.simps(2) root_order_up\<^sub>i.simps(2) up\<^sub>i.distinct(1))
+      list.size(3) node\<^sub>i.simps order_up\<^sub>i.simps(2) root_order_up\<^sub>i.simps(2) up\<^sub>i.distinct(1))
   done
 
 (* explicit proof *)
@@ -645,7 +645,7 @@ fun inorder_up\<^sub>i where
 (* "simple enough" to be automatically solved *)
 lemma node\<^sub>i_inorder: "inorder_up\<^sub>i (node\<^sub>i k ts t) = inorder (Node ts t)"
   apply(cases "length ts \<le> 2*k")
-   apply (auto split!: list.splits)
+  apply (auto split!: list.splits)
     (* we want to only transform in one direction here.. *)
   supply R = sym[OF append_take_drop_id, of "map _ ts" "(length ts div 2)"]
   thm R
@@ -656,7 +656,7 @@ lemma node\<^sub>i_inorder: "inorder_up\<^sub>i (node\<^sub>i k ts t) = inorder 
 corollary node\<^sub>i_inorder_simps:
   "node\<^sub>i k ts t = T\<^sub>i t' \<Longrightarrow> inorder t' = inorder (Node ts t)"
   "node\<^sub>i k ts t = Up\<^sub>i l a r \<Longrightarrow> inorder l @ a # inorder r = inorder (Node ts t)"
-   apply (metis inorder_up\<^sub>i.simps(1) node\<^sub>i_inorder)
+  apply (metis inorder_up\<^sub>i.simps(1) node\<^sub>i_inorder)
   by (metis append_Cons inorder_up\<^sub>i.simps(2) node\<^sub>i_inorder self_append_conv2)
 
 
@@ -729,7 +729,7 @@ corollary ins_list_split_right:
 (* a simple lemma, missing from the standard as of now *)
 lemma ins_list_contains_idem: "sorted_less xs \<Longrightarrow> x \<in> set xs \<Longrightarrow> ins_list x xs = xs"
   apply(induction xs)
-   apply auto
+  apply auto
   done
 
 declare node\<^sub>i.simps [simp del]
@@ -840,17 +840,17 @@ thm btree.induct
 
 lemma tree\<^sub>i_bal: "bal_up\<^sub>i u \<Longrightarrow> bal (tree\<^sub>i u)"
   apply(cases u)
-   apply(auto)
+  apply(auto)
   done
 
 lemma tree\<^sub>i_order: "\<lbrakk>k > 0; root_order_up\<^sub>i k u\<rbrakk> \<Longrightarrow> root_order k (tree\<^sub>i u)"
   apply(cases u)
-   apply(auto simp add: order_impl_root_order)
+  apply(auto simp add: order_impl_root_order)
   done
 
 lemma tree\<^sub>i_inorder: "inorder_up\<^sub>i u = inorder (tree\<^sub>i u)"
   apply (cases u)
-   apply auto
+  apply auto
   done
 
 lemma insert_bal: "bal t \<Longrightarrow> bal (insert k x t)"
@@ -1207,7 +1207,7 @@ lemma rebalance_middle_tree\<^sub>inorder:
   shows "inorder (rebalance_middle_tree k ls sub sep rs t) = inorder (Node (ls@(sub,sep)#rs) t)"
   apply(cases sub; cases t)
   using assms node\<^sub>i_inorder 
-   apply (auto
+  apply (auto
       split!: btree.splits up\<^sub>i.splits list.splits
       simp del: node\<^sub>i.simps
       simp add: node\<^sub>i_inorder_simps
@@ -1430,7 +1430,7 @@ proof(induction k x t rule: del.induct)
       case sep_n_x
       then have "bal (del k x sub)" "height (del k x sub) = height sub" using sub_height
         using "2.IH"(2) "2.prems"(2) list_split Cons r_split split_set(1) order_impl_root_order
-         apply (metis "2.prems"(1) root_order.simps(2) some_child_sub(1))
+        apply (metis "2.prems"(1) root_order.simps(2) some_child_sub(1))
         by (metis "2.prems"(1) "2.prems"(2) list_split Cons order_impl_root_order r_split root_order.simps(2) some_child_sub(1) del_height split_set(1) sub_height(2))
       moreover have "bal (Node (ls@(sub,sep)#rs) t)"
         using "2.prems"(3) list_split Cons r_split split_conc by blast
@@ -1600,7 +1600,7 @@ qed simp
 
 lemma subtrees_split2: "set (subtrees (l@r)) = set (subtrees l) \<union> set (subtrees r)"
   apply(induction r)
-   apply(auto)
+  apply(auto)
   done
 
 lemma del_order: 
@@ -1862,18 +1862,18 @@ qed auto
 
 lemma reduce_root_order: "\<lbrakk>k > 0; almost_order k t\<rbrakk> \<Longrightarrow> root_order k (reduce_root t)"
   apply(cases t)
-   apply(auto split!: list.splits simp add: order_impl_root_order)
+  apply(auto split!: list.splits simp add: order_impl_root_order)
   done
 
 lemma reduce_root_bal: "bal (reduce_root t) = bal t"
   apply(cases t)
-   apply(auto split!: list.splits)
+  apply(auto split!: list.splits)
   done
 
 
 lemma reduce_root_inorder: "inorder (reduce_root t) = inorder t"
   apply (cases t)
-   apply (auto split!: list.splits)
+  apply (auto split!: list.splits)
   done
 
 
@@ -1906,7 +1906,7 @@ interpretation S_ordered: Set_by_Ordered where
   empty = Leaf and
   insert = "insert (Suc k)" and 
   delete = "delete (Suc k)" and
-  isin = "isin"   and
+  isin = "isin" and
   inorder = "inorder"   and
   inv = "invar_inorder (Suc k)"
 proof (standard, goal_cases)
@@ -1957,7 +1957,7 @@ proof -
   have "linear_split_help xs x prev = (prev @ takeWhile (\<lambda>(_, s). s < x) xs, dropWhile (\<lambda>(_, s). s < x) xs)"
     for prev
     apply (induction xs arbitrary: prev)
-     apply auto
+    apply auto
     done
   thus ?thesis by auto
 qed
@@ -1965,7 +1965,7 @@ qed
 interpretation btree_linear_search: split linear_split
   apply unfold_locales
   unfolding linear_split_alt
-    apply (auto simp: split: list.splits)
+  apply (auto simp: split: list.splits)
   subgoal
     by (metis (no_types, lifting) case_prodD in_set_conv_decomp takeWhile_eq_all_conv takeWhile_idem)
   subgoal
@@ -1977,19 +1977,19 @@ interpretation btree_linear_search: split linear_split
 
 lemma some_child_sm: "linear_split_help t y xs = (ls,(sub,sep)#rs) \<Longrightarrow> y \<le> sep"
   apply(induction t y xs rule: linear_split_help.induct)
-   apply(simp_all)
+  apply(simp_all)
   by (metis Pair_inject le_less_linear list.inject)
 
 
 
 lemma linear_split_append: "linear_split_help xs p ys = (ls,rs) \<Longrightarrow> ls@rs = ys@xs"
   apply(induction xs p ys rule: linear_split_help.induct)
-   apply(simp_all)
+  apply(simp_all)
   by (metis Pair_inject)
 
 lemma linear_split_sm: "\<lbrakk>linear_split_help xs p ys = (ls,rs); sorted_less (separators (ys@xs)); \<forall>sep \<in> set (separators ys). p > sep\<rbrakk> \<Longrightarrow> \<forall>sep \<in> set (separators ls). p > sep"
   apply(induction xs p ys rule: linear_split_help.induct)
-   apply(simp_all)
+  apply(simp_all)
   by (metis prod.inject)+
 
 value "linear_split [(Leaf, 2)] (1::nat)"
@@ -2014,7 +2014,7 @@ lemma linear_split_req2:
   shows  "sep < p"
   using linear_split_sm[of xs p "[]" "ls@[(sub,sep)]" rs]
   using assms(1) assms(2) btree_linear_search.split_req(2) by blast
-  
+
 
 definition "linear_insert = insert linear_split"
 
@@ -2037,7 +2037,7 @@ function (sequential) binary_split_help:: "(('a::linorder) btree\<times>'a) list
   by pat_completeness auto
 termination
   apply(relation "measure (\<lambda>(ls,xs,rs,x). length xs)")
-    apply (auto)
+  apply (auto)
   by (metis append_take_drop_id length_Cons length_append lessI trans_less_add2)
 
 
@@ -2047,19 +2047,19 @@ fun binary_split where
 
 lemma "binary_split_help as bs cs x = (ls,rs) \<Longrightarrow> (as@bs@cs) = (ls@rs)"
   apply(induction as bs cs x arbitrary: ls rs rule: binary_split_help.induct)
-   apply (auto simp add: drop_not_empty split!: list.splits )
+  apply (auto simp add: drop_not_empty split!: list.splits )
   subgoal for ls a b va rs  x lsa rsa aa ba x22
     apply(cases "cmp x ba")
-      apply auto
-      apply (metis Cons_eq_appendI append_eq_appendI append_take_drop_id)
-     apply (metis append_take_drop_id)
+    apply auto
+    apply (metis Cons_eq_appendI append_eq_appendI append_take_drop_id)
+    apply (metis append_take_drop_id)
     by (metis Cons_eq_appendI append_eq_appendI append_take_drop_id)
   done
 
 lemma "\<lbrakk>sorted_less (separators (as@bs@cs)); binary_split_help as bs cs x = (ls,rs); \<forall>y \<in> set (separators as). y < x\<rbrakk>
 \<Longrightarrow> \<forall>y \<in> set (separators ls). y < x"
   apply(induction as bs cs x arbitrary: ls rs rule: binary_split_help.induct)
-   apply (auto simp add: drop_not_empty split!: list.splits)
+  apply (auto simp add: drop_not_empty split!: list.splits)
   subgoal for ls a b va rs  x lsa rsa aa ba x22 ab bb
     apply(cases "cmp x ba")
       (*apply auto*)

@@ -215,11 +215,11 @@ datatype 'b up\<^sub>i = T\<^sub>i "'b btree" | Up\<^sub>i "'b btree" 'b "'b btr
    if an overflow occurs *)
 
 fun node\<^sub>i:: "nat \<Rightarrow> ('a btree \<times> 'a) list \<Rightarrow> 'a btree \<Rightarrow> 'a up\<^sub>i" where
-  "node\<^sub>i k xs x = (
-  if length xs \<le> 2*k then T\<^sub>i (Node xs x)
+  "node\<^sub>i k ts t = (
+  if length ts \<le> 2*k then T\<^sub>i (Node ts t)
   else (
-    case split_half xs of (ls, (sub,sep)#rs) \<Rightarrow>
-      Up\<^sub>i (Node ls sub) sep (Node rs x)
+    case split_half ts of (ls, (sub,sep)#rs) \<Rightarrow>
+      Up\<^sub>i (Node ls sub) sep (Node rs t)
     )
   )"
 
@@ -265,6 +265,10 @@ fun root_order_up\<^sub>i where
   "root_order_up\<^sub>i k (T\<^sub>i sub) = root_order k sub" |
   "root_order_up\<^sub>i k (Up\<^sub>i l a r) = (order k l \<and> order k r)"
 
+lemma root_order_tree\<^sub>i: "root_order_up\<^sub>i (Suc k) t = root_order (Suc k) (tree\<^sub>i t)"
+  apply (cases t)
+   apply auto
+  done
 
 lemma node\<^sub>i_root_order:
   assumes "length ts > 0"
@@ -458,6 +462,11 @@ qed simp
 fun bal_up\<^sub>i where
   "bal_up\<^sub>i (T\<^sub>i t) = bal t" |
   "bal_up\<^sub>i (Up\<^sub>i l a r) = (height l = height r \<and> bal l \<and> bal r)"
+
+lemma bal_up\<^sub>i_tree: "bal_up\<^sub>i t = bal (tree\<^sub>i t)"
+  apply(cases t)
+   apply auto
+  done
 
 lemma bal_list_split: "bal (Node (ls@(a,b)#rs) t) \<Longrightarrow> bal_up\<^sub>i (Up\<^sub>i (Node ls a) b (Node rs t))"
   unfolding bal_up\<^sub>i.simps

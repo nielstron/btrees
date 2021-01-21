@@ -473,10 +473,9 @@ lemma bal_list_split: "bal (Node (ls@(a,b)#rs) t) \<Longrightarrow> bal_up\<^sub
   by (metis bal_split_last(1) bal_split_right bal_split_left height_bal_tree)
 
 lemma node\<^sub>i_bal:
-  assumes "\<forall>x \<in> set (subtrees ts). bal x"
-    and "bal t"
-    and "\<forall>x \<in> set (subtrees ts). height t = height x"
+  assumes "bal (Node ts t)"
   shows "bal_up\<^sub>i (node\<^sub>i k ts t)"
+  using assms
 proof(cases "length ts \<le> 2*k")
   case False
   then obtain ls sub sep rs where
@@ -488,7 +487,7 @@ proof(cases "length ts \<le> 2*k")
   then show ?thesis
     using split_half_ts assms False
     by (auto simp del: bal.simps bal_up\<^sub>i.simps dest!: bal_list_split[of ls sub sep rs t])
-qed (simp add: assms)
+qed simp
 
 
 lemma height_up\<^sub>i_merge: "height_up\<^sub>i (Up\<^sub>i l a r) = height t \<Longrightarrow> height (Node (ls@(t,x)#rs) tt) = height (Node (ls@(l,a)#(r,x)#rs) tt)"
@@ -736,10 +735,14 @@ corollary ins_list_split_right:
 
 
 (* a simple lemma, missing from the standard as of now *)
-lemma ins_list_contains_idem: "sorted_less xs \<Longrightarrow> x \<in> set xs \<Longrightarrow> ins_list x xs = xs"
+lemma ins_list_idem_eq_isin: "sorted_less xs \<Longrightarrow> x \<in> set xs \<longleftrightarrow> (ins_list x xs = xs)"
   apply(induction xs)
-  apply auto
+   apply auto
   done
+
+lemma ins_list_contains_idem: "\<lbrakk>sorted_less xs; x \<in> set xs\<rbrakk> \<Longrightarrow> (ins_list x xs = xs)"
+  using ins_list_idem_eq_isin by auto
+
 
 declare node\<^sub>i.simps [simp del]
 declare node\<^sub>i_inorder [simp add]  
@@ -1210,7 +1213,7 @@ qed simp
 
 (* note: this works (as it should, since there is not even recursion involved)
   automatically. *yay* *)
-lemma rebalance_middle_tree\<^sub>inorder:
+lemma rebalance_middle_tree_inorder:
   assumes "height t = height sub"
     and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"
   shows "inorder (rebalance_middle_tree k ls sub sep rs t) = inorder (Node (ls@(sub,sep)#rs) t)"
@@ -1223,11 +1226,11 @@ lemma rebalance_middle_tree\<^sub>inorder:
       )
   done
 
-lemma rebalance_last_tree\<^sub>inorder:
+lemma rebalance_last_tree_inorder:
   assumes "height t = height sub"
     and "ts = list@[(sub,sep)]"
   shows "inorder (rebalance_last_tree k ts t) = inorder (Node ts t)"
-  using rebalance_middle_tree\<^sub>inorder assms by auto
+  using rebalance_middle_tree_inorder assms by auto
 
 lemma butlast_inorder_app_id: "xs = xs' @ [(sub,sep)] \<Longrightarrow> inorder_list xs' @ inorder sub @ [sep] = inorder_list xs"
   by simp
@@ -1261,7 +1264,7 @@ proof (induction k t rule: split_max.induct)
     have "inorder_pair (split_max k (Node ts t)) = inorder (rebalance_last_tree k ts sub) @ [sep]"
       using Node 1 split_sub_sep by auto
     also have "\<dots> = inorder_list ts @ inorder sub @ [sep]"
-      using rebalance_last_tree\<^sub>inorder height_sub "1.prems"
+      using rebalance_last_tree_inorder height_sub "1.prems"
       by (auto simp del: rebalance_last_tree.simps)
     also have "\<dots> = inorder (Node ts t)"
       using IH split_sub_sep by simp
@@ -1274,11 +1277,9 @@ lemma height_bal_subtrees_merge: "\<lbrakk>height (Node as a) = height (Node bs 
  \<Longrightarrow> \<forall>x \<in> set (subtrees as) \<union> {a}. height x = height b"
   by (metis Suc_inject Un_iff bal.simps(2) height_bal_tree singletonD)
 
-lemma node\<^sub>i_bal_alt: 
-  assumes "height (Node as a) = height (Node bs b)"
-    and "bal (Node as a)"
-    and "bal (Node bs b)"
-  shows "bal_up\<^sub>i (node\<^sub>i k (as@(a,x)#bs) b)"
+lemma bal_list_merge: 
+  assumes "bal_up\<^sub>i (Up\<^sub>i (Node as a) x (Node bs b))"
+  shows "bal (Node (as@(a,x)#bs) b)"
 proof -
   have "\<forall>x\<in>set (subtrees (as @ (a, x) # bs)). bal x"
     using subtrees_split assms by auto
@@ -1286,10 +1287,31 @@ proof -
     using assms by auto
   moreover have "\<forall>x\<in>set (subtrees as) \<union> {a} \<union> set (subtrees bs). height x = height b"
     using assms height_bal_subtrees_merge
+    unfolding bal_up\<^sub>i.simps
     by blast
-  ultimately show ?thesis using node\<^sub>i_bal[of "as@(a,x)#bs"]
-    by (auto simp del: node\<^sub>i.simps)
+  ultimately show ?thesis
+    by auto
 qed
+
+lemma node\<^sub>i_bal_up\<^sub>i: 
+  assumes "bal_up\<^sub>i (node\<^sub>i k ts t)"
+  shows "bal (Node ts t)"
+  using assms
+proof(cases "length ts \<le> 2*k")
+  case False
+  then obtain ls sub sep rs where split_list: "split_half ts = (ls, (sub,sep)#rs)"
+    using node\<^sub>i_cases by blast
+  then have "node\<^sub>i k ts t = Up\<^sub>i (Node ls sub) sep (Node rs t)"
+    using False by auto
+  moreover have "ts = ls@(sub,sep)#rs"
+    by (metis append_take_drop_id fst_conv local.split_list snd_conv split_half.elims)
+  ultimately show ?thesis
+    using bal_list_merge[of ls sub sep rs t] assms
+    by (simp del: bal.simps bal_up\<^sub>i.simps)
+qed simp
+
+lemma node\<^sub>i_bal_simp: "bal_up\<^sub>i (node\<^sub>i k ts t) = bal (Node ts t)"
+  using node\<^sub>i_bal node\<^sub>i_bal_up\<^sub>i by blast
 
 lemma rebalance_middle_tree_bal: "bal (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> bal (rebalance_middle_tree k ls sub sep rs t)"
 proof (cases t)
@@ -1318,7 +1340,7 @@ proof (cases t)
         using height_bal_tree sub_heights(3) t_node by fastforce
       finally have "height_up\<^sub>i (node\<^sub>i k (mts@(mt,sep)#tts) tt) = height t" by simp
       moreover have "bal_up\<^sub>i (node\<^sub>i k (mts@(mt,sep)#tts) tt)"
-        using node\<^sub>i_bal_alt sub_node t_node sub_heights by auto
+        by (metis bal_list_merge bal_up\<^sub>i.simps(2) node\<^sub>i_bal sub_heights(1) sub_heights(2) sub_heights(3) sub_node t_node)
       ultimately show ?thesis
         apply (cases "node\<^sub>i k (mts@(mt,sep)#tts) tt")
         using assms Nil sub_node t_node by auto
@@ -1337,7 +1359,7 @@ proof (cases t)
         using height_bal_tree r_node rsub_height(2) by fastforce
       finally have 1: "height_up\<^sub>i (node\<^sub>i k (mts@(mt,sep)#rts) rt) = height rsub" by simp
       moreover have 2: "bal_up\<^sub>i (node\<^sub>i k (mts@(mt,sep)#rts) rt)"
-        using node\<^sub>i_bal_alt sub_node sub_heights rsub_height r_node by auto
+        by (metis bal_list_merge bal_up\<^sub>i.simps(2) node\<^sub>i_bal r_node rsub_height(1) rsub_height(2) sub_heights(1) sub_heights(2) sub_node)
       ultimately show ?thesis
       proof (cases "node\<^sub>i k (mts@(mt,sep)#rts) rt")
         case (T\<^sub>i u)
@@ -1773,7 +1795,7 @@ proof (induction k x t rule: del.induct)
       moreover have "height t = height (del k x t)"
         by (metis "2.prems"(1) "2.prems"(2) "2.prems"(3) bal.simps(2) del_height order_impl_root_order root_order.simps(2))
       ultimately show ?thesis
-        using rebalance_last_tree\<^sub>inorder
+        using rebalance_last_tree_inorder
         using ts_split by auto
     qed
     also have "\<dots> = inorder_list ts @ del_list x (inorder t)"
@@ -1809,7 +1831,7 @@ proof (induction k x t rule: del.induct)
         moreover have "case rs of [] \<Rightarrow> True | (rsub, rsep) # list \<Rightarrow> height rsub = height t"
           using "2.prems"(3) bal_sub_height list_conc Cons by blast
         ultimately show ?thesis
-          using rebalance_middle_tree\<^sub>inorder
+          using rebalance_middle_tree_inorder
           by simp
       qed
       also have "\<dots> = inorder_list ls @ del_list x (inorder sub) @ sep # inorder_list rs @ inorder t"
@@ -1858,7 +1880,7 @@ proof (induction k x t rule: del.induct)
           using "2.prems"(3) bal_sub_height list_conc local.Cons
           by blast
         ultimately show ?thesis
-          using rebalance_middle_tree\<^sub>inorder
+          using rebalance_middle_tree_inorder
           by auto
       qed
       also have "\<dots> = inorder (del k x (Node ts t))"
@@ -1940,7 +1962,7 @@ next
     by auto
 qed simp+
 
-
+find_theorems order node\<^sub>i
 
 (* if we remove this, a lot of proofs fail in BTree_Set_Traditional because... well *)
 (* declare node\<^sub>i.simps[simp del] *)
@@ -2086,5 +2108,7 @@ thm btree_linear_search.insert.simps
 
 (* BREAKS: no code generated *)
 (*value "btree_linear_search.insert 5 10 (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"*)
+
+
 
 end

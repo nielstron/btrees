@@ -34,12 +34,6 @@ lemma set_btree_split:
   "set_btree (Node (ls@m#rs) t) = set_btree_list ls \<union> set_btree_pair m \<union> set_btree_list rs \<union> set_btree t"
   by auto
 
-lemma set_btree_split: 
-  "set_btree (Node (l@(sub,sep)#r) t) = set_btree (Node (l@r) t) \<union> set_btree sub \<union> {sep}"
-  "set_btree (Node ts t) = set_btree_list ts \<union> set_btree t"
-  "set_btree_list (ls@m#rs) = set_btree_list ls \<union> set_btree_pair m \<union> set_btree_list rs"
-  "set_btree (Node (ls@m#rs) t) = set_btree_list ls \<union> set_btree_pair m \<union> set_btree_list rs \<union> set_btree t"
-  by auto
 
 
 (* idea: make sorted_list a sorted_wrt *)
@@ -203,16 +197,16 @@ proof(induction t rule: sorted_btree.induct)
     ultimately have "\<forall>x \<in> set_btree (Node list t). sep < x"
       using Cons.prems(1) pair_a by auto
     then have sep_sm: "\<forall>x \<in> set (inorder (Node list t)). sep < x"
-      using set_btree\<^sub>inorder[of "Node list t"]
+      using set_btree_inorder[of "Node list t"]
       by simp
     then have "sorted_less (sep # inorder (Node list t))"
       using Cons_sorted sorted_Cons_iff by blast
     moreover have "\<forall>y \<in> set (inorder sub). \<forall>x \<in> set (inorder (Node list t)). y < x"
       using Cons_help sep_sm pair_a Cons
-      by (metis dual_order.strict_trans list.set_intros(1) set_btree\<^sub>inorder sorted_btree.simps(2) sub_sep_cons.simps)
+      by (metis dual_order.strict_trans list.set_intros(1) set_btree_inorder sorted_btree.simps(2) sub_sep_cons.simps)
     ultimately have "sorted_less (inorder sub @ sep # inorder (Node list t))"
       using sorted_wrt_append[of "(<)" "inorder sub" "sep # inorder (Node list t)"] \<open>sorted_less (inorder (Node list t))\<close>
-      by (metis Cons.prems(1) \<open>sorted_less (inorder sub)\<close> list.set_intros(1) pair_a set_btree\<^sub>inorder sorted_btree.simps(2) sorted_mid_iff sorted_pair_list sub_sep_cons.simps)
+      by (metis Cons.prems(1) \<open>sorted_less (inorder sub)\<close> list.set_intros(1) pair_a set_btree_inorder sorted_btree.simps(2) sorted_mid_iff sorted_pair_list sub_sep_cons.simps)
     then have "sorted_less ((inorder sub @ [sep]) @ inorder (Node list t))"
       by simp
     then have "sorted_less ((\<lambda>(sub, sep). BTree.inorder sub @ [sep]) a @ foldr (@) (map (\<lambda>(sub, sep). BTree.inorder sub @ [sep]) list) [] @ inorder t)"
@@ -260,7 +254,7 @@ proof(induction ts)
     using Cons by (simp add: sorted_wrt_append)
   then have "sub_sep_cons (sub,sep)"
     unfolding sub_sep_cons.simps
-    using set_btree\<^sub>inorder sorted_pair_list
+    using set_btree_inorder sorted_pair_list
     by fastforce
   moreover have "sorted_less (inorder_list ts)"
     using Cons.prems sorted_wrt_append by fastforce
@@ -332,7 +326,7 @@ lemma sorted_sorted_btree: "sorted_less (inorder t) \<Longrightarrow> sorted_btr
   apply (safe)
   using sorted_inorder_subsepsm apply blast
   using sorted_inorder_subcons apply blast
-  using sorted_inorder_seps set_btree\<^sub>inorder apply fastforce
+  using sorted_inorder_seps set_btree_inorder apply fastforce
   using sorted_inorder_subtrees apply fastforce
   using sorted_inorder_last apply blast
   done
@@ -414,7 +408,7 @@ proof(induction n x rule: isin.induct)
       then have "x \<in> set (separators ts)"
         by (metis list_split rs_split some_child_sub(2) split_set(1))
       then show "x \<in> set_btree (Node ts t)"
-        by (metis set_btree\<^sub>induct)
+        by (metis set_btree_induct)
     next
       assume "x \<noteq> sep"
       then have "x \<in> set_btree sub"
@@ -523,7 +517,7 @@ proof (induction t x rule: isin.induct)
   obtain ls rs where list_split: "split ts x = (ls,rs)"
     by fastforce
   from 2 have "x \<in> set (separators ts) \<or> (\<exists>sub \<in> set (subtrees ts). x \<in> set_btree sub) \<or> x \<in> set_btree t"
-    by (meson set_btree\<^sub>induct)
+    by (meson set_btree_induct)
   then show ?case
   proof (elim disjE)
     assume assms: "x \<in> set (separators ts)"
@@ -573,7 +567,7 @@ fun set_up\<^sub>i where
   "set_up\<^sub>i (T\<^sub>i t) = set_btree t" |
   "set_up\<^sub>i (Up\<^sub>i l a r) = set_btree l \<union> set_btree r \<union> {a}"
 
-thm BTree.set_btree\<^sub>induct
+thm set_btree_induct
 
 lemma up\<^sub>i_set: "set_up\<^sub>i (Up\<^sub>i (Node ls sub) sep (Node rs t)) = set_btree (Node (ls@(sub,sep)#rs) t)"
   by auto
@@ -667,7 +661,7 @@ proof(induction k x t rule: ins.induct)
     next
       case True
       then have "x \<in> set_btree (Node ts t)"
-        by (metis a_split local.Cons set_btree\<^sub>induct some_child_sub(2) split_set(1) split_res)
+        by (metis a_split local.Cons set_btree_induct some_child_sub(2) split_set(1) split_res)
       then have "set_btree (Node ts t) = set_btree (Node ts t) \<union> {x}"
         by blast
       then show ?thesis
@@ -713,7 +707,7 @@ proof (safe)
   moreover have "\<forall>r \<in> set_btree t. sep < r"
     using assms by auto
   ultimately show "\<And>x. x \<in> set_btree (Node rs t) \<Longrightarrow> sep < x"
-    using set_btree\<^sub>induct by auto
+    using set_btree_induct by auto
 next
   show "sorted_btree (Node rs t)" "sorted_btree (Node ls sub)"
     using sorted_btree_split_rs sorted_btree_split_ls assms append_take_drop_id

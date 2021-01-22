@@ -1334,7 +1334,7 @@ qed simp
 (* sortedness of delete, the hard way *)
 
 
-lemma subtree\<^sub>in_subtrees: "a \<in> set (subtrees (ls @ (a, b) # rs))"
+lemma subtree_in_subtrees: "a \<in> set (subtrees (ls @ (a, b) # rs))"
   by simp
 
 lemma subtree_sub_sm:
@@ -1393,7 +1393,7 @@ next
         next
           fix a b assume "(a, b) \<in> set mts"
           then show "sub_sep_sm (a, b) (mt, sep)"
-            using subtree\<^sub>in_subtrees 
+            using subtree_in_subtrees 
             by (metis (no_types) Un_iff assms(3) list.set_intros(1) separators_in_set set_append some_child_sub(2) sorted_btree.simps(2) sub_node sub_sep_cons.simps sub_sep_sm.simps subsetD)
         next
           fix a b assume "(a, b) \<in> set tts"
@@ -1406,7 +1406,7 @@ next
       next
         fix a b assume "(a, b) \<in> set (mts @ (mt, sep) # tts)"
         show "sub_sep_cons (a,b)"
-          by (metis (no_types, lifting) Un_iff \<open>(a, b) \<in> set (mts @ (mt, sep) # tts)\<close> assms(3) insert_iff list.set(2) set_append set_btree_split(2) sorted_btree.simps(2) sub_node sub_sep_cons.simps subtree\<^sub>in_subtrees t_node)
+          by (metis (no_types, lifting) Un_iff \<open>(a, b) \<in> set (mts @ (mt, sep) # tts)\<close> assms(3) insert_iff list.set(2) set_append set_btree_split(2) sorted_btree.simps(2) sub_node sub_sep_cons.simps subtree_in_subtrees t_node)
       next
         fix x assume "x \<in> set_btree tt"
         then have x_in_t: "x \<in> set_btree t" by (simp add: t_node)
@@ -1526,7 +1526,7 @@ next
         next
           fix a b assume "(a, b) \<in> set mts"
           then show "sub_sep_sm (a, b) (mt, sep)"
-            using subtree\<^sub>in_subtrees 
+            using subtree_in_subtrees 
             by (metis (no_types) Un_iff assms(3) list.set_intros(1) separators_in_set set_append some_child_sub(2) sorted_btree.simps(2) sub_node sub_sep_cons.simps sub_sep_sm.simps subsetD)
         next
           fix a b assume "(a, b) \<in> set rts"
@@ -1542,7 +1542,7 @@ next
       next
         fix a b assume "(a, b) \<in> set (mts @ (mt, sep) # rts)"
         show "sub_sep_cons (a,b)"
-          by (metis (no_types, lifting) Cons_eq_appendI UnE UnI2 \<open>(a, b) \<in> set (mts @ (mt, sep) # rts)\<close> assms(3) in_set_conv_decomp_first list.set_intros(1) Cons r_split rsub_node set_ConsD set_append set_btree_split(2) sorted_btree.simps(2) sub_node sub_sep_cons.simps subtree\<^sub>in_subtrees)
+          by (metis (no_types, lifting) Cons_eq_appendI UnE UnI2 \<open>(a, b) \<in> set (mts @ (mt, sep) # rts)\<close> assms(3) in_set_conv_decomp_first list.set_intros(1) Cons r_split rsub_node set_ConsD set_append set_btree_split(2) sorted_btree.simps(2) sub_node sub_sep_cons.simps subtree_in_subtrees)
       next
         fix x assume "x \<in> set_btree rt"
         then have x_in_t: "x \<in> set_btree rsub" by simp
@@ -1846,7 +1846,7 @@ proof (induction k x t rule: del.induct)
         using node_sorted_split(1) sorted_btree.simps(2) by blast
       moreover have "height (del k x sub) = height t"
         using del_height
-        by (metis "2.prems"(1) "2.prems"(2) "2.prems"(3) a_split bal.simps(2) list_split Cons order_impl_root_order root_order.simps(2) split_req_alt(1) subtree\<^sub>in_subtrees)
+        by (metis "2.prems"(1) "2.prems"(2) "2.prems"(3) a_split bal.simps(2) list_split Cons order_impl_root_order root_order.simps(2) split_req_alt(1) subtree_in_subtrees)
       ultimately have "sorted_btree (rebalance_middle_tree k ls (del k x sub) sep rs t)"
         using rebalance_middle_tree_sorted
         by (metis "2.prems"(3) bal_sub_height list_split Cons split_req_alt(1))
@@ -1868,7 +1868,7 @@ proof (induction k x t rule: del.induct)
         "set_btree s_sub \<union> {s_max} = set_btree sub"
         "sorted_btree s_sub"
         using split_max_max split_max_set node_sorted_split split_max_sorted
-        by (metis "2.prems"(1) bal.simps(2) btree.distinct(1) order_bal_nonempty_lasttreebal order_impl_root_order root_order.simps(2) sorted_btree.simps(2) sub_node sub_sep_cons.elims(3) subtree\<^sub>in_subtrees)+
+        by (metis "2.prems"(1) bal.simps(2) btree.distinct(1) order_bal_nonempty_lasttreebal order_impl_root_order root_order.simps(2) sorted_btree.simps(2) sub_node sub_sep_cons.elims(3) subtree_in_subtrees)+
       have "sorted_btree (Node (ls@(s_sub,s_max)#rs) t)"
         unfolding sorted_btree.simps
       proof (safe)
@@ -1894,7 +1894,7 @@ proof (induction k x t rule: del.induct)
       qed
       moreover have "height s_sub = height t"
         using split_max_height node_sorted_split
-        by (metis "2.prems"(1) sub_split bal.simps(2) btree.distinct(1) order_bal_nonempty_lasttreebal order_impl_root_order root_order.simps(2) sub_node subtree\<^sub>in_subtrees)
+        by (metis "2.prems"(1) sub_split bal.simps(2) btree.distinct(1) order_bal_nonempty_lasttreebal order_impl_root_order root_order.simps(2) sub_node subtree_in_subtrees)
       ultimately have "sorted_btree (rebalance_middle_tree k ls s_sub s_max rs t)"
         using rebalance_middle_tree_sorted node_sorted_split
         by (metis bal_sub_height)

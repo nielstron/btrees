@@ -926,7 +926,8 @@ case last ts of (sub,sep) \<Rightarrow>
 text "Rather than deleting the minimal key from the right subtree,
 we remove the maximal key of the left subtree.
 This is due to the fact that the last tree can easily be accessed
-and the left neighbour is way easier to access than the right neighbour."
+and the left neighbour is way easier to access than the right neighbour,
+it resides in the same pair as the separating element to be removed."
 
 
 
@@ -1218,7 +1219,7 @@ lemma rebalance_middle_tree_inorder:
     and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"
   shows "inorder (rebalance_middle_tree k ls sub sep rs t) = inorder (Node (ls@(sub,sep)#rs) t)"
   apply(cases sub; cases t)
-  using assms node\<^sub>i_inorder 
+  using assms 
   apply (auto
       split!: btree.splits up\<^sub>i.splits list.splits
       simp del: node\<^sub>i.simps
@@ -1628,11 +1629,6 @@ proof(induction k t rule: split_max.induct)
   qed
 qed simp
 
-
-lemma subtrees_split2: "set (subtrees (l@r)) = set (subtrees l) \<union> set (subtrees r)"
-  apply(induction r)
-  apply(auto)
-  done
 
 lemma del_order: 
   assumes "k > 0"

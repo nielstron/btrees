@@ -48,9 +48,9 @@ find_consts name: while
 
 term split
 
-definition linear_split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarrow> 'b \<Rightarrow> nat Heap"
+definition lin_split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarrow> 'b \<Rightarrow> nat Heap"
   where
-    "linear_split \<equiv> \<lambda> (a,n) p. do {
+    "lin_split \<equiv> \<lambda> (a,n) p. do {
   
   i \<leftarrow> heap_WHILET 
     (\<lambda>i. if i<n then do {
@@ -65,11 +65,11 @@ definition linear_split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Ri
 
 
 
-lemma linear_split_rule: "
+lemma lin_split_rule: "
 < is_pfarray_cap c xs (a,n) * true>
- linear_split (a,n) p
+ lin_split (a,n) p
  <\<lambda>i. is_pfarray_cap c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
-  unfolding linear_split_def
+  unfolding lin_split_def
 
   supply R = heap_WHILET_rule''[where 
       R = "measure (\<lambda>i. n - i)"
@@ -528,17 +528,17 @@ proof -
 qed
 
 
-lemma linear_split_imp_abs_split[sep_heap_rules]: "<
+lemma lin_split_imp_abs_split[sep_heap_rules]: "<
     is_pfarray_cap c tsi (a,n)
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
-    linear_split (a,n) p 
+    lin_split (a,n) p 
   <\<lambda>i. 
     is_pfarray_cap c tsi (a,n)
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
     * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
-  thm  split_rule_abs_split[OF linear_split_rule]
-  by (sep_auto heap: split_rule_abs_split[OF linear_split_rule])
+  thm  split_rule_abs_split[OF lin_split_rule]
+  by (sep_auto heap: split_rule_abs_split[OF lin_split_rule])
 
 (* since we have shown the abstract behavior for sorted lists
 the proof from above needs nearly no amendmend *)
@@ -565,7 +565,7 @@ partial_function (heap) isin :: "('a::{heap,linorder}) btnode ref option \<Right
      None \<Rightarrow> return False |
      (Some a) \<Rightarrow> do {
        node \<leftarrow> !a;
-       i \<leftarrow> linear_split (kvs node) x;
+       i \<leftarrow> lin_split (kvs node) x;
        tsl \<leftarrow> pfa_length (kvs node);
        if i < tsl then do {
          s \<leftarrow> pfa_get (kvs node) i;
@@ -601,7 +601,7 @@ next
     case [simp]: Nil
     show ?thesis
       apply(subst isin.simps)
-      apply(sep_auto heap: linear_split_imp_abs_split)
+      apply(sep_auto heap: lin_split_imp_abs_split)
       apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
       apply(rule hoare_triple_preI)
       apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
@@ -618,7 +618,7 @@ next
       then show ?thesis
         apply(simp split: list.splits prod.splits)
         apply(subst isin.simps)
-        apply(sep_auto heap: linear_split_imp_abs_split)
+        apply(sep_auto heap: lin_split_imp_abs_split)
         apply(rule hoare_triple_preI)
         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
         apply(rule hoare_triple_preI)
@@ -631,7 +631,7 @@ next
         apply safe
         using False apply simp
         apply(subst isin.simps)
-        apply(sep_auto heap: linear_split_imp_abs_split)
+        apply(sep_auto heap: lin_split_imp_abs_split)
           (*eliminate vacuous case*)
         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!:  mod_starD list_assn_len)[]
           (* simplify towards induction step *)
@@ -805,7 +805,7 @@ partial_function (heap) ins :: "nat \<Rightarrow> 'a \<Rightarrow> ('a::{heap,li
     return (Up\<^sub>i None x None) |
   (Some a) \<Rightarrow> do {
     node \<leftarrow> !a;
-    i \<leftarrow> linear_split (kvs node) x;
+    i \<leftarrow> lin_split (kvs node) x;
     tsl \<leftarrow> pfa_length (kvs node);
     if i < tsl then do {
       s \<leftarrow> pfa_get (kvs node) i;
@@ -903,7 +903,7 @@ next
       case (T\<^sub>i a)
       then show ?thesis
         apply(subst ins.simps)
-        apply(sep_auto heap: linear_split_imp_abs_split)
+        apply(sep_auto heap: lin_split_imp_abs_split)
         subgoal for p tsil tsin tti
           using Nil list_split
           by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)
@@ -926,7 +926,7 @@ next
       case (Up\<^sub>i l a r)
       then show ?thesis
         apply(subst ins.simps)
-        apply(sep_auto heap: linear_split_imp_abs_split)
+        apply(sep_auto heap: lin_split_imp_abs_split)
         subgoal for p tsil tsin tti
           using Nil list_split
           by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)                 
@@ -954,7 +954,7 @@ next
       case True
       show ?thesis
         apply(subst ins.simps)
-        apply(sep_auto heap: linear_split_imp_abs_split)
+        apply(sep_auto heap: lin_split_imp_abs_split)
         subgoal for p tsil tsin tti tsi j subi
           using Cons list_split a_split True
           by sep_auto
@@ -1156,12 +1156,12 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
       sub \<leftarrow> !p_sub;
       l_sub \<leftarrow> pfa_length (kvs sub);
       l_ti \<leftarrow> pfa_length (kvs ti);
-      if l_sub \<ge> k \<and> l_ti \<ge> l_ti then do {
+      if l_sub \<ge> k \<and> l_ti \<ge> k then do {
         return (Btnode tsi r_ti)
       } else do {
         l_tsi \<leftarrow> pfa_length tsi;
         if l_tsi = (i+1) then do {
-          mts' \<leftarrow> pfa_append_extend_grow (kvs sub) ((last sub),sep) (kvs ti);
+          mts' \<leftarrow> pfa_append_extend_grow (kvs sub) (last sub,sep) (kvs ti);
           res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last ti);
           case res_node\<^sub>i of
             T\<^sub>i u \<Rightarrow> return (Btnode tsi u) |
@@ -1219,6 +1219,62 @@ partial_function (heap) split_max ::"nat \<Rightarrow> ('a::{default,heap,linord
   })
 })
 "
+
+partial_function (heap) del ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
+  where
+    "del k x ti = (case ti of None \<Rightarrow> return None |
+   Some p \<Rightarrow> do {
+   node \<leftarrow> !p;
+   i \<leftarrow> lin_split (kvs node) x;
+   tsl \<leftarrow> pfa_length (kvs node);
+   if i < tsl then do {
+     s \<leftarrow> pfa_get (kvs node) i;
+     let (sub,sep) = s in
+     if x \<noteq> sep then do {
+       sub' \<leftarrow> del k x sub;
+       kvs' \<leftarrow> pfa_set (kvs node) i (sub',sep);
+       node' \<leftarrow> rebalance_middle_tree k kvs' i (last node);
+       ti' \<leftarrow> ref node';
+       return (Some ti')
+      }
+     else if sub = None then do{
+       pfa_delete (kvs node) i;
+       return ti
+     }
+     else do {
+        sm \<leftarrow> split_max k sub;
+        kvs' \<leftarrow> pfa_set (kvs node) i sm;
+        node' \<leftarrow> rebalance_middle_tree k kvs' i (last node);
+        ti' \<leftarrow> ref node';
+        return (Some ti')
+     }
+   } else do {
+       t' \<leftarrow> del k x (last node);
+       node' \<leftarrow> rebalance_last_tree k (kvs node) t';
+       ti' \<leftarrow> ref node';
+       return (Some ti')
+    }
+})
+"
+
+partial_function (heap) reduce_root ::"('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
+  where
+"reduce_root ti = (case ti of
+  None \<Rightarrow> return None |
+  Some p_t \<Rightarrow> do {
+    node \<leftarrow> !p_t;
+    tsl \<leftarrow> pfa_length (kvs node);
+    case tsl of 0 \<Rightarrow> return (last node) |
+    _ \<Rightarrow> return ti
+})"
+
+partial_function (heap) delete ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
+  where
+"delete k x ti = do {
+  ti' \<leftarrow> del k x ti;
+  reduce_root ti'
+}"
+
 
 partial_function (heap) isin' :: "('a::{heap,linorder}) btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
   where

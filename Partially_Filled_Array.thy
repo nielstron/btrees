@@ -257,13 +257,13 @@ definition pfa_drop :: "('a::heap) pfarray \<Rightarrow> nat \<Rightarrow> 'a pf
 
 
 lemma pfa_drop_rule[sep_heap_rules]:
-  assumes LEN: "si \<le> sn" "(sn-si) \<le> dc"
+  assumes LEN: "k \<le> sn" "(sn-k) \<le> dc"
   shows
     "< is_pfarray_cap sc src (srci,sn)
       * is_pfarray_cap dc dst (dsti,dn) >
-    pfa_drop (srci,sn) si (dsti,dn)
+    pfa_drop (srci,sn) k (dsti,dn)
     <\<lambda>(dsti',dn'). is_pfarray_cap sc src (srci,sn)
-      * is_pfarray_cap dc (drop si src) (dsti',dn')
+      * is_pfarray_cap dc (drop k src) (dsti',dn')
       * \<up>(dsti' = dsti)
     >"
   using LEN apply (sep_auto simp add: drop_take is_pfarray_cap_def pfa_drop_def dest!: mod_starD heap: pfa_blit_rule)
@@ -420,19 +420,6 @@ lemma pfa_delete_rule[sep_heap_rules]:
   unfolding pfa_delete_def is_pfarray_cap_def 
   apply (sep_auto simp add: drop_take min_def)
   by (metis Suc_diff_Suc diff_zero dual_order.strict_trans2 le_less_Suc_eq zero_le)
-
-(* copied over from array list definition *)
-
-definition "pfa_assn N A \<equiv> hr_comp (is_pfarray_cap N) (\<langle>the_pure A\<rangle>list_rel)"
-lemmas [safe_constraint_rules] = CN_FALSEI[of is_pure "pfa_assn N A" for N A]
-
-
-lemma pfa_assn_comp: "is_pure A \<Longrightarrow> hr_comp (pfa_assn N A) (\<langle>B\<rangle>list_rel) = pfa_assn N (hr_comp A B)"
-  unfolding pfa_assn_def
-  by (auto simp: hr_comp_the_pure hr_comp_assoc list_rel_compp)
-
-lemma pfa_assn_comp': "hr_comp (pfa_assn N id_assn) (\<langle>B\<rangle>list_rel) = pfa_assn N (pure B)"
-  by (simp add: pfa_assn_comp)
 
 
 

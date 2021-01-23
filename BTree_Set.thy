@@ -506,8 +506,6 @@ proof -
     by simp
 qed
 
-
-
 lemma ins_height: "height_up\<^sub>i (ins k x t) = height t"
 proof(induction k x t rule: ins.induct)
   case (2 k x ts t)

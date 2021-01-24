@@ -1207,14 +1207,18 @@ proof -
     by simp
 qed
 
-(* TODO make a locale from this, such that no explicit abstract split function is needed anymore *)
-lemma split_rule_abs_split: 
-  assumes split_rule: "\<And> c xs a n p. P c xs a n p \<Longrightarrow>  <is_pfa c xs (a, n) *
- true> split_fun (a, n) (p::'a::{heap,linorder}) <\<lambda>r. is_pfa c xs (a, n) *
+locale imp_split_smeq =
+  fixes split_fun :: "('a::{heap,default,linorder} btnode ref option \<times> 'a) array \<times> nat \<Rightarrow> 'a \<Rightarrow> nat Heap"
+  assumes split_rule: "sorted_less (separators xs) \<Longrightarrow>  <is_pfa c xs (a, n) *
+ true> split_fun (a, n) (p::'a) <\<lambda>r. is_pfa c xs (a, n) *
                  \<up> (r \<le> n \<and>
                     (\<forall>j<r. snd (xs ! j) < p) \<and> (r < n \<longrightarrow> p \<le> snd (xs ! r)))>\<^sub>t"
+begin
+
+(* TODO make a locale from this, such that no explicit abstract split function is needed anymore *)
+lemma split_rule_abs_split: 
   shows
-    "P c tsi a n p \<Longrightarrow> <
+    "sorted_less (separators ts) \<Longrightarrow> <
     is_pfa c tsi (a,n)
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
@@ -1223,6 +1227,7 @@ lemma split_rule_abs_split:
     is_pfa c tsi (a,n)
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
     * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
+  apply(rule hoare_triple_preI)
   apply (sep_auto heap: split_rule dest!: mod_starD id_assn_list
       simp add: list_assn_prod_map split_ismeq)
 
@@ -1299,56 +1304,32 @@ proof -
   qed
 qed
 
-
-lemma lin_split_imp_abs_split[sep_heap_rules]: "<
-    is_pfa c tsi (a,n)
-  * list_assn (A \<times>\<^sub>a id_assn) ts tsi
-  * true> 
-    lin_split (a,n) p 
-  <\<lambda>i. 
-    is_pfa c tsi (a,n)
-    * list_assn (A \<times>\<^sub>a id_assn) ts tsi
-    * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
-  thm  split_rule_abs_split[OF lin_split_rule]
-  by (sep_auto heap: split_rule_abs_split[OF lin_split_rule])
-
-(* since we have shown the abstract behavior for sorted lists
-the proof from above needs nearly no amendmend *)
-lemma bin_split_imp_abs_split[sep_heap_rules]: "
-sorted_less (map snd ts) \<Longrightarrow> <
-    is_pfa c tsi (a,n)
-  * list_assn (A \<times>\<^sub>a id_assn) ts tsi
-  * true> 
-    bin_split (a,n) p 
-  <\<lambda>i. 
-    is_pfa c tsi (a,n)
-    * list_assn (A \<times>\<^sub>a id_assn) ts tsi
-    * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
-  apply(rule hoare_triple_preI)
-  thm split_rule_abs_split[OF bin_split_rule]
-  apply (sep_auto heap: split_rule_abs_split[OF bin_split_rule])
-  apply(auto dest!: mod_starD id_assn_list simp add: list_assn_prod_map)
+sublocale imp_split abs_split split_fun
+  apply(unfold_locales)
+  apply(sep_auto heap:  split_rule_abs_split)
   done
 
+end
 
-interpretation btree_imp_linear_split: imp_split abs_split lin_split
+interpretation btree_imp_linear_split: imp_split_smeq lin_split
   apply unfold_locales
-  apply(sep_auto heap: lin_split_imp_abs_split)
+  apply(sep_auto heap: lin_split_rule)
   done
 
 
 (* obtaining actual code turns out to be slightly more difficult
   due to the use of locales *)
 
-global_interpretation btree_imp_binary_split: imp_split abs_split bin_split
+global_interpretation btree_imp_binary_split: imp_split_smeq bin_split
   defines btree_isin = btree_imp_binary_split.isin
       and btree_ins = btree_imp_binary_split.ins
       and btree_insert = btree_imp_binary_split.insert
       and btree_empty = btree_imp_binary_split.empty
   apply unfold_locales
-  apply(sep_auto heap: bin_split_imp_abs_split)
+  apply(sep_auto heap: bin_split_rule)
   done
 
+thm btree_imp_binary_split.ins.simps
 declare btree_imp_binary_split.ins.simps[code] btree_imp_binary_split.isin.simps[code]
 
 export_code btree_empty btree_isin btree_insert checking SML Scala

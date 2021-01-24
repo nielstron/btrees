@@ -1927,8 +1927,10 @@ for split fun is 0 *)
 
 fun invar_inorder where "invar_inorder k t = (bal t \<and> root_order k t)"
 
+definition "empty_btree = Leaf"
+
 interpretation S_ordered: Set_by_Ordered where
-  empty = Leaf and
+  empty = empty_btree and
   insert = "insert (Suc k)" and 
   delete = "delete (Suc k)" and
   isin = "isin" and
@@ -1954,12 +1956,12 @@ next
   case (7 s x)
   then show ?case using delete_order delete_bal
     by auto
-qed simp+
+qed (simp add: empty_btree_def)+
 
 find_theorems order node\<^sub>i
 
 (* if we remove this, a lot of proofs fail in BTree_Set_Traditional because... well *)
-(* declare node\<^sub>i.simps[simp del] *)
+declare node\<^sub>i.simps[simp del]
 
 end
 

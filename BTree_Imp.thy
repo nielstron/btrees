@@ -842,6 +842,17 @@ partial_function (heap) delete ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{defau
   reduce_root ti'
 }"
 
+definition empty ::"('a::{default,heap,linorder}) btnode ref option Heap"
+  where "empty = return None"
+
+lemma empty_rule:
+  shows "<emp>
+  empty
+  <\<lambda>r. btree_assn k (abs_split.empty_btree) r>"
+  apply(subst empty_def)
+  apply(sep_auto simp add: abs_split.empty_btree_def)
+  done
+
 end
 
 
@@ -1319,26 +1330,23 @@ sorted_less (map snd ts) \<Longrightarrow> <
   done
 
 
-interpretation btree_linear_imp_split: imp_split abs_split lin_split
+interpretation btree_imp_linear_split: imp_split abs_split lin_split
   apply unfold_locales
   apply(sep_auto heap: lin_split_imp_abs_split)
   done
 
-definition [code del]: "linear_imp_insert = imp_split.insert lin_split"
-
-export_code linear_imp_insert checking SML Scala
 
 (* obtaining actual code turns out to be slightly more difficult
   due to the use of locales *)
 
-interpretation btree_binary_imp_split: imp_split abs_split bin_split
+interpretation btree_imp_binary_split: imp_split abs_split bin_split
   apply unfold_locales
   apply(sep_auto heap: bin_split_imp_abs_split)
   done
 
-definition [code del]: "binary_imp_ins = btree_binary_imp_split.ins"
-lemma [code]: "binary_imp_ins k x p = (
-      case p of None \<Rightarrow> return (btree_binary_imp_split.Up\<^sub>i None x None)
+definition [code del]: "btree_isin = btree_imp_binary_split.isin"
+lemma [code]: "btree_isin p x =
+    (case p of None \<Rightarrow> return False
      | Some a \<Rightarrow> do {
            node \<leftarrow> !a;
            i \<leftarrow> bin_split (kvs node) x;
@@ -1347,51 +1355,72 @@ lemma [code]: "binary_imp_ins k x p = (
            then do {
                   s \<leftarrow> pfa_get (kvs node) i;
                   let (sub, sep) = s;
-                  if sep = x then return (btree_binary_imp_split.T\<^sub>i p)
+                  if x = sep then return True else btree_isin sub x
+                }
+           else btree_isin (BTree_Imp.last node) x
+         })"
+  apply(subst btree_isin_def)+
+  apply(simp add: btree_imp_binary_split.isin.simps)
+  done
+
+definition [code del]: "btree_ins = btree_imp_binary_split.ins"
+lemma [code]: "btree_ins k x p = (
+      case p of None \<Rightarrow> return (btree_imp_binary_split.Up\<^sub>i None x None)
+     | Some a \<Rightarrow> do {
+           node \<leftarrow> !a;
+           i \<leftarrow> bin_split (kvs node) x;
+           tsl \<leftarrow> pfa_length (kvs node);
+           if i < tsl
+           then do {
+                  s \<leftarrow> pfa_get (kvs node) i;
+                  let (sub, sep) = s;
+                  if sep = x then return (btree_imp_binary_split.T\<^sub>i p)
                   else do {
-                         r \<leftarrow> binary_imp_ins k x sub;
-                         case r of btree_binary_imp_split.T\<^sub>i lp \<Rightarrow> do {
+                         r \<leftarrow> btree_ins k x sub;
+                         case r of btree_imp_binary_split.T\<^sub>i lp \<Rightarrow> do {
                                        _ \<leftarrow> pfa_set (kvs node) i (lp, sep);
-                                       return (btree_binary_imp_split.T\<^sub>i p)
+                                       return (btree_imp_binary_split.T\<^sub>i p)
                                      }
-                         | btree_binary_imp_split.Up\<^sub>i lp x' rp \<Rightarrow> do {
+                         | btree_imp_binary_split.Up\<^sub>i lp x' rp \<Rightarrow> do {
                                kvs' \<leftarrow> pfa_set (kvs node) i (rp, sep);
                                kvs'' \<leftarrow> pfa_insert_grow kvs' i (lp, x');
-                               btree_binary_imp_split.node\<^sub>i k kvs'' (BTree_Imp.last node)
+                               btree_imp_binary_split.node\<^sub>i k kvs'' (BTree_Imp.last node)
                              }
                        }
                 }
            else do {
-                  r \<leftarrow> binary_imp_ins k x (BTree_Imp.last node);
-                  case r of btree_binary_imp_split.T\<^sub>i lp \<Rightarrow> do {
+                  r \<leftarrow> btree_ins k x (BTree_Imp.last node);
+                  case r of btree_imp_binary_split.T\<^sub>i lp \<Rightarrow> do {
                                 _ \<leftarrow> a := Btnode (kvs node) lp;
-                                return (btree_binary_imp_split.T\<^sub>i p)
+                                return (btree_imp_binary_split.T\<^sub>i p)
                               }
-                  | btree_binary_imp_split.Up\<^sub>i lp x' rp \<Rightarrow> do {
+                  | btree_imp_binary_split.Up\<^sub>i lp x' rp \<Rightarrow> do {
                         kvs' \<leftarrow> pfa_append_grow' (kvs node) (lp, x');
-                        btree_binary_imp_split.node\<^sub>i k kvs' rp
+                        btree_imp_binary_split.node\<^sub>i k kvs' rp
                       }
                 }
          })"
-  apply (subst binary_imp_ins_def)+
-  apply (simp add: btree_binary_imp_split.ins.simps)
+  apply (subst btree_ins_def)+
+  apply (simp add: btree_imp_binary_split.ins.simps)
   done
   
-definition [code del]: "binary_imp_insert = btree_binary_imp_split.insert"
-lemma [code]: "binary_imp_insert = (\<lambda>k x ti. do {
-         ti' \<leftarrow> binary_imp_ins k x ti;
-         case ti' of btree_binary_imp_split.T\<^sub>i sub \<Rightarrow> return sub
-         | btree_binary_imp_split.Up\<^sub>i l a r \<Rightarrow> do {
+definition [code del]: "btree_insert = btree_imp_binary_split.insert"
+lemma [code]: "btree_insert = (\<lambda>k x ti. do {
+         ti' \<leftarrow> btree_ins k x ti;
+         case ti' of btree_imp_binary_split.T\<^sub>i sub \<Rightarrow> return sub
+         | btree_imp_binary_split.Up\<^sub>i l a r \<Rightarrow> do {
                kvs \<leftarrow> pfa_init (2 * k) (l, a) 1;
                t' \<leftarrow> ref (Btnode kvs r);
                return (Some t')
              }
        })"
-  by (simp add: binary_imp_ins_def binary_imp_insert_def  btree_binary_imp_split.insert_def)
+  by (simp add: btree_ins_def btree_insert_def  btree_imp_binary_split.insert_def)
 
 
-export_code binary_imp_insert checking SML Scala
-export_code binary_imp_insert in SML module_name BTreeInsert
+definition [code]: "btree_empty = btree_imp_binary_split.empty"
+
+export_code btree_empty btree_isin btree_insert checking SML Scala
+export_code btree_empty btree_isin btree_insert in SML module_name BTreeInsert
 
 
 end

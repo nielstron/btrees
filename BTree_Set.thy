@@ -42,7 +42,7 @@ s.th. f :: 'a \<Rightarrow> ('b::linorder) and g :: 'a \<Rightarrow> 'a btree
 this would allow for key,pointer pairs to be inserted into the tree *)
 (* TODO what if the keys are the pointers? *)
 locale split =
-  fixes split ::  "(('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow> (('a btree\<times>'a) list \<times> ('a btree\<times>'a) list)"
+  fixes split ::  "('a btree\<times>'a::linorder) list \<Rightarrow> 'a \<Rightarrow> (('a btree\<times>'a) list \<times> ('a btree\<times>'a) list)"
   assumes split_req:
     "\<lbrakk>split xs p = (ls,rs)\<rbrakk> \<Longrightarrow> xs = ls @ rs"
     "\<lbrakk>split xs p = (ls@[(sub,sep)],rs); sorted_less (separators xs)\<rbrakk> \<Longrightarrow> sep < p"
@@ -1967,11 +1967,11 @@ text "Finally we show that the split axioms are feasible
        by providing an example split function"
 
 (*TODO: at some point this better be replaced with something binary search like *)
-fun linear_split_help:: "(('a::linorder) btree\<times>'a) list \<Rightarrow> _ \<Rightarrow> (_ btree\<times>_) list \<Rightarrow>  ((_ btree\<times>_) list \<times> (_ btree\<times>_) list)" where
+fun linear_split_help:: "(_\<times>'a::linorder) list \<Rightarrow> _ \<Rightarrow> (_\<times>_) list \<Rightarrow>  ((_\<times>_) list \<times> (_\<times>_) list)" where
   "linear_split_help [] x prev = (prev, [])" |
   "linear_split_help ((sub, sep)#xs) x prev = (if sep < x then linear_split_help xs x (prev @ [(sub, sep)]) else (prev, (sub,sep)#xs))"
 
-fun linear_split:: "(('a::linorder) btree\<times>'a) list \<Rightarrow> _ \<Rightarrow> ((_ btree\<times>_) list \<times> (_ btree\<times>_) list)" where
+fun linear_split:: "(_\<times>'a::linorder) list \<Rightarrow> _ \<Rightarrow> ((_\<times>_) list \<times> (_\<times>_) list)" where
   "linear_split xs x = linear_split_help xs x []"
 
 (* linear split is similar to well known functions, therefore a quick proof can be done *)
@@ -2017,7 +2017,7 @@ lemma linear_split_sm: "\<lbrakk>linear_split_help xs p ys = (ls,rs); sorted_les
   apply(simp_all)
   by (metis prod.inject)+
 
-value "linear_split [(Leaf, 2)] (1::nat)"
+value "linear_split [((Leaf::nat btree), 2)] (1::nat)"
 
 (* TODO still has format for older proof *)
 lemma linear_split_gr:
@@ -2038,7 +2038,8 @@ lemma linear_split_req2:
     and "sorted_less (separators xs)"
   shows  "sep < p"
   using linear_split_sm[of xs p "[]" "ls@[(sub,sep)]" rs]
-  using assms(1) assms(2) btree_linear_search.split_req(2) by blast
+  using assms(1) assms(2)
+  by (metis Nil_is_map_conv Un_iff append_self_conv2 empty_iff empty_set linear_split.elims prod_set_simps(2) separators_split snd_eqD snds.intros)
 
 
 definition "linear_insert = insert linear_split"
@@ -2049,7 +2050,7 @@ interpretation btree_linear_search: split linear_split
 (* it *is* possible to define a binary split predicate..
 however even proving that it terminates is uncomfortable *)
 
-function (sequential) binary_split_help:: "(('a::linorder) btree\<times>'a) list \<Rightarrow> (('a::linorder) btree\<times>'a) list \<Rightarrow> (('a::linorder) btree\<times>'a) list \<Rightarrow> 'a \<Rightarrow>  ((_ btree\<times>_) list \<times> (_ btree\<times>_) list)" where
+function (sequential) binary_split_help:: "(_\<times>'a::linorder) list \<Rightarrow> (_\<times>'a) list \<Rightarrow> (_\<times>'a) list \<Rightarrow> 'a \<Rightarrow>  ((_\<times>_) list \<times> (_\<times>_) list)" where
   "binary_split_help ls [] rs x = (ls,rs)" |
   "binary_split_help ls as rs x = (let (mls, mrs) = split_half as in (
   case mrs of (sub,sep)#mrrs \<Rightarrow> (
@@ -2084,10 +2085,10 @@ lemma "binary_split_help as bs cs x = (ls,rs) \<Longrightarrow> (as@bs@cs) = (ls
 lemma "\<lbrakk>sorted_less (separators (as@bs@cs)); binary_split_help as bs cs x = (ls,rs); \<forall>y \<in> set (separators as). y < x\<rbrakk>
 \<Longrightarrow> \<forall>y \<in> set (separators ls). y < x"
   apply(induction as bs cs x arbitrary: ls rs rule: binary_split_help.induct)
-  apply (auto simp add: drop_not_empty split!: list.splits)
+  (*apply (auto simp add: drop_not_empty split!: list.splits)
   subgoal for ls a b va rs  x lsa rsa aa ba x22 ab bb
     apply(cases "cmp x ba")
-      (*apply auto*)
+      apply auto*)
     oops
 
 

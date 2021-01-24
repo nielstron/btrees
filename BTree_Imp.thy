@@ -38,7 +38,7 @@ fun btree_assn :: "nat \<Rightarrow> 'a::heap btree \<Rightarrow> 'a btnode ref 
  (\<exists>\<^sub>A tsi ti tsi'.
       a \<mapsto>\<^sub>r Btnode tsi ti
     * btree_assn k t ti
-    * is_pfarray_cap (2*k) tsi' tsi
+    * is_pfa (2*k) tsi' tsi
     * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi'
     )" |
   "btree_assn _ _ _ = false"
@@ -66,26 +66,26 @@ definition lin_split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Right
 
 
 lemma lin_split_rule: "
-< is_pfarray_cap c xs (a,n) * true>
+< is_pfa c xs (a,n) * true>
  lin_split (a,n) p
- <\<lambda>i. is_pfarray_cap c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
+ <\<lambda>i. is_pfa c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
   unfolding lin_split_def
 
   supply R = heap_WHILET_rule''[where 
       R = "measure (\<lambda>i. n - i)"
-      and I = "\<lambda>i. is_pfarray_cap c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p))"
+      and I = "\<lambda>i. is_pfa c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p))"
       and b = "\<lambda>i. i<n \<and> snd (xs!i) < p"
       ]
   thm R
 
-  apply (sep_auto  decon: R simp: less_Suc_eq is_pfarray_cap_def) []
+  apply (sep_auto  decon: R simp: less_Suc_eq is_pfa_def) []
   apply (metis nth_take snd_eqD)
   apply (metis nth_take snd_eqD)
-  apply (sep_auto simp: is_pfarray_cap_def less_Suc_eq)+
+  apply (sep_auto simp: is_pfa_def less_Suc_eq)+
   apply (metis dual_order.strict_trans nth_take)
   apply (metis nth_take)
   using diff_less_mono2 apply blast
-  apply(sep_auto simp: is_pfarray_cap_def)
+  apply(sep_auto simp: is_pfa_def)
   done
 
 
@@ -113,20 +113,20 @@ thm sorted_wrt_nth_less
 (* alternative: replace (\<forall>j<l. xs!j < p) by (l > 0 \<longrightarrow> xs!(l-1) < p)*)
 lemma bin'_split_rule: "
 sorted_less xs \<Longrightarrow>
-< is_pfarray_cap c xs (a,n) * true>
+< is_pfa c xs (a,n) * true>
  bin'_split (a,n) p
- <\<lambda>l. is_pfarray_cap c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (l<n \<longrightarrow> xs!l\<ge>p)) >\<^sub>t"
+ <\<lambda>l. is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (l<n \<longrightarrow> xs!l\<ge>p)) >\<^sub>t"
   unfolding bin'_split_def
 
   supply R = heap_WHILET_rule''[where 
       R = "measure (\<lambda>(l,h). h-l)"
-      and I = "\<lambda>(l,h). is_pfarray_cap c xs (a,n) * \<up>(l\<le>h \<and> h \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (h<n \<longrightarrow> xs!h\<ge>p))"
+      and I = "\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l\<le>h \<and> h \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (h<n \<longrightarrow> xs!h\<ge>p))"
       and b = "\<lambda>(l,h). l<h"
-      and Q="\<lambda>(l,h). is_pfarray_cap c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (l<n \<longrightarrow> xs!l\<ge>p)) * true"
+      and Q="\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (l<n \<longrightarrow> xs!l\<ge>p)) * true"
       ]
   thm R
 
-  apply (sep_auto decon: R simp: less_Suc_eq is_pfarray_cap_def) []
+  apply (sep_auto decon: R simp: less_Suc_eq is_pfa_def) []
   subgoal for l' aa l'a aaa ba j
   proof -
     assume 0: "n \<le> length l'a"
@@ -197,7 +197,7 @@ sorted_less xs \<Longrightarrow>
   qed
   apply (metis nth_take order_mono_setup.refl)
   apply sep_auto
-  apply (sep_auto simp add: is_pfarray_cap_def)
+  apply (sep_auto simp add: is_pfa_def)
   done
 
 
@@ -235,21 +235,21 @@ lemma map_snd_sorted_lesseq: "\<lbrakk>sorted_less (map snd xs); i \<le> j; j < 
 
 lemma bin_split_rule: "
 sorted_less (map snd xs) \<Longrightarrow>
-< is_pfarray_cap c xs (a,n) * true>
+< is_pfa c xs (a,n) * true>
  bin_split (a,n) p
- <\<lambda>l. is_pfarray_cap c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd(xs!j) < p) \<and> (l<n \<longrightarrow> snd(xs!l)\<ge>p)) >\<^sub>t"
+ <\<lambda>l. is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd(xs!j) < p) \<and> (l<n \<longrightarrow> snd(xs!l)\<ge>p)) >\<^sub>t"
   (* this works in principle, as demonstrated above *)
   unfolding bin_split_def
 
   supply R = heap_WHILET_rule''[where 
       R = "measure (\<lambda>(l,h). h-l)"
-      and I = "\<lambda>(l,h). is_pfarray_cap c xs (a,n) * \<up>(l\<le>h \<and> h \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (h<n \<longrightarrow> snd (xs!h)\<ge>p))"
+      and I = "\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l\<le>h \<and> h \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (h<n \<longrightarrow> snd (xs!h)\<ge>p))"
       and b = "\<lambda>(l,h). l<h"
-      and Q="\<lambda>(l,h). is_pfarray_cap c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (l<n \<longrightarrow> snd (xs!l)\<ge>p)) * true"
+      and Q="\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (l<n \<longrightarrow> snd (xs!l)\<ge>p)) * true"
       ]
   thm R
 
-  apply (sep_auto decon: R simp: less_Suc_eq is_pfarray_cap_def) []
+  apply (sep_auto decon: R simp: less_Suc_eq is_pfa_def) []
 
   apply(auto dest!: sndI nth_take_eq[of n _ _ "(_ + _) div 2"])[]
   apply(auto dest!: sndI nth_take_eq[of n _ _ "(_ + _) div 2"])[]
@@ -275,7 +275,7 @@ sorted_less (map snd xs) \<Longrightarrow>
     done
   apply (metis le_less nth_take_eq)
   apply sep_auto
-  apply (sep_auto simp add: is_pfarray_cap_def)
+  apply (sep_auto simp add: is_pfa_def)
   done
 
 
@@ -436,18 +436,18 @@ qed
 
 
 lemma split_rule_abs_split: 
-  assumes split_rule: "\<And> c xs a n p. P c xs a n p \<Longrightarrow>  <is_pfarray_cap c xs (a, n) *
- true> split_fun (a, n) (p::'a::{heap,linorder}) <\<lambda>r. is_pfarray_cap c xs (a, n) *
+  assumes split_rule: "\<And> c xs a n p. P c xs a n p \<Longrightarrow>  <is_pfa c xs (a, n) *
+ true> split_fun (a, n) (p::'a::{heap,linorder}) <\<lambda>r. is_pfa c xs (a, n) *
                  \<up> (r \<le> n \<and>
                     (\<forall>j<r. snd (xs ! j) < p) \<and> (r < n \<longrightarrow> p \<le> snd (xs ! r)))>\<^sub>t"
   shows
     "P c tsi a n p \<Longrightarrow> <
-    is_pfarray_cap c tsi (a,n)
+    is_pfa c tsi (a,n)
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
     split_fun (a,n) p 
   <\<lambda>i. 
-    is_pfarray_cap c tsi (a,n)
+    is_pfa c tsi (a,n)
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
     * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
   thm split_rule
@@ -455,16 +455,16 @@ lemma split_rule_abs_split:
       simp add: list_assn_prod_map split_ismeq)
     (* the interesting path: finding the correct rules for automatic rewriting:
     apply(auto dest!: hoare_triple_preI list_assn_len
-          simp add: is_pfarray_cap_def split_relation_def min.absorb1 min.absorb2 )[]
+          simp add: is_pfa_def split_relation_def min.absorb1 min.absorb2 )[]
   subgoal for x _ _ _ _ as bs ls
     by (smt abs_split_split_map le_antisym le_trans length_map less_imp_le_nat linorder_neqE_nat nth_take order_mono_setup.refl prod.inject snd_map_help(1))
   subgoal for x _ _ _ _ as bs ls
     by (metis \<open>\<And>x ls bs be bb as ae ab. \<lbrakk>in_range (ab, bb); seperators ts = seperators (take (length ts) ls); x < length ts; \<forall>j<x. snd (ls ! j) < p; p \<le> snd (ls ! x); (as, bs) = abs_split ts p; (ae, be) \<Turnstile> a \<mapsto>\<^sub>a ls; c = length ls; length ts \<le> length ls; tsi = take (length ts) ls; n = length ts\<rbrakk> \<Longrightarrow> as = take x ts\<close> abs_split_eq_taken_dropn length_take min_simps(2) snd_conv takeWhile_eq_take)
     apply(auto dest!: hoare_triple_preI list_assn_len
-          simp add: is_pfarray_cap_def split_relation_def min.absorb1 min.absorb2 )[]
+          simp add: is_pfa_def split_relation_def min.absorb1 min.absorb2 )[]
 stops here...
 *)
-  apply(simp_all add: is_pfarray_cap_def)
+  apply(simp_all add: is_pfa_def)
   apply(auto)
 proof -
 
@@ -529,12 +529,12 @@ qed
 
 
 lemma lin_split_imp_abs_split[sep_heap_rules]: "<
-    is_pfarray_cap c tsi (a,n)
+    is_pfa c tsi (a,n)
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
     lin_split (a,n) p 
   <\<lambda>i. 
-    is_pfarray_cap c tsi (a,n)
+    is_pfa c tsi (a,n)
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
     * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
   thm  split_rule_abs_split[OF lin_split_rule]
@@ -544,12 +544,12 @@ lemma lin_split_imp_abs_split[sep_heap_rules]: "<
 the proof from above needs nearly no amendmend *)
 lemma bin_split_imp_abs_split[sep_heap_rules]: "
 sorted_less (map snd ts) \<Longrightarrow> <
-    is_pfarray_cap c tsi (a,n)
+    is_pfa c tsi (a,n)
   * list_assn (A \<times>\<^sub>a id_assn) ts tsi
   * true> 
     bin_split (a,n) p 
   <\<lambda>i. 
-    is_pfarray_cap c tsi (a,n)
+    is_pfa c tsi (a,n)
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
     * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
   apply(rule hoare_triple_preI)
@@ -558,14 +558,28 @@ sorted_less (map snd ts) \<Longrightarrow> <
   apply(auto dest!: mod_starD id_assn_list simp add: list_assn_prod_map)
   done
 
-partial_function (heap) isin :: "('a::{heap,linorder}) btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
+locale imp_split = abs_split: BTree_Set.split split
+  for split::"('a btree \<times> 'a::{heap,linorder}) list \<Rightarrow> 'a \<Rightarrow> ('a btree \<times> 'a) list \<times> ('a btree \<times> 'a) list" +
+  fixes imp_split:: "('a btnode ref option \<times> 'a::{heap,linorder}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
+  assumes imp_split_rule [sep_heap_rules]:"sorted_less (map snd ts) \<Longrightarrow>
+   <is_pfa c tsi (a,n)
+  * list_assn (btree_assn k \<times>\<^sub>a id_assn) ts tsi
+  * true> 
+    imp_split (a,n) p 
+  <\<lambda>i. 
+    is_pfa c tsi (a,n)
+    * list_assn (btree_assn k \<times>\<^sub>a id_assn) ts tsi
+    * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
+begin
+
+partial_function (heap) imp_isin :: "'a btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
   where
-    "isin p x = 
+    "imp_isin p x = 
   (case p of 
      None \<Rightarrow> return False |
      (Some a) \<Rightarrow> do {
        node \<leftarrow> !a;
-       i \<leftarrow> lin_split (kvs node) x;
+       i \<leftarrow> imp_split (kvs node) x;
        tsl \<leftarrow> pfa_length (kvs node);
        if i < tsl then do {
          s \<leftarrow> pfa_get (kvs node) i;
@@ -573,9 +587,9 @@ partial_function (heap) isin :: "('a::{heap,linorder}) btnode ref option \<Right
          if x = sep then
            return True
          else
-           isin sub x
+           imp_isin sub x
        } else
-           isin (last node) x
+           imp_isin (last node) x
     }
 )"
 
@@ -583,11 +597,14 @@ partial_function (heap) isin :: "('a::{heap,linorder}) btnode ref option \<Right
 lemma P_imp_Q_implies_P: "P \<Longrightarrow> (Q \<longrightarrow> P)"
   by simp
 
-lemma  "<btree_assn k t ti * true> isin ti x <\<lambda>r. btree_assn k t ti * \<up>(btree_abs_search.isin t x = r)>\<^sub>t"
-proof(induction t x arbitrary: ti rule: btree_abs_search.isin.induct)
+lemma  "sorted_less (inorder t) \<Longrightarrow>
+   <btree_assn k t ti * true>
+     imp_isin ti x
+   <\<lambda>r. btree_assn k t ti * \<up>(abs_split.isin t x = r)>\<^sub>t"
+proof(induction t x arbitrary: ti rule: abs_split.isin.induct)
   case (1 x)
   then show ?case
-    apply(subst isin.simps)
+    apply(subst imp_isin.simps)
     apply (cases ti)
     apply (auto simp add: return_cons_rule)
     done
@@ -600,12 +617,12 @@ next
     (* NOTE: induction condition trivial here *)
     case [simp]: Nil
     show ?thesis
-      apply(subst isin.simps)
-      apply(sep_auto heap: lin_split_imp_abs_split)
+      apply(subst imp_isin.simps)
+      apply(sep_auto)
       apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
       apply(rule hoare_triple_preI)
       apply(auto simp add: split_relation_def dest!: sym[of "[]"] mod_starD list_assn_len)[]
-      apply(sep_auto heap: "2.IH"(1)[of ls "[]"])
+      using 2(3) apply(sep_auto heap: "2.IH"(1)[of ls "[]"] simp add: sorted_wrt_append)
       done
   next
     case [simp]: (Cons h rrs)
@@ -618,7 +635,7 @@ next
       then show ?thesis
         apply(simp split: list.splits prod.splits)
         apply(subst isin.simps)
-        apply(sep_auto heap: lin_split_imp_abs_split)
+        apply(sep_auto heap: bin_split_imp_abs_split)
         apply(rule hoare_triple_preI)
         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!: mod_starD list_assn_len)[]
         apply(rule hoare_triple_preI)
@@ -631,7 +648,7 @@ next
         apply safe
         using False apply simp
         apply(subst isin.simps)
-        apply(sep_auto heap: lin_split_imp_abs_split)
+        apply(sep_auto heap: bin_split_imp_abs_split)
           (*eliminate vacuous case*)
         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!:  mod_starD list_assn_len)[]
           (* simplify towards induction step *)
@@ -642,7 +659,7 @@ next
         apply(rule hoare_triple_preI)
         subgoal for p tsi n ti xsi suba sepa zs1 z zs2 _
           apply(subgoal_tac "z = (suba, sepa)", simp)
-          apply(sep_auto heap:"2.IH"(2)[of ls rs h rrs sub sep])
+          using 2(3) apply(sep_auto heap:"2.IH"(2)[of ls rs h rrs sub sep] simp add: sorted_wrt_append)
           using list_split Cons h_split apply simp_all
             (* proof that previous assumptions hold later *)
           apply(rule P_imp_Q_implies_P)
@@ -674,11 +691,11 @@ definition split_half :: "('a::heap \<times> 'b::{heap}) pfarray \<Rightarrow> n
 }"
 
 lemma split_half_rule[sep_heap_rules]: "<
-    is_pfarray_cap c tsi a
+    is_pfa c tsi a
   * list_assn R ts tsi> 
     split_half a
   <\<lambda>i. 
-      is_pfarray_cap c tsi a
+      is_pfa c tsi a
     * list_assn R ts tsi
     * \<up>(i = length ts div 2 \<and>  split_relation ts (BTree_Set.split_half ts) i)>"
   unfolding split_half_def split_relation_def
@@ -731,7 +748,7 @@ find_theorems "<emp>_<_>"
 
 
 lemma node\<^sub>i_rule: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
-  shows "<is_pfarray_cap c tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti * true>
+  shows "<is_pfa c tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti * true>
   node\<^sub>i k (a,n) ti
   <\<lambda>r. btupi_assn k (btree_abs_search.node\<^sub>i k ts t) r >\<^sub>t"
 proof (cases "length ts \<le> 2*k")
@@ -740,8 +757,8 @@ proof (cases "length ts \<le> 2*k")
     apply(subst node\<^sub>i_def)
     apply(rule hoare_triple_preI)
     apply(sep_auto dest!: mod_starD list_assn_len)
-    apply(sep_auto simp add: is_pfarray_cap_def)[]
-    using c_cap apply(sep_auto simp add: is_pfarray_cap_def)[]
+    apply(sep_auto simp add: is_pfa_def)[]
+    using c_cap apply(sep_auto simp add: is_pfa_def)[]
     apply(sep_auto  dest!: mod_starD list_assn_len)[]
     using True apply(sep_auto dest!: mod_starD list_assn_len)
     done
@@ -754,15 +771,15 @@ next
     apply(subst node\<^sub>i_def)
     apply(rule hoare_triple_preI)
     apply(sep_auto dest!: mod_starD list_assn_len)
-    apply(sep_auto simp add:  split_relation_alt split_relation_length is_pfarray_cap_def dest!: mod_starD list_assn_len)
+    apply(sep_auto simp add:  split_relation_alt split_relation_length is_pfa_def dest!: mod_starD list_assn_len)
 
     using False apply(sep_auto simp add: split_relation_alt )
-    using False  apply(sep_auto simp add: is_pfarray_cap_def)[]
+    using False  apply(sep_auto simp add: is_pfa_def)[]
     apply(sep_auto)[]
-    apply(sep_auto simp add: is_pfarray_cap_def split_relation_alt)[]
-    using c_cap apply(sep_auto simp add: is_pfarray_cap_def)[]
+    apply(sep_auto simp add: is_pfa_def split_relation_alt)[]
+    using c_cap apply(sep_auto simp add: is_pfa_def)[]
     apply(sep_auto)[]
-    using c_cap apply(sep_auto simp add: is_pfarray_cap_def)[]
+    using c_cap apply(sep_auto simp add: is_pfa_def)[]
     using c_cap apply(simp)
     apply(vcg)
     apply(simp)
@@ -848,7 +865,7 @@ declare btree_abs_search.node\<^sub>i.simps[simp del]
 
 
 lemma node\<^sub>i_rule_app: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1\<rbrakk> \<Longrightarrow>
-<is_pfarray_cap c (tsi' @ [(li, ai)]) (aa, al) *
+<is_pfa c (tsi' @ [(li, ai)]) (aa, al) *
    list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi' *
    btree_assn k l li *
    id_assn a ai *
@@ -863,7 +880,7 @@ proof -
 qed
 
 lemma node\<^sub>i_rule_ins2: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1; length ls = length lsi\<rbrakk> \<Longrightarrow>
- <is_pfarray_cap c (lsi @ (li, ai) # (ri,a'i) # rsi) (aa, al) *
+ <is_pfa c (lsi @ (li, ai) # (ri,a'i) # rsi) (aa, al) *
    list_assn (btree_assn k \<times>\<^sub>a id_assn) ls lsi *
    btree_assn k l li *
    id_assn a ai *
@@ -1070,7 +1087,7 @@ next
               apply (cases u,simp)
               thm pfa_insert_grow_rule[where ?l="((zs1 @ (suba, sepi) # zs2)[length ls := (x23, sepa)])"]
               apply (sep_auto dest!: mod_starD list_assn_len heap: pfa_insert_grow_rule)
-              apply (simp add: is_pfarray_cap_def)[]
+              apply (simp add: is_pfa_def)[]
               apply (metis le_less_linear length_append length_take less_not_refl min.absorb2 trans_less_add1)
               apply(auto split: prod.splits  dest!: mod_starD list_assn_len)[]
 
@@ -1622,7 +1639,7 @@ next
               apply (cases u,simp)
               thm pfa_insert_grow_rule[where ?l="((zs1 @ (suba, sepi) # zs2)[length ls := (x23, sepa)])"]
               apply (sep_auto dest!: mod_starD list_assn_len heap: pfa_insert_grow_rule)
-              apply (simp add: is_pfarray_cap_def)[]
+              apply (simp add: is_pfa_def)[]
               apply (metis le_less_linear length_append length_take less_not_refl min.absorb2 trans_less_add1)
               apply(auto split: prod.splits  dest!: mod_starD list_assn_len)[]
 

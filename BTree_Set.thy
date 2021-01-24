@@ -2023,6 +2023,9 @@ value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf
         btree_linear_search_delete k 3 (btree_linear_search_insert k 5 x)"
 value "let k=1::nat; x = (Node [(Node [(Leaf,(1::nat)),(Leaf,2)] Leaf,3)] (Node [(Leaf, 4)] Leaf)) in 
         btree_linear_search_delete k 4 (btree_linear_search_insert k 6 (btree_linear_search_insert k 5 x))"
+value "let k=3::nat; x = Leaf::int btree in 
+        height(fold (btree_linear_search_insert k) [1..200] x)"
+
 
 (* however we can also explicitly derive the locale requirements *)
 

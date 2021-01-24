@@ -135,7 +135,7 @@ begin
 partial_function (heap) isin :: "'a btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
   where
     "isin p x = 
-  (case p of 
+  (case p of
      None \<Rightarrow> return False |
      (Some a) \<Rightarrow> do {
        node \<leftarrow> !a;
@@ -1099,17 +1099,18 @@ sorted_less (map snd xs) \<Longrightarrow>
 definition "abs_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
 
 interpretation btree_abs_search: split abs_split
-  apply unfold_locales
-  unfolding abs_split_def
-  apply (auto simp: split: list.splits)
-  subgoal
-    by (metis (no_types, lifting) append_is_Nil_conv append_self_conv case_prodD dropWhile_append1 list.simps(3) takeWhile_dropWhile_id takeWhile_eq_all_conv takeWhile_idem takeWhile_tail)
-  subgoal
-    by (metis case_prod_conv hd_dropWhile le_less_linear list.sel(1) list.simps(3))
-  done
+  unfolding abs_split_def sym[OF linear_split_alt]
+  by unfold_locales
+  
 
 
-
+locale imp_split_smeq =
+  fixes split_fun :: "('a::{heap,default,linorder} btnode ref option \<times> 'a) array \<times> nat \<Rightarrow> 'a \<Rightarrow> nat Heap"
+  assumes split_rule: "sorted_less (separators xs) \<Longrightarrow>  <is_pfa c xs (a, n) *
+ true> split_fun (a, n) (p::'a) <\<lambda>r. is_pfa c xs (a, n) *
+                 \<up> (r \<le> n \<and>
+                    (\<forall>j<r. snd (xs ! j) < p) \<and> (r < n \<longrightarrow> p \<le> snd (xs ! r)))>\<^sub>t"
+begin
 
 
 lemma abs_split_full: "\<forall>(_,s) \<in> set xs. s < p \<Longrightarrow> abs_split xs p = (xs,[])"
@@ -1126,96 +1127,6 @@ lemma abs_split_split:
   by (metis (no_types, lifting) Cons_nth_drop_Suc case_prod_conv dropWhile.simps(2) dropWhile_append2 id_take_nth_drop)
 
 
-
-
-thm index_to_elem_all[of ts "\<lambda>x. snd x < p"]
-
-lemma list_assn_all: "h \<Turnstile> (list_assn (\<up>\<circ>\<circ>P) xs ys) \<Longrightarrow> (\<forall>i<length xs. P (xs!i) (ys!i))"
-  apply(induction "\<up>\<circ>\<circ>P" xs ys rule: list_assn.induct)
-  apply(auto simp add: less_Suc_eq_0_disj)
-  done
-
-
-find_theorems Id
-
-
-
-
-(* new, added for the "interesting part" *)
-
-lemma abs_split_split_map:
-  assumes "n < length xs" 
-    and "\<forall>i < n. snd(xs!i) < p"
-    and " snd (xs!n) \<ge> (p::'a::linorder)"
-  shows "abs_split xs p = (take n xs, drop n xs)"
-  using assms  apply(auto dest!: abs_split_split)
-  by (metis (no_types, lifting) assms(1) in_set_conv_nth length_take less_imp_le min.absorb2 nth_take snd_conv)
-
-find_theorems takeWhile
-
-lemma abs_split_eq_taken_dropn: "abs_split as x = (take (length (takeWhile (\<lambda>(uu, s). s < x) as)) as, drop (length (takeWhile (\<lambda>(uu, s). s < x) as)) as)"
-  unfolding abs_split_def
-  using dropWhile_eq_drop takeWhile_eq_take
-  by auto
-
-
-lemma length_map_takeWhile_eq: "map f as = map f' bs \<Longrightarrow> 
-      length (takeWhile f as) = length (takeWhile f' bs)"
-proof -
-  assume map_eq: "map f as = map f' bs"
-  then have "length as = length bs"
-    using map_eq_imp_length_eq by blast
-  then show ?thesis
-    using map_eq
-  proof(induction as bs rule: list_induct2)
-    case (Cons x xs y ys)
-    then show ?case
-    proof (cases "f x")
-      case True
-      then show ?thesis
-        using Cons.IH Cons.prems by auto
-    next
-      case False
-      then show ?thesis
-        using Cons.prems by auto
-    qed
-  qed auto
-qed
-
-lemma map_snd_lambda: "map f as = map f' bs \<Longrightarrow> map (P \<circ> f) as = map (P \<circ> f') bs"
-  by (metis map_map)
-thm map_map
-
-lemma snd_simp: "snd = (\<lambda>(uu,s). s)"
-  by auto
-
-lemma concat_snd: "P \<circ> (\<lambda>(uu,s). s) = (\<lambda>(uu,s). P s)"
-  by auto
-
-lemma length_takeWhile_eq_snd: "map snd as = map snd bs \<Longrightarrow>
-   (length (takeWhile (\<lambda>(uu, s). s < x) as)) = (length (takeWhile (\<lambda>(uu, s). s < x) bs ))"
-proof -
-  assume "map snd as = map snd bs"
-  then have "map (\<lambda>(uu,s). s) as = map (\<lambda>(uu,s). s) bs"
-    by (simp add: snd_simp concat_snd)
-  then have "map (\<lambda>y. y < x) (map (\<lambda>(uu,s). s) as) = map (\<lambda>y. y < x) (map (\<lambda>(uu,s). s) bs)"
-    by simp
-  then have "map (\<lambda>(uu,s). s < x) as = map (\<lambda>(uu,s). s < x) bs"
-    by (simp add: concat_snd)
-  then show ?thesis
-    using length_map_takeWhile_eq[of "\<lambda>(uu,s). s < x" as "\<lambda>(uu,s). s < x" bs]
-    by simp
-qed
-
-locale imp_split_smeq =
-  fixes split_fun :: "('a::{heap,default,linorder} btnode ref option \<times> 'a) array \<times> nat \<Rightarrow> 'a \<Rightarrow> nat Heap"
-  assumes split_rule: "sorted_less (separators xs) \<Longrightarrow>  <is_pfa c xs (a, n) *
- true> split_fun (a, n) (p::'a) <\<lambda>r. is_pfa c xs (a, n) *
-                 \<up> (r \<le> n \<and>
-                    (\<forall>j<r. snd (xs ! j) < p) \<and> (r < n \<longrightarrow> p \<le> snd (xs ! r)))>\<^sub>t"
-begin
-
-(* TODO make a locale from this, such that no explicit abstract split function is needed anymore *)
 lemma split_rule_abs_split: 
   shows
     "sorted_less (separators ts) \<Longrightarrow> <
@@ -1230,18 +1141,6 @@ lemma split_rule_abs_split:
   apply(rule hoare_triple_preI)
   apply (sep_auto heap: split_rule dest!: mod_starD id_assn_list
       simp add: list_assn_prod_map split_ismeq)
-
-    (* the interesting path: finding the correct rules for automatic rewriting:
-    apply(auto dest!: hoare_triple_preI list_assn_len
-          simp add: is_pfa_def split_relation_def min.absorb1 min.absorb2 )[]
-  subgoal for x _ _ _ _ as bs ls
-    by (smt abs_split_split_map le_antisym le_trans length_map less_imp_le_nat linorder_neqE_nat nth_take order_mono_setup.refl prod.inject snd_map_help(1))
-  subgoal for x _ _ _ _ as bs ls
-    by (metis \<open>\<And>x ls bs be bb as ae ab. \<lbrakk>in_range (ab, bb); seperators ts = seperators (take (length ts) ls); x < length ts; \<forall>j<x. snd (ls ! j) < p; p \<le> snd (ls ! x); (as, bs) = abs_split ts p; (ae, be) \<Turnstile> a \<mapsto>\<^sub>a ls; c = length ls; length ts \<le> length ls; tsi = take (length ts) ls; n = length ts\<rbrakk> \<Longrightarrow> as = take x ts\<close> abs_split_eq_taken_dropn length_take min_simps(2) snd_conv takeWhile_eq_take)
-    apply(auto dest!: hoare_triple_preI list_assn_len
-          simp add: is_pfa_def split_relation_def min.absorb1 min.absorb2 )[]
-stops here...
-*)
   apply(auto simp add: is_pfa_def)
 proof -
 
@@ -1303,6 +1202,7 @@ proof -
       by (metis append_take_drop_id heap_init(2) heap_init(3) length_map length_take less_imp_le_nat min.absorb2 split_relation_alt)
   qed
 qed
+
 
 sublocale imp_split abs_split split_fun
   apply(unfold_locales)

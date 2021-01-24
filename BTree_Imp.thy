@@ -18,7 +18,7 @@ primrec last :: "'a::heap btnode \<Rightarrow> 'a btnode ref option" where
 term arrays_update
 
 text \<open>Encoding to natural numbers, as required by Imperative/HOL\<close>
-  (* Sollte auch mit deriving gehen *)
+  (* Note: should also work using the package "Deriving" *)
 fun
   btnode_encode :: "'a::heap btnode \<Rightarrow> nat"
   where
@@ -44,11 +44,13 @@ fun btree_assn :: "nat \<Rightarrow> 'a::heap btree \<Rightarrow> 'a btnode ref 
   "btree_assn _ _ _ = false"
 
 
-definition "split_relation xs \<equiv> \<lambda>(as,bs) i. i \<le> length xs \<and> as = take i xs \<and> bs = drop i xs"
+definition "split_relation xs \<equiv>
+   \<lambda>(as,bs) i. i \<le> length xs \<and> as = take i xs \<and> bs = drop i xs"
 
 lemma split_relation_alt: 
   "split_relation as (ls,rs) i = (as = ls@rs \<and> i = length ls)"
   by (auto simp add: split_relation_def)
+
 
 lemma split_relation_length: "split_relation xs (ls,rs) (length xs) = (ls = xs \<and> rs = [])"
   by (simp add: split_relation_def)
@@ -1205,7 +1207,7 @@ proof -
     by simp
 qed
 
-
+(* TODO make a locale from this, such that no explicit abstract split function is needed anymore *)
 lemma split_rule_abs_split: 
   assumes split_rule: "\<And> c xs a n p. P c xs a n p \<Longrightarrow>  <is_pfa c xs (a, n) *
  true> split_fun (a, n) (p::'a::{heap,linorder}) <\<lambda>r. is_pfa c xs (a, n) *
@@ -1221,9 +1223,9 @@ lemma split_rule_abs_split:
     is_pfa c tsi (a,n)
     * list_assn (A \<times>\<^sub>a id_assn) ts tsi
     * \<up>(split_relation ts (abs_split ts p) i)>\<^sub>t"
-  thm split_rule
   apply (sep_auto heap: split_rule dest!: mod_starD id_assn_list
       simp add: list_assn_prod_map split_ismeq)
+
     (* the interesting path: finding the correct rules for automatic rewriting:
     apply(auto dest!: hoare_triple_preI list_assn_len
           simp add: is_pfa_def split_relation_def min.absorb1 min.absorb2 )[]
@@ -1235,8 +1237,7 @@ lemma split_rule_abs_split:
           simp add: is_pfa_def split_relation_def min.absorb1 min.absorb2 )[]
 stops here...
 *)
-  apply(simp_all add: is_pfa_def)
-  apply(auto)
+  apply(auto simp add: is_pfa_def)
 proof -
 
   fix h l' assume heap_init:
@@ -1339,89 +1340,20 @@ interpretation btree_imp_linear_split: imp_split abs_split lin_split
 (* obtaining actual code turns out to be slightly more difficult
   due to the use of locales *)
 
-interpretation btree_imp_binary_split: imp_split abs_split bin_split
+global_interpretation btree_imp_binary_split: imp_split abs_split bin_split
+  defines btree_isin = btree_imp_binary_split.isin
+      and btree_ins = btree_imp_binary_split.ins
+      and btree_insert = btree_imp_binary_split.insert
+      and btree_empty = btree_imp_binary_split.empty
   apply unfold_locales
   apply(sep_auto heap: bin_split_imp_abs_split)
   done
 
-definition [code del]: "btree_isin = btree_imp_binary_split.isin"
-lemma [code]: "btree_isin p x =
-    (case p of None \<Rightarrow> return False
-     | Some a \<Rightarrow> do {
-           node \<leftarrow> !a;
-           i \<leftarrow> bin_split (kvs node) x;
-           tsl \<leftarrow> pfa_length (kvs node);
-           if i < tsl
-           then do {
-                  s \<leftarrow> pfa_get (kvs node) i;
-                  let (sub, sep) = s;
-                  if x = sep then return True else btree_isin sub x
-                }
-           else btree_isin (BTree_Imp.last node) x
-         })"
-  apply(subst btree_isin_def)+
-  apply(simp add: btree_imp_binary_split.isin.simps)
-  done
-
-definition [code del]: "btree_ins = btree_imp_binary_split.ins"
-lemma [code]: "btree_ins k x p = (
-      case p of None \<Rightarrow> return (btree_imp_binary_split.Up\<^sub>i None x None)
-     | Some a \<Rightarrow> do {
-           node \<leftarrow> !a;
-           i \<leftarrow> bin_split (kvs node) x;
-           tsl \<leftarrow> pfa_length (kvs node);
-           if i < tsl
-           then do {
-                  s \<leftarrow> pfa_get (kvs node) i;
-                  let (sub, sep) = s;
-                  if sep = x then return (btree_imp_binary_split.T\<^sub>i p)
-                  else do {
-                         r \<leftarrow> btree_ins k x sub;
-                         case r of btree_imp_binary_split.T\<^sub>i lp \<Rightarrow> do {
-                                       _ \<leftarrow> pfa_set (kvs node) i (lp, sep);
-                                       return (btree_imp_binary_split.T\<^sub>i p)
-                                     }
-                         | btree_imp_binary_split.Up\<^sub>i lp x' rp \<Rightarrow> do {
-                               kvs' \<leftarrow> pfa_set (kvs node) i (rp, sep);
-                               kvs'' \<leftarrow> pfa_insert_grow kvs' i (lp, x');
-                               btree_imp_binary_split.node\<^sub>i k kvs'' (BTree_Imp.last node)
-                             }
-                       }
-                }
-           else do {
-                  r \<leftarrow> btree_ins k x (BTree_Imp.last node);
-                  case r of btree_imp_binary_split.T\<^sub>i lp \<Rightarrow> do {
-                                _ \<leftarrow> a := Btnode (kvs node) lp;
-                                return (btree_imp_binary_split.T\<^sub>i p)
-                              }
-                  | btree_imp_binary_split.Up\<^sub>i lp x' rp \<Rightarrow> do {
-                        kvs' \<leftarrow> pfa_append_grow' (kvs node) (lp, x');
-                        btree_imp_binary_split.node\<^sub>i k kvs' rp
-                      }
-                }
-         })"
-  apply (subst btree_ins_def)+
-  apply (simp add: btree_imp_binary_split.ins.simps)
-  done
-  
-definition [code del]: "btree_insert = btree_imp_binary_split.insert"
-lemma [code]: "btree_insert = (\<lambda>k x ti. do {
-         ti' \<leftarrow> btree_ins k x ti;
-         case ti' of btree_imp_binary_split.T\<^sub>i sub \<Rightarrow> return sub
-         | btree_imp_binary_split.Up\<^sub>i l a r \<Rightarrow> do {
-               kvs \<leftarrow> pfa_init (2 * k) (l, a) 1;
-               t' \<leftarrow> ref (Btnode kvs r);
-               return (Some t')
-             }
-       })"
-  by (simp add: btree_ins_def btree_insert_def  btree_imp_binary_split.insert_def)
-
-
-definition [code]: "btree_empty = btree_imp_binary_split.empty"
+declare btree_imp_binary_split.ins.simps[code] btree_imp_binary_split.isin.simps[code]
 
 export_code btree_empty btree_isin btree_insert checking SML Scala
 export_code btree_empty btree_isin btree_insert in SML module_name BTreeInsert
-
+export_code btree_empty btree_isin btree_insert in Scala module_name BTreeInsert
 
 end
 

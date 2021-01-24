@@ -1989,7 +1989,13 @@ proof -
   thus ?thesis by auto
 qed
 
-interpretation btree_linear_search: split linear_split
+global_interpretation btree_linear_search: split linear_split
+(* the below definitions are required to be set here for evaluating example code... *)
+  defines btree_linear_search_isin = btree_linear_search.isin 
+      and btree_linear_search_ins = btree_linear_search.ins
+      and btree_linear_search_insert = btree_linear_search.insert
+      and btree_linear_search_del = btree_linear_search.del
+      and btree_linear_search_delete = btree_linear_search.delete
   apply unfold_locales
   unfolding linear_split_alt
   apply (auto simp: split: list.splits)
@@ -1999,6 +2005,24 @@ interpretation btree_linear_search: split linear_split
     by (metis case_prod_conv hd_dropWhile le_less_linear list.sel(1) list.simps(3))
   done
 
+
+(* some examples to show that the implementation works and lemmas make sense *)
+
+value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in x"
+value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in 
+        root_order k x"
+value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in 
+        bal x"
+value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in 
+        btree_linear_search_isin x 3"
+value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in 
+        btree_linear_search_isin x 5"
+value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in 
+        btree_linear_search_insert k 5 x"
+value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in 
+        btree_linear_search_delete k 3 (btree_linear_search_insert k 5 x)"
+value "let k=1::nat; x = (Node [(Node [(Leaf,(1::nat)),(Leaf,2)] Leaf,3)] (Node [(Leaf, 4)] Leaf)) in 
+        btree_linear_search_delete k 4 (btree_linear_search_insert k 6 (btree_linear_search_insert k 5 x))"
 
 (* however we can also explicitly derive the locale requirements *)
 
@@ -2044,9 +2068,7 @@ lemma linear_split_req2:
   by (metis Nil_is_map_conv Un_iff append_self_conv2 empty_iff empty_set linear_split.elims prod_set_simps(2) separators_split snd_eqD snds.intros)
 
 
-definition "linear_insert = insert linear_split"
-
-interpretation btree_linear_search: split linear_split
+interpretation split linear_split
   by (simp add: linear_split_req linear_split_req2 linear_split_append split_def)
 
 (* it *is* possible to define a binary split predicate..
@@ -2092,19 +2114,6 @@ lemma "\<lbrakk>sorted_less (separators (as@bs@cs)); binary_split_help as bs cs 
     apply(cases "cmp x ba")
       apply auto*)
     oops
-
-
-(* TODO some examples to show that the implementation works and lemmas make sense *)
-
-lemmas [code] = btree_linear_search.insert.simps
-
-value "Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf"
-value "root_order 10 (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"
-value "bal (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"
-thm btree_linear_search.insert.simps
-
-(* BREAKS: no code generated *)
-(*value "btree_linear_search.insert 5 10 (Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3)] Leaf)"*)
 
 
 

@@ -43,6 +43,7 @@ fun btree_assn :: "nat \<Rightarrow> 'a::heap btree \<Rightarrow> 'a btnode ref 
     )" |
   "btree_assn _ _ _ = false"
 
+abbreviation "blist_assn k \<equiv> list_assn ((btree_assn k) \<times>\<^sub>a id_assn)"
 
 definition "split_relation xs \<equiv>
    \<lambda>(as,bs) i. i \<le> length xs \<and> as = take i xs \<and> bs = drop i xs"
@@ -123,12 +124,12 @@ locale imp_split = abs_split: BTree_Set.split split
   fixes imp_split:: "('a btnode ref option \<times> 'a::{heap,default,linorder}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
   assumes imp_split_rule [sep_heap_rules]:"sorted_less (map snd ts) \<Longrightarrow>
    <is_pfa c tsi (a,n)
-  * list_assn (btree_assn k \<times>\<^sub>a id_assn) ts tsi
+  * blist_assn k ts tsi
   * true> 
     imp_split (a,n) p 
   <\<lambda>i. 
     is_pfa c tsi (a,n)
-    * list_assn (btree_assn k \<times>\<^sub>a id_assn) ts tsi
+    * blist_assn k ts tsi
     * \<up>(split_relation ts (split ts p) i)>\<^sub>t"
 begin
 
@@ -343,8 +344,8 @@ next
       apply(simp add: split_relation_alt)
       apply(subgoal_tac "tsi =
             take (length tsi div 2) tsi @ (subi, ba) # drop (Suc (length tsi div 2)) tsi")
-      apply(rule back_subst[where a="list_assn (btree_assn k \<times>\<^sub>a id_assn) ts (take (length tsi div 2) tsi @ (subi, ba) # (drop (Suc (length tsi div 2)) tsi))" and b="list_assn (btree_assn k \<times>\<^sub>a id_assn) ts tsi"])
-      apply(rule back_subst[where a="list_assn (btree_assn k \<times>\<^sub>a id_assn) (take (length tsi div 2) ts @ (sub, sep) # rs)" and b="list_assn (btree_assn k \<times>\<^sub>a id_assn) ts"])
+      apply(rule back_subst[where a="blist_assn k ts (take (length tsi div 2) tsi @ (subi, ba) # (drop (Suc (length tsi div 2)) tsi))" and b="blist_assn k ts tsi"])
+      apply(rule back_subst[where a="blist_assn k (take (length tsi div 2) ts @ (sub, sep) # rs)" and b="blist_assn k ts"])
       apply(subst list_assn_aux_append_Cons)
       apply sep_auto
       apply sep_auto
@@ -363,42 +364,53 @@ term Array.set
 
 partial_function (heap) ins :: "nat \<Rightarrow> 'a \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap"
   where
-    "ins k x p = (case p of
+    "ins k x apo = (case apo of
   None \<Rightarrow> 
     return (Up\<^sub>i None x None) |
-  (Some a) \<Rightarrow> do {
-    node \<leftarrow> !a;
-    i \<leftarrow> imp_split (kvs node) x;
-    tsl \<leftarrow> pfa_length (kvs node);
+  (Some ap) \<Rightarrow> do {
+    a \<leftarrow> !ap;
+    i \<leftarrow> imp_split (kvs a) x;
+    tsl \<leftarrow> pfa_length (kvs a);
     if i < tsl then do {
-      s \<leftarrow> pfa_get (kvs node) i;
+      s \<leftarrow> pfa_get (kvs a) i;
       let (sub,sep) = s in
       if sep = x then
-        return (T\<^sub>i p)
+        return (T\<^sub>i apo)
       else do {
         r \<leftarrow> ins k x sub;
         case r of 
           (T\<^sub>i lp) \<Rightarrow> do {
-            pfa_set (kvs node) i (lp,sep);
-            return (T\<^sub>i p)
+            pfa_set (kvs a) i (lp,sep);
+            return (T\<^sub>i apo)
           } |
           (Up\<^sub>i lp x' rp) \<Rightarrow> do {
-            kvs' \<leftarrow> pfa_set (kvs node) i (rp,sep);
-            kvs'' \<leftarrow> pfa_insert_grow kvs' i (lp,x');
-            node\<^sub>i k kvs'' (last node)
+            pfa_set (kvs a) i (rp,sep);
+            if tsl < 2*k then do {
+                kvs' \<leftarrow> pfa_insert (kvs a) i (lp,x');
+                ap := (Btnode kvs' (last a));
+                return (T\<^sub>i apo)
+            } else do {
+              kvs' \<leftarrow> pfa_insert_grow (kvs a) i (lp,x');
+              node\<^sub>i k kvs' (last a)
+            }
           }
         }
       }
     else do {
-      r \<leftarrow> ins k x (last node);
+      r \<leftarrow> ins k x (last a);
       case r of 
         (T\<^sub>i lp) \<Rightarrow> do {
-          a := (Btnode (kvs node) lp);
-          return (T\<^sub>i p)
+          ap := (Btnode (kvs a) lp);
+          return (T\<^sub>i apo)
         } |
-        (Up\<^sub>i lp x' rp) \<Rightarrow> do {
-          kvs' \<leftarrow> pfa_append_grow' (kvs node) (lp,x');
-          node\<^sub>i k kvs' rp
+        (Up\<^sub>i lp x' rp) \<Rightarrow> 
+          if tsl < 2*k then do {
+            kvs' \<leftarrow> pfa_append (kvs a) (lp,x');
+            ap := (Btnode kvs' rp);
+            return (T\<^sub>i apo)
+          } else do {
+            kvs' \<leftarrow> pfa_append_grow' (kvs a) (lp,x');
+            node\<^sub>i k kvs' rp
         }
     }
   }
@@ -410,10 +422,44 @@ declare ins.simps[code]
 export_code ins checking SML Scala *)
 
 declare abs_split.node\<^sub>i.simps[simp del]
+(*
+Btnode (tsil, Suc tsin) x23 *
+       is_pfa (2 * k) (tsi' @ [(x21, x22)]) (tsil, Suc tsin) *
+       btree_assn k l x21 *
+       id_assn a x22 *
+       btree_assn k r x23 *
+       blist_assn k ls tsi'
+*)
+
+lemma node\<^sub>i_no_split: "length ts \<le> 2*k \<Longrightarrow> abs_split.node\<^sub>i k ts t = abs_split.T\<^sub>i (Node ts t)"
+  by (simp add: abs_split.node\<^sub>i.simps)
+
+
+lemma node\<^sub>i_rule_app_nosplit: "
+length tsi' < 2 * k \<Longrightarrow>
+<p \<mapsto>\<^sub>r Btnode (tsil, tsin) x23 *
+       is_pfa (2 * k) (tsi' @ [(x21, x22)]) (tsil, tsin) *
+       btree_assn k l x21 *
+       id_assn a x22 *
+       btree_assn k r x23 *
+       blist_assn k ls tsi' * true>
+       return (T\<^sub>i (Some p)) 
+      <btupi_assn k (abs_split.node\<^sub>i k (ls @ [(l, a)]) r)>\<^sub>t"
+  apply(rule hoare_triple_preI)
+  apply(subgoal_tac "length (ls@[(l,a)]) \<le> 2*k")
+  apply(simp add: node\<^sub>i_no_split)
+   apply (vcg)
+   apply auto[]
+   apply(rule ent_ex_postI[where x="(tsil,tsin)"])
+   apply(rule ent_ex_postI[where x="x23"])
+   apply(rule ent_ex_postI[where x="tsi' @ [(x21, x22)]"])   
+   apply sep_auto
+  apply (sep_auto dest!: mod_starD list_assn_len simp add: is_pfa_def)
+  done
 
 lemma node\<^sub>i_rule_app: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1\<rbrakk> \<Longrightarrow>
 <is_pfa c (tsi' @ [(li, ai)]) (aa, al) *
-   list_assn (btree_assn k \<times>\<^sub>a id_assn) ls tsi' *
+   blist_assn k ls tsi' *
    btree_assn k l li *
    id_assn a ai *
    btree_assn k r ri *
@@ -428,12 +474,12 @@ qed
 
 lemma node\<^sub>i_rule_ins2: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1; length ls = length lsi\<rbrakk> \<Longrightarrow>
  <is_pfa c (lsi @ (li, ai) # (ri,a'i) # rsi) (aa, al) *
-   list_assn (btree_assn k \<times>\<^sub>a id_assn) ls lsi *
+   blist_assn k ls lsi *
    btree_assn k l li *
    id_assn a ai *
    btree_assn k r ri *
    id_assn a' a'i *
-   list_assn (btree_assn k \<times>\<^sub>a id_assn) rs rsi *
+   blist_assn k rs rsi *
    btree_assn k t ti *
    true> node\<^sub>i k (aa, al)
           ti <btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, a) # (r,a') # rs) t)>\<^sub>t"
@@ -443,6 +489,31 @@ proof -
   ultimately show ?thesis
     by (simp add: mult.left_assoc list_assn_aux_append_Cons)
 qed
+
+lemma node\<^sub>i_rule_ins_nosplit: "
+Suc (length zs1 + length zs2) < 2 * k \<Longrightarrow>
+<p \<mapsto>\<^sub>r Btnode (tsil, tsin) ti *
+       is_pfa (2 * k) (zs1 @ (x21, x22) # (x23, sep) # zs2) (tsil, tsin) *
+       btree_assn k l x21 *
+       id_assn w x22 *
+       btree_assn k r x23 *
+       blist_assn k ls zs1 *
+       id_assn sep sep *
+       blist_assn k rs zs2 *
+       btree_assn k t ti *
+       true> return (T\<^sub>i (Some p))
+       <btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, w) # (r, sep) # rs) t)>\<^sub>t"
+  apply(rule hoare_triple_preI)
+  apply(subgoal_tac "length (ls @ (l, w) # (r, sep) # rs) \<le> 2*k")
+  apply(simp add: node\<^sub>i_no_split)
+   apply (vcg)
+   apply auto[]
+   apply(rule ent_ex_postI[where x="(tsil,tsin)"])
+   apply(rule ent_ex_postI[where x="ti"])
+   apply(rule ent_ex_postI[where x="(zs1 @ (x21, x22) # (x23, sep) # zs2)"])
+  apply(sep_auto dest!: mod_starD list_assn_len)
+  apply (sep_auto dest!: mod_starD list_assn_len simp add: is_pfa_def)
+  done
 
 lemma ins_rule:
   "sorted_less (inorder t) \<Longrightarrow> <btree_assn k t ti * true>
@@ -507,7 +578,11 @@ next
               heap add: "2.IH"(1)[of ls rrs tti])
           subgoal for xi
             apply(cases xi)
-            apply sep_auto
+             apply sep_auto
+            apply(rule hoare_triple_preI)
+            apply(sep_auto)
+              apply(auto dest!: mod_starD simp add: is_pfa_def)[]
+             apply (sep_auto heap add: node\<^sub>i_rule_app_nosplit)
             apply(sep_auto heap add: node\<^sub>i_rule_app)
             done
           done
@@ -635,14 +710,26 @@ next
             apply (sep_auto heap: 2(2))
             apply(auto split!: btupi.splits)
               (* careful progression for manual value insertion *)
-            apply vcg
+              apply vcg
             apply simp
-            subgoal for x21 x22 x23 u
+            subgoal for x21 x22 x23 u (* no split case *)
+              apply (cases u,simp)
+              apply (sep_auto dest!: mod_starD list_assn_len heap: pfa_insert_grow_rule)
+                apply (simp add: is_pfa_def)[]
+                apply (metis le_less_linear length_append length_take less_not_refl min.absorb2 trans_less_add1)
+               apply(simp add: is_pfa_def)
+               apply (metis add_Suc_right length_Cons length_append length_take min.absorb2)
+              apply(auto split: prod.splits  dest!: mod_starD list_assn_len)[]
+              apply (vcg heap add: node\<^sub>i_rule_ins_nosplit)
+              done
+             apply vcg
+            apply simp
+            subgoal for x21 x22 x23 u (* split case *)
               apply (cases u,simp)
               thm pfa_insert_grow_rule[where ?l="((zs1 @ (suba, sepi) # zs2)[length ls := (x23, sepa)])"]
               apply (sep_auto dest!: mod_starD list_assn_len heap: pfa_insert_grow_rule)
               apply (simp add: is_pfa_def)[]
-              apply (metis le_less_linear length_append length_take less_not_refl min.absorb2 trans_less_add1)
+                apply (metis le_less_linear length_append length_take less_not_refl min.absorb2 trans_less_add1)
               apply(auto split: prod.splits  dest!: mod_starD list_assn_len)[]
 
               apply (vcg heap: node\<^sub>i_rule_ins2)

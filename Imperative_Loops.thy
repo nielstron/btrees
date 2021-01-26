@@ -602,15 +602,14 @@ proof -
 qed
 
 (* Added by NM *)
-
 lemma heap_WHILET_rule'':
   assumes
     "wf R"
     "P \<Longrightarrow>\<^sub>A I s"
     "\<And>s. <I s * true> bi s <\<lambda>r. I s * \<up>(r \<longleftrightarrow> b s)>\<^sub>t"
     "\<And>s. b s \<Longrightarrow> <I s * true> f s <\<lambda>s'. I s' * \<up>((s', s) \<in> R)>\<^sub>t"
-    "\<And>s. \<not> b s \<Longrightarrow> I s * true \<Longrightarrow>\<^sub>A Q s"
-  shows "<P * true> heap_WHILET bi f s <Q>"
+    "\<And>s. \<not> b s \<Longrightarrow> I s * true \<Longrightarrow>\<^sub>A Q s * true"
+  shows "<P> heap_WHILET bi f s <Q>\<^sub>t"
 proof -
   have "<I s * true> heap_WHILET bi f s <\<lambda>s'. I s' * \<up>(\<not> b s')>\<^sub>t"
     using assms(1)
@@ -629,9 +628,9 @@ proof -
   qed
   then show ?thesis
     apply (rule cons_rule[rotated 2])
-     apply (intro ent_star_mono assms(2) ent_refl)
+     apply (intro ent_true_drop assms(2) ent_refl)
     apply clarsimp
-    apply (intro ent_star_mono assms(5) ent_refl)
+    apply(intro assms(5))
     .
 qed
 

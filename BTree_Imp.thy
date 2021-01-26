@@ -124,8 +124,7 @@ locale imp_split = abs_split: BTree_Set.split split
   fixes imp_split:: "('a btnode ref option \<times> 'a::{heap,default,linorder}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
   assumes imp_split_rule [sep_heap_rules]:"sorted_less (map snd ts) \<Longrightarrow>
    <is_pfa c tsi (a,n)
-  * blist_assn k ts tsi
-  * true> 
+  * blist_assn k ts tsi> 
     imp_split (a,n) p 
   <\<lambda>i. 
     is_pfa c tsi (a,n)
@@ -160,7 +159,7 @@ lemma P_imp_Q_implies_P: "P \<Longrightarrow> (Q \<longrightarrow> P)"
 
 
 lemma  "sorted_less (inorder t) \<Longrightarrow>
-   <btree_assn k t ti * true>
+   <btree_assn k t ti>
      isin ti x
    <\<lambda>r. btree_assn k t ti * \<up>(abs_split.isin t x = r)>\<^sub>t"
 proof(induction t x arbitrary: ti rule: abs_split.isin.induct)
@@ -291,10 +290,9 @@ thm drop_eq_ConsD
 find_theorems "<emp>_<_>"
 
 
-
 declare abs_split.node\<^sub>i.simps [simp add]
 lemma node\<^sub>i_rule: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
-  shows "<is_pfa c tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti * true>
+  shows "<is_pfa c tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti>
   node\<^sub>i k (a,n) ti
   <\<lambda>r. btupi_assn k (abs_split.node\<^sub>i k ts t) r >\<^sub>t"
 proof (cases "length ts \<le> 2*k")
@@ -330,7 +328,7 @@ next
     apply(vcg)
     apply(simp)
     apply(rule impI)
-    subgoal for _ _ _ _ _ _ rsa subi ba rn lsi al ar _
+    subgoal for  _ _ _ _ rsa subi ba rn lsi al ar _
       thm ent_ex_postI
       thm ent_ex_postI[where x="take (length tsi div 2) tsi"]
         (* instantiate right hand side *)
@@ -442,9 +440,9 @@ length tsi' < 2 * k \<Longrightarrow>
        btree_assn k l x21 *
        id_assn a x22 *
        btree_assn k r x23 *
-       blist_assn k ls tsi' * true>
+       blist_assn k ls tsi'>
        return (T\<^sub>i (Some p)) 
-      <btupi_assn k (abs_split.node\<^sub>i k (ls @ [(l, a)]) r)>\<^sub>t"
+      <btupi_assn k (abs_split.node\<^sub>i k (ls @ [(l, a)]) r)>"
   apply(rule hoare_triple_preI)
   apply(subgoal_tac "length (ls@[(l,a)]) \<le> 2*k")
   apply(simp add: node\<^sub>i_no_split)
@@ -462,8 +460,7 @@ lemma node\<^sub>i_rule_app: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1\<rbrakk> \<Lon
    blist_assn k ls tsi' *
    btree_assn k l li *
    id_assn a ai *
-   btree_assn k r ri *
-   true> node\<^sub>i k (aa, al) ri
+   btree_assn k r ri> node\<^sub>i k (aa, al) ri
  <btupi_assn k (abs_split.node\<^sub>i k (ls @ [(l, a)]) r)>\<^sub>t"
 proof -
   note node\<^sub>i_rule[of k c "(tsi' @ [(li, ai)])" aa al "(ls @ [(l, a)])" r ri]
@@ -480,8 +477,7 @@ lemma node\<^sub>i_rule_ins2: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1; length ls = 
    btree_assn k r ri *
    id_assn a' a'i *
    blist_assn k rs rsi *
-   btree_assn k t ti *
-   true> node\<^sub>i k (aa, al)
+   btree_assn k t ti> node\<^sub>i k (aa, al)
           ti <btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, a) # (r,a') # rs) t)>\<^sub>t"
 proof -
   assume [simp]: "2*k \<le> c" "c \<le> 4*k+1" "length ls = length lsi"
@@ -500,9 +496,8 @@ Suc (length zs1 + length zs2) < 2 * k \<Longrightarrow>
        blist_assn k ls zs1 *
        id_assn sep sep *
        blist_assn k rs zs2 *
-       btree_assn k t ti *
-       true> return (T\<^sub>i (Some p))
-       <btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, w) # (r, sep) # rs) t)>\<^sub>t"
+       btree_assn k t ti> return (T\<^sub>i (Some p))
+       <btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, w) # (r, sep) # rs) t)>"
   apply(rule hoare_triple_preI)
   apply(subgoal_tac "length (ls @ (l, w) # (r, sep) # rs) \<le> 2*k")
   apply(simp add: node\<^sub>i_no_split)
@@ -516,7 +511,7 @@ Suc (length zs1 + length zs2) < 2 * k \<Longrightarrow>
   done
 
 lemma ins_rule:
-  "sorted_less (inorder t) \<Longrightarrow> <btree_assn k t ti * true>
+  "sorted_less (inorder t) \<Longrightarrow> <btree_assn k t ti>
   ins k x ti
   <\<lambda>r. btupi_assn k (abs_split.ins k x t) r>\<^sub>t"
 proof (induction k x t arbitrary: ti rule: abs_split.ins.induct)
@@ -772,7 +767,7 @@ definition insert :: "nat \<Rightarrow> ('a::{heap,default,linorder}) \<Rightarr
 
 lemma insert'_rule:
   assumes "k > 0" "sorted_less (inorder t)"
-  shows "<btree_assn k t ti * true>
+  shows "<btree_assn k t ti>
   insert k x ti
   <\<lambda>r. btree_assn k (abs_split.insert k x t) r>\<^sub>t"
   unfolding insert_def
@@ -965,17 +960,17 @@ definition lin_split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Right
 }"
 
 
-
 lemma lin_split_rule: "
-< is_pfa c xs (a,n) * true>
+< is_pfa c xs (a,n)>
  lin_split (a,n) p
- <\<lambda>i. is_pfa c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) >\<^sub>t"
+ <\<lambda>i. is_pfa c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p))>\<^sub>t"
   unfolding lin_split_def
 
   supply R = heap_WHILET_rule''[where 
       R = "measure (\<lambda>i. n - i)"
       and I = "\<lambda>i. is_pfa c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p))"
       and b = "\<lambda>i. i<n \<and> snd (xs!i) < p"
+      and Q="\<lambda>i. is_pfa c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p))"
       ]
   thm R
 
@@ -986,6 +981,7 @@ lemma lin_split_rule: "
   apply (metis dual_order.strict_trans nth_take)
   apply (metis nth_take)
   using diff_less_mono2 apply blast
+   apply(sep_auto simp: is_pfa_def)
   apply(sep_auto simp: is_pfa_def)
   done
 
@@ -1014,7 +1010,7 @@ thm sorted_wrt_nth_less
 (* alternative: replace (\<forall>j<l. xs!j < p) by (l > 0 \<longrightarrow> xs!(l-1) < p)*)
 lemma bin'_split_rule: "
 sorted_less xs \<Longrightarrow>
-< is_pfa c xs (a,n) * true>
+< is_pfa c xs (a,n)>
  bin'_split (a,n) p
  <\<lambda>l. is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (l<n \<longrightarrow> xs!l\<ge>p)) >\<^sub>t"
   unfolding bin'_split_def
@@ -1023,7 +1019,7 @@ sorted_less xs \<Longrightarrow>
       R = "measure (\<lambda>(l,h). h-l)"
       and I = "\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l\<le>h \<and> h \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (h<n \<longrightarrow> xs!h\<ge>p))"
       and b = "\<lambda>(l,h). l<h"
-      and Q="\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (l<n \<longrightarrow> xs!l\<ge>p)) * true"
+      and Q="\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (l<n \<longrightarrow> xs!l\<ge>p))"
       ]
   thm R
 
@@ -1136,7 +1132,7 @@ lemma map_snd_sorted_lesseq: "\<lbrakk>sorted_less (map snd xs); i \<le> j; j < 
 
 lemma bin_split_rule: "
 sorted_less (map snd xs) \<Longrightarrow>
-< is_pfa c xs (a,n) * true>
+< is_pfa c xs (a,n)>
  bin_split (a,n) p
  <\<lambda>l. is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd(xs!j) < p) \<and> (l<n \<longrightarrow> snd(xs!l)\<ge>p)) >\<^sub>t"
   (* this works in principle, as demonstrated above *)
@@ -1146,7 +1142,7 @@ sorted_less (map snd xs) \<Longrightarrow>
       R = "measure (\<lambda>(l,h). h-l)"
       and I = "\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l\<le>h \<and> h \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (h<n \<longrightarrow> snd (xs!h)\<ge>p))"
       and b = "\<lambda>(l,h). l<h"
-      and Q="\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (l<n \<longrightarrow> snd (xs!l)\<ge>p)) * true"
+      and Q="\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (l<n \<longrightarrow> snd (xs!l)\<ge>p))"
       ]
   thm R
 
@@ -1193,10 +1189,13 @@ interpretation btree_abs_search: split abs_split
 
 locale imp_split_smeq =
   fixes split_fun :: "('a::{heap,default,linorder} btnode ref option \<times> 'a) array \<times> nat \<Rightarrow> 'a \<Rightarrow> nat Heap"
-  assumes split_rule: "sorted_less (separators xs) \<Longrightarrow>  <is_pfa c xs (a, n) *
- true> split_fun (a, n) (p::'a) <\<lambda>r. is_pfa c xs (a, n) *
+  assumes split_rule: "sorted_less (separators xs) \<Longrightarrow> 
+ <is_pfa c xs (a, n)>
+   split_fun (a, n) (p::'a)
+  <\<lambda>r. is_pfa c xs (a, n) *
                  \<up> (r \<le> n \<and>
-                    (\<forall>j<r. snd (xs ! j) < p) \<and> (r < n \<longrightarrow> p \<le> snd (xs ! r)))>\<^sub>t"
+                   (\<forall>j<r. snd (xs ! j) < p) \<and>
+                   (r < n \<longrightarrow> p \<le> snd (xs ! r)))>\<^sub>t"
 begin
 
 
@@ -1218,8 +1217,7 @@ lemma split_rule_abs_split:
   shows
     "sorted_less (separators ts) \<Longrightarrow> <
     is_pfa c tsi (a,n)
-  * list_assn (A \<times>\<^sub>a id_assn) ts tsi
-  * true> 
+  * list_assn (A \<times>\<^sub>a id_assn) ts tsi> 
     split_fun (a,n) p 
   <\<lambda>i. 
     is_pfa c tsi (a,n)

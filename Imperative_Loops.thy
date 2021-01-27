@@ -608,7 +608,7 @@ lemma heap_WHILET_rule'':
     "P \<Longrightarrow>\<^sub>A I s"
     "\<And>s. <I s * true> bi s <\<lambda>r. I s * \<up>(r \<longleftrightarrow> b s)>\<^sub>t"
     "\<And>s. b s \<Longrightarrow> <I s * true> f s <\<lambda>s'. I s' * \<up>((s', s) \<in> R)>\<^sub>t"
-    "\<And>s. \<not> b s \<Longrightarrow> I s * true \<Longrightarrow>\<^sub>A Q s * true"
+    "\<And>s. \<not> b s \<Longrightarrow> I s \<Longrightarrow>\<^sub>A Q s"
   shows "<P> heap_WHILET bi f s <Q>\<^sub>t"
 proof -
   have "<I s * true> heap_WHILET bi f s <\<lambda>s'. I s' * \<up>(\<not> b s')>\<^sub>t"
@@ -630,7 +630,7 @@ proof -
     apply (rule cons_rule[rotated 2])
      apply (intro ent_true_drop assms(2) ent_refl)
     apply clarsimp
-    apply(intro assms(5))
+    apply(intro ent_star_mono assms(5) ent_refl)
     .
 qed
 

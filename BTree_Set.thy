@@ -2010,6 +2010,7 @@ global_interpretation btree_linear_search: split linear_split
 (* these are visualized in the thesis *)
 
 abbreviation "btree\<^sub>i \<equiv> btree_ls_insert"
+abbreviation "btree\<^sub>d \<equiv> btree_ls_delete"
 
 value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
       root_order k x"
@@ -2023,6 +2024,10 @@ value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)]
       btree\<^sub>i k 9 x"
 value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
       btree\<^sub>i k 1 (btree\<^sub>i k 9 x)"
+value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+      btree\<^sub>d k 10 (btree\<^sub>i k 1 (btree\<^sub>i k 9 x))"
+value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+      btree\<^sub>d k 3 (btree\<^sub>d k 10 (btree\<^sub>i k 1 (btree\<^sub>i k 9 x)))"
 
 
 (* however we can also explicitly derive the locale requirements *)

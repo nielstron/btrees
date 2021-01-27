@@ -43,6 +43,15 @@ fun btree_assn :: "nat \<Rightarrow> 'a::heap btree \<Rightarrow> 'a btnode ref 
     )" |
   "btree_assn _ _ _ = false"
 
+fun btnode_assn :: "nat \<Rightarrow> 'a::heap btree \<Rightarrow> 'a btnode \<Rightarrow> assn" where
+  "btnode_assn k (Node ts t) (Btnode tsi ti) = 
+ (\<exists>\<^sub>A tsi'.
+      btree_assn k t ti
+    * is_pfa (2*k) tsi' tsi
+    * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi'
+    )" |
+  "btnode_assn _ _ _ = false"
+
 abbreviation "blist_assn k \<equiv> list_assn ((btree_assn k) \<times>\<^sub>a id_assn)"
 
 definition "split_relation xs \<equiv>
@@ -765,7 +774,7 @@ definition insert :: "nat \<Rightarrow> ('a::{heap,default,linorder}) \<Rightarr
 }"
 
 
-lemma insert'_rule:
+lemma insert_rule:
   assumes "k > 0" "sorted_less (inorder t)"
   shows "<btree_assn k t ti>
   insert k x ti
@@ -843,6 +852,43 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
   }
 })
 "
+
+
+lemma rebalance_middle_tree_rule:
+  assumes "height t = height sub"
+    and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"
+  shows "<is_pfa (2*k) tsi (a,n) * blist_assn k (ls@(sub,sep)#rs) tsi * btree_assn k t ti * \<up>(length ls = i)>
+  rebalance_middle_tree k (a,n) i ti
+  <\<lambda>r. btnode_assn k (abs_split.rebalance_middle_tree k ls sub sep rs t) r >\<^sub>t"
+  apply(subst rebalance_middle_tree_def)
+  apply(cases t; cases sub)
+  subgoal 
+    apply(rule hoare_triple_preI)
+       apply(vcg)
+     apply (auto dest!: mod_starD)
+    apply(rule ent_ex_postI[where x=tsi])
+    apply sep_auto
+    done
+  subgoal
+    using assms apply auto
+    done
+  subgoal
+    using assms apply auto
+    done
+  subgoal for tts tti sts sti
+    apply(rule hoare_triple_preI)
+    supply R = list_assn_append_Cons_left[where xs=ls and ys=rs and x="(Node sts sti,sep)" and zs=tsi]
+    thm R
+       apply(sep_auto dest!: mod_starD)
+      apply (auto  dest!: list_assn_len)[]
+    
+     apply(sep_auto  split!: prod.splits)
+     
+    thm R
+    using assms R apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
+
+     apply(sep_auto)
+    oops
 
 definition rebalance_last_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder}) btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode Heap"
   where

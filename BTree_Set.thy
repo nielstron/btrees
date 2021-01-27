@@ -1991,11 +1991,11 @@ qed
 
 global_interpretation btree_linear_search: split linear_split
 (* the below definitions are required to be set here for evaluating example code... *)
-  defines btree_linear_search_isin = btree_linear_search.isin 
-      and btree_linear_search_ins = btree_linear_search.ins
-      and btree_linear_search_insert = btree_linear_search.insert
-      and btree_linear_search_del = btree_linear_search.del
-      and btree_linear_search_delete = btree_linear_search.delete
+  defines btree_ls_isin = btree_linear_search.isin 
+      and btree_ls_ins = btree_linear_search.ins
+      and btree_ls_insert = btree_linear_search.insert
+      and btree_ls_del = btree_linear_search.del
+      and btree_ls_delete = btree_linear_search.delete
   apply unfold_locales
   unfolding linear_split_alt
   apply (auto simp: split: list.splits)
@@ -2007,24 +2007,22 @@ global_interpretation btree_linear_search: split linear_split
 
 
 (* some examples to show that the implementation works and lemmas make sense *)
+(* these are visualized in the thesis *)
 
-value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in x"
-value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in 
-        root_order k x"
-value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in 
-        bal x"
-value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in 
-        btree_linear_search_isin x 3"
-value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in 
-        btree_linear_search_isin x 5"
-value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in 
-        btree_linear_search_insert k 5 x"
-value "let k=2::nat; x = Node [(Leaf,(1::nat)),(Leaf,2),(Leaf,3),(Leaf, 4)] Leaf in 
-        btree_linear_search_delete k 3 (btree_linear_search_insert k 5 x)"
-value "let k=1::nat; x = (Node [(Node [(Leaf,(1::nat)),(Leaf,2)] Leaf,3)] (Node [(Leaf, 4)] Leaf)) in 
-        btree_linear_search_delete k 4 (btree_linear_search_insert k 6 (btree_linear_search_insert k 5 x))"
-value "let k=3::nat; x = Leaf::int btree in 
-        height(fold (btree_linear_search_insert k) [1..200] x)"
+abbreviation "btree\<^sub>i \<equiv> btree_ls_insert"
+
+value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+      root_order k x"
+value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+      bal x"
+value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+      sorted_less (inorder x)"
+value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+      x"
+value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+      btree\<^sub>i k 9 x"
+value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
+      btree\<^sub>i k 1 (btree\<^sub>i k 9 x)"
 
 
 (* however we can also explicitly derive the locale requirements *)

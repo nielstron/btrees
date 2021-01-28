@@ -165,6 +165,261 @@ partial_function (heap) isin :: "'a btnode ref option \<Rightarrow> 'a \<Rightar
 )"
 
 
+
+datatype 'b btupi = 
+  T\<^sub>i "'b btnode ref option" |
+  Up\<^sub>i "'b btnode ref option" "'b" "'b btnode ref option"
+
+fun btupi_assn where
+  "btupi_assn k (abs_split.T\<^sub>i l) (T\<^sub>i li) =
+   btree_assn k l li" |
+  "btupi_assn k (abs_split.Up\<^sub>i l a r) (Up\<^sub>i li ai ri) =
+   btree_assn k l li * id_assn a ai * btree_assn k r ri" |
+  "btupi_assn _ _ _ = false"
+
+
+
+definition node\<^sub>i :: "nat \<Rightarrow> ('a btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap" where
+  "node\<^sub>i k a ti \<equiv> do {
+    n \<leftarrow> pfa_length a;
+    if n \<le> 2*k then do {
+      a' \<leftarrow> pfa_shrink_cap (2*k) a;
+      l \<leftarrow> ref (Btnode a' ti);
+      return (T\<^sub>i (Some l))
+    }
+    else do {
+      b \<leftarrow> (pfa_empty (2*k) :: ('a btnode ref option \<times> 'a) pfarray Heap);
+      i \<leftarrow> split_half a;
+      m \<leftarrow> pfa_get a i;
+      b' \<leftarrow> pfa_drop a (i+1) b;
+      a' \<leftarrow> pfa_shrink i a;
+      a'' \<leftarrow> pfa_shrink_cap (2*k) a';
+      let (sub,sep) = m in do {
+        l \<leftarrow> ref (Btnode a'' sub);
+        r \<leftarrow> ref (Btnode b' ti);
+        return (Up\<^sub>i (Some l) sep (Some r))
+      }
+    }
+}"
+
+
+partial_function (heap) ins :: "nat \<Rightarrow> 'a \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap"
+  where
+    "ins k x apo = (case apo of
+  None \<Rightarrow> 
+    return (Up\<^sub>i None x None) |
+  (Some ap) \<Rightarrow> do {
+    a \<leftarrow> !ap;
+    i \<leftarrow> imp_split (kvs a) x;
+    tsl \<leftarrow> pfa_length (kvs a);
+    if i < tsl then do {
+      s \<leftarrow> pfa_get (kvs a) i;
+      let (sub,sep) = s in
+      if sep = x then
+        return (T\<^sub>i apo)
+      else do {
+        r \<leftarrow> ins k x sub;
+        case r of 
+          (T\<^sub>i lp) \<Rightarrow> do {
+            pfa_set (kvs a) i (lp,sep);
+            return (T\<^sub>i apo)
+          } |
+          (Up\<^sub>i lp x' rp) \<Rightarrow> do {
+            pfa_set (kvs a) i (rp,sep);
+            if tsl < 2*k then do {
+                kvs' \<leftarrow> pfa_insert (kvs a) i (lp,x');
+                ap := (Btnode kvs' (last a));
+                return (T\<^sub>i apo)
+            } else do {
+              kvs' \<leftarrow> pfa_insert_grow (kvs a) i (lp,x');
+              node\<^sub>i k kvs' (last a)
+            }
+          }
+        }
+      }
+    else do {
+      r \<leftarrow> ins k x (last a);
+      case r of 
+        (T\<^sub>i lp) \<Rightarrow> do {
+          ap := (Btnode (kvs a) lp);
+          return (T\<^sub>i apo)
+        } |
+        (Up\<^sub>i lp x' rp) \<Rightarrow> 
+          if tsl < 2*k then do {
+            kvs' \<leftarrow> pfa_append (kvs a) (lp,x');
+            ap := (Btnode kvs' rp);
+            return (T\<^sub>i apo)
+          } else do {
+            kvs' \<leftarrow> pfa_append_grow' (kvs a) (lp,x');
+            node\<^sub>i k kvs' rp
+        }
+    }
+  }
+)"
+
+
+(*fun tree\<^sub>i::"'a up\<^sub>i \<Rightarrow> 'a btree" where
+  "tree\<^sub>i (T\<^sub>i sub) = sub" |
+  "tree\<^sub>i (Up\<^sub>i l a r) = (Node [(l,a)] r)" 
+
+fun insert::"nat \<Rightarrow> 'a \<Rightarrow> 'a btree \<Rightarrow> 'a btree" where
+  "insert k x t = tree\<^sub>i (ins k x t)"
+*)
+
+definition insert :: "nat \<Rightarrow> ('a::{heap,default,linorder}) \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option Heap" where
+  "insert \<equiv> \<lambda>k x ti. do {
+  ti' \<leftarrow> ins k x ti;
+  case ti' of
+     T\<^sub>i sub \<Rightarrow> return sub |
+     Up\<^sub>i l a r \<Rightarrow> do {
+        kvs \<leftarrow> pfa_init (2*k) (l,a) 1;
+        t' \<leftarrow> ref (Btnode kvs r);
+        return (Some t')
+      }
+}"
+
+
+
+(* rebalance middle tree gets a list of trees, an index pointing to
+the position of sub/sep and a last tree *)
+definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder}) btnode ref option \<times> 'a) pfarray \<Rightarrow> nat \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode Heap"
+  where
+    "rebalance_middle_tree \<equiv> \<lambda> k tsi i r_ti. (
+  case r_ti of
+  None \<Rightarrow> do {
+    return (Btnode tsi r_ti)
+  } |
+  Some p_t \<Rightarrow> do {
+      ti \<leftarrow> !p_t;
+      (r_sub,sep) \<leftarrow> pfa_get tsi i;
+      case r_sub of (Some p_sub) \<Rightarrow>  do {
+      sub \<leftarrow> !p_sub;
+      l_sub \<leftarrow> pfa_length (kvs sub);
+      l_ti \<leftarrow> pfa_length (kvs ti);
+      if l_sub \<ge> k \<and> l_ti \<ge> k then do {
+        return (Btnode tsi r_ti)
+      } else do {
+        l_tsi \<leftarrow> pfa_length tsi;
+        if l_tsi = (i+1) then do {
+          mts' \<leftarrow> pfa_append_extend_grow (kvs sub) (last sub,sep) (kvs ti);
+          res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last ti);
+          case res_node\<^sub>i of
+            T\<^sub>i u \<Rightarrow> return (Btnode tsi u) |
+            Up\<^sub>i l a r \<Rightarrow> do {
+              tsi' \<leftarrow> pfa_append tsi (l,a);
+              return (Btnode tsi' r)
+            }
+        } else do {
+          (r_rsub,rsep) \<leftarrow> pfa_get tsi (i+1);
+          case r_rsub of Some p_rsub \<Rightarrow> do {
+            rsub \<leftarrow> !p_rsub;
+            mts' \<leftarrow> pfa_append_extend_grow (kvs sub) (last sub,sep) (kvs rsub);
+            res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last rsub);
+            case res_node\<^sub>i of
+             T\<^sub>i u \<Rightarrow> do {
+              tsi' \<leftarrow> pfa_set tsi (i+1) (u,rsep);              
+              tsi'' \<leftarrow> pfa_delete tsi' i;
+              return (Btnode tsi'' r_ti)
+            } |
+             Up\<^sub>i l a r \<Rightarrow> do {
+              tsi' \<leftarrow> pfa_set tsi i (l,a);
+              tsi'' \<leftarrow> pfa_set tsi' (i+1) (r,rsep);
+              return (Btnode tsi'' r_ti)
+            }
+          }
+        }
+      }
+  }
+})
+"
+
+
+definition rebalance_last_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder}) btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode Heap"
+  where
+    "rebalance_last_tree \<equiv> \<lambda>k tsi ti. do {
+   l_tsi \<leftarrow> pfa_length tsi;
+   rebalance_middle_tree k tsi (l_tsi-1) ti
+}"
+
+partial_function (heap) split_max ::"nat \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> ('a btnode ref option \<times> 'a) Heap"
+  where
+    "split_max k r_t = (case r_t of Some p_t \<Rightarrow> do {
+   t \<leftarrow> !p_t;
+   (case t of Btnode tsi r_ti \<Rightarrow>
+     case r_ti of None \<Rightarrow> do {
+      (sub,sep) \<leftarrow> pfa_last tsi;
+      tsi' \<leftarrow> pfa_butlast tsi;
+      p_t := Btnode tsi' sub;
+      return (Some p_t, sep)
+  } |
+    _ \<Rightarrow> do {
+      (sub,sep) \<leftarrow> split_max k r_ti;
+      p_t' \<leftarrow> rebalance_last_tree k tsi sub;
+      p_t := p_t';
+      return (Some p_t, sep)
+  })
+})
+"
+
+partial_function (heap) del ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
+  where
+    "del k x ti = (case ti of None \<Rightarrow> return None |
+   Some p \<Rightarrow> do {
+   node \<leftarrow> !p;
+   i \<leftarrow> imp_split (kvs node) x;
+   tsl \<leftarrow> pfa_length (kvs node);
+   if i < tsl then do {
+     s \<leftarrow> pfa_get (kvs node) i;
+     let (sub,sep) = s in
+     if x \<noteq> sep then do {
+       sub' \<leftarrow> del k x sub;
+       kvs' \<leftarrow> pfa_set (kvs node) i (sub',sep);
+       node' \<leftarrow> rebalance_middle_tree k kvs' i (last node);
+       ti' \<leftarrow> ref node';
+       return (Some ti')
+      }
+     else if sub = None then do{
+       pfa_delete (kvs node) i;
+       return ti
+     }
+     else do {
+        sm \<leftarrow> split_max k sub;
+        kvs' \<leftarrow> pfa_set (kvs node) i sm;
+        node' \<leftarrow> rebalance_middle_tree k kvs' i (last node);
+        ti' \<leftarrow> ref node';
+        return (Some ti')
+     }
+   } else do {
+       t' \<leftarrow> del k x (last node);
+       node' \<leftarrow> rebalance_last_tree k (kvs node) t';
+       ti' \<leftarrow> ref node';
+       return (Some ti')
+    }
+})
+"
+
+partial_function (heap) reduce_root ::"('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
+  where
+"reduce_root ti = (case ti of
+  None \<Rightarrow> return None |
+  Some p_t \<Rightarrow> do {
+    node \<leftarrow> !p_t;
+    tsl \<leftarrow> pfa_length (kvs node);
+    case tsl of 0 \<Rightarrow> return (last node) |
+    _ \<Rightarrow> return ti
+})"
+
+partial_function (heap) delete ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
+  where
+"delete k x ti = do {
+  ti' \<leftarrow> del k x ti;
+  reduce_root ti'
+}"
+
+definition empty ::"('a::{default,heap,linorder}) btnode ref option Heap"
+  where "empty = return None"
+
+
 lemma P_imp_Q_implies_P: "P \<Longrightarrow> (Q \<longrightarrow> P)"
   by simp
 
@@ -259,48 +514,6 @@ qed
 
 
 
-datatype 'b btupi = 
-  T\<^sub>i "'b btnode ref option" |
-  Up\<^sub>i "'b btnode ref option" "'b" "'b btnode ref option"
-
-fun btupi_assn where
-  "btupi_assn k (abs_split.T\<^sub>i l) (T\<^sub>i li) =
-   btree_assn k l li" |
-  "btupi_assn k (abs_split.Up\<^sub>i l a r) (Up\<^sub>i li ai ri) =
-   btree_assn k l li * id_assn a ai * btree_assn k r ri" |
-  "btupi_assn _ _ _ = false"
-
-
-
-definition node\<^sub>i :: "nat \<Rightarrow> ('a btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap" where
-  "node\<^sub>i k a ti \<equiv> do {
-    n \<leftarrow> pfa_length a;
-    if n \<le> 2*k then do {
-      a' \<leftarrow> pfa_shrink_cap (2*k) a;
-      l \<leftarrow> ref (Btnode a' ti);
-      return (T\<^sub>i (Some l))
-    }
-    else do {
-      b \<leftarrow> (pfa_empty (2*k) :: ('a btnode ref option \<times> 'a) pfarray Heap);
-      i \<leftarrow> split_half a;
-      m \<leftarrow> pfa_get a i;
-      b' \<leftarrow> pfa_drop a (i+1) b;
-      a' \<leftarrow> pfa_shrink i a;
-      a'' \<leftarrow> pfa_shrink_cap (2*k) a';
-      let (sub,sep) = m in do {
-        l \<leftarrow> ref (Btnode a'' sub);
-        r \<leftarrow> ref (Btnode b' ti);
-        return (Up\<^sub>i (Some l) sep (Some r))
-      }
-    }
-}"
-term Array.upd
-
-thm drop_eq_ConsD
-
-find_theorems "<emp>_<_>"
-
-
 declare abs_split.node\<^sub>i.simps [simp add]
 lemma node\<^sub>i_rule: assumes c_cap: "2*k \<le> c" "c \<le> 4*k+1"
   shows "<is_pfa c tsi (a,n) * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi * btree_assn k t ti>
@@ -321,7 +534,7 @@ next
   case [simp]: False
   then obtain ls sub sep rs where
     split_half_eq: "BTree_Set.split_half ts = (ls,(sub,sep)#rs)"
-    using node\<^sub>i_cases by blast
+    using btree_linear_search.node\<^sub>i_cases by blast
   then show ?thesis
     apply(subst node\<^sub>i_def)
     apply(rule hoare_triple_preI)
@@ -369,76 +582,6 @@ next
 qed
 declare abs_split.node\<^sub>i.simps [simp del]
 
-term Array.set
-
-partial_function (heap) ins :: "nat \<Rightarrow> 'a \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btupi Heap"
-  where
-    "ins k x apo = (case apo of
-  None \<Rightarrow> 
-    return (Up\<^sub>i None x None) |
-  (Some ap) \<Rightarrow> do {
-    a \<leftarrow> !ap;
-    i \<leftarrow> imp_split (kvs a) x;
-    tsl \<leftarrow> pfa_length (kvs a);
-    if i < tsl then do {
-      s \<leftarrow> pfa_get (kvs a) i;
-      let (sub,sep) = s in
-      if sep = x then
-        return (T\<^sub>i apo)
-      else do {
-        r \<leftarrow> ins k x sub;
-        case r of 
-          (T\<^sub>i lp) \<Rightarrow> do {
-            pfa_set (kvs a) i (lp,sep);
-            return (T\<^sub>i apo)
-          } |
-          (Up\<^sub>i lp x' rp) \<Rightarrow> do {
-            pfa_set (kvs a) i (rp,sep);
-            if tsl < 2*k then do {
-                kvs' \<leftarrow> pfa_insert (kvs a) i (lp,x');
-                ap := (Btnode kvs' (last a));
-                return (T\<^sub>i apo)
-            } else do {
-              kvs' \<leftarrow> pfa_insert_grow (kvs a) i (lp,x');
-              node\<^sub>i k kvs' (last a)
-            }
-          }
-        }
-      }
-    else do {
-      r \<leftarrow> ins k x (last a);
-      case r of 
-        (T\<^sub>i lp) \<Rightarrow> do {
-          ap := (Btnode (kvs a) lp);
-          return (T\<^sub>i apo)
-        } |
-        (Up\<^sub>i lp x' rp) \<Rightarrow> 
-          if tsl < 2*k then do {
-            kvs' \<leftarrow> pfa_append (kvs a) (lp,x');
-            ap := (Btnode kvs' rp);
-            return (T\<^sub>i apo)
-          } else do {
-            kvs' \<leftarrow> pfa_append_grow' (kvs a) (lp,x');
-            node\<^sub>i k kvs' rp
-        }
-    }
-  }
-)"
-
-
-(* this does not work anymore since we are inside a locale
-declare ins.simps[code]
-export_code ins checking SML Scala *)
-
-declare abs_split.node\<^sub>i.simps[simp del]
-(*
-Btnode (tsil, Suc tsin) x23 *
-       is_pfa (2 * k) (tsi' @ [(x21, x22)]) (tsil, Suc tsin) *
-       btree_assn k l x21 *
-       id_assn a x22 *
-       btree_assn k r x23 *
-       blist_assn k ls tsi'
-*)
 
 lemma node\<^sub>i_no_split: "length ts \<le> 2*k \<Longrightarrow> abs_split.node\<^sub>i k ts t = abs_split.T\<^sub>i (Node ts t)"
   by (simp add: abs_split.node\<^sub>i.simps)
@@ -755,26 +898,6 @@ next
   qed
 qed
 
-(*fun tree\<^sub>i::"'a up\<^sub>i \<Rightarrow> 'a btree" where
-  "tree\<^sub>i (T\<^sub>i sub) = sub" |
-  "tree\<^sub>i (Up\<^sub>i l a r) = (Node [(l,a)] r)" 
-
-fun insert::"nat \<Rightarrow> 'a \<Rightarrow> 'a btree \<Rightarrow> 'a btree" where
-  "insert k x t = tree\<^sub>i (ins k x t)"
-*)
-
-definition insert :: "nat \<Rightarrow> ('a::{heap,default,linorder}) \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode ref option Heap" where
-  "insert \<equiv> \<lambda>k x ti. do {
-  ti' \<leftarrow> ins k x ti;
-  case ti' of
-     T\<^sub>i sub \<Rightarrow> return sub |
-     Up\<^sub>i l a r \<Rightarrow> do {
-        kvs \<leftarrow> pfa_init (2*k) (l,a) 1;
-        t' \<leftarrow> ref (Btnode kvs r);
-        return (Some t')
-      }
-}"
-
 
 lemma insert_rule:
   assumes "k > 0" "sorted_less (inorder t)"
@@ -801,59 +924,6 @@ lemma insert_rule:
   done
 
 
-
-(* rebalance middle tree gets a list of trees, an index pointing to
-the position of sub/sep and a last tree *)
-definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder}) btnode ref option \<times> 'a) pfarray \<Rightarrow> nat \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode Heap"
-  where
-    "rebalance_middle_tree \<equiv> \<lambda> k tsi i r_ti. (
-  case r_ti of
-  None \<Rightarrow> do {
-    return (Btnode tsi r_ti)
-  } |
-  Some p_t \<Rightarrow> do {
-      ti \<leftarrow> !p_t;
-      (r_sub,sep) \<leftarrow> pfa_get tsi i;
-      case r_sub of (Some p_sub) \<Rightarrow>  do {
-      sub \<leftarrow> !p_sub;
-      l_sub \<leftarrow> pfa_length (kvs sub);
-      l_ti \<leftarrow> pfa_length (kvs ti);
-      if l_sub \<ge> k \<and> l_ti \<ge> k then do {
-        return (Btnode tsi r_ti)
-      } else do {
-        l_tsi \<leftarrow> pfa_length tsi;
-        if l_tsi = (i+1) then do {
-          mts' \<leftarrow> pfa_append_extend_grow (kvs sub) (last sub,sep) (kvs ti);
-          res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last ti);
-          case res_node\<^sub>i of
-            T\<^sub>i u \<Rightarrow> return (Btnode tsi u) |
-            Up\<^sub>i l a r \<Rightarrow> do {
-              tsi' \<leftarrow> pfa_append tsi (l,a);
-              return (Btnode tsi' r)
-            }
-        } else do {
-          (r_rsub,rsep) \<leftarrow> pfa_get tsi (i+1);
-          case r_rsub of Some p_rsub \<Rightarrow> do {
-            rsub \<leftarrow> !p_rsub;
-            mts' \<leftarrow> pfa_append_extend_grow (kvs sub) (last sub,sep) (kvs rsub);
-            res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last rsub);
-            case res_node\<^sub>i of
-             T\<^sub>i u \<Rightarrow> do {
-              tsi' \<leftarrow> pfa_set tsi (i+1) (u,rsep);              
-              tsi'' \<leftarrow> pfa_delete tsi' i;
-              return (Btnode tsi'' r_ti)
-            } |
-             Up\<^sub>i l a r \<Rightarrow> do {
-              tsi' \<leftarrow> pfa_set tsi i (l,a);
-              tsi'' \<leftarrow> pfa_set tsi' (i+1) (r,rsep);
-              return (Btnode tsi'' r_ti)
-            }
-          }
-        }
-      }
-  }
-})
-"
 
 
 lemma rebalance_middle_tree_rule:
@@ -913,90 +983,7 @@ lemma rebalance_middle_tree_rule:
           apply(sep_auto)[]
     oops
 
-definition rebalance_last_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder}) btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode Heap"
-  where
-    "rebalance_last_tree \<equiv> \<lambda>k tsi ti. do {
-   l_tsi \<leftarrow> pfa_length tsi;
-   rebalance_middle_tree k tsi (l_tsi-1) ti
-}"
 
-partial_function (heap) split_max ::"nat \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> ('a btnode ref option \<times> 'a) Heap"
-  where
-    "split_max k r_t = (case r_t of Some p_t \<Rightarrow> do {
-   t \<leftarrow> !p_t;
-   (case t of Btnode tsi r_ti \<Rightarrow>
-     case r_ti of None \<Rightarrow> do {
-      (sub,sep) \<leftarrow> pfa_last tsi;
-      tsi' \<leftarrow> pfa_butlast tsi;
-      p_t := Btnode tsi' sub;
-      return (Some p_t, sep)
-  } |
-    _ \<Rightarrow> do {
-      (sub,sep) \<leftarrow> split_max k r_ti;
-      p_t' \<leftarrow> rebalance_last_tree k tsi sub;
-      p_t := p_t';
-      return (Some p_t, sep)
-  })
-})
-"
-
-partial_function (heap) del ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
-  where
-    "del k x ti = (case ti of None \<Rightarrow> return None |
-   Some p \<Rightarrow> do {
-   node \<leftarrow> !p;
-   i \<leftarrow> imp_split (kvs node) x;
-   tsl \<leftarrow> pfa_length (kvs node);
-   if i < tsl then do {
-     s \<leftarrow> pfa_get (kvs node) i;
-     let (sub,sep) = s in
-     if x \<noteq> sep then do {
-       sub' \<leftarrow> del k x sub;
-       kvs' \<leftarrow> pfa_set (kvs node) i (sub',sep);
-       node' \<leftarrow> rebalance_middle_tree k kvs' i (last node);
-       ti' \<leftarrow> ref node';
-       return (Some ti')
-      }
-     else if sub = None then do{
-       pfa_delete (kvs node) i;
-       return ti
-     }
-     else do {
-        sm \<leftarrow> split_max k sub;
-        kvs' \<leftarrow> pfa_set (kvs node) i sm;
-        node' \<leftarrow> rebalance_middle_tree k kvs' i (last node);
-        ti' \<leftarrow> ref node';
-        return (Some ti')
-     }
-   } else do {
-       t' \<leftarrow> del k x (last node);
-       node' \<leftarrow> rebalance_last_tree k (kvs node) t';
-       ti' \<leftarrow> ref node';
-       return (Some ti')
-    }
-})
-"
-
-partial_function (heap) reduce_root ::"('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
-  where
-"reduce_root ti = (case ti of
-  None \<Rightarrow> return None |
-  Some p_t \<Rightarrow> do {
-    node \<leftarrow> !p_t;
-    tsl \<leftarrow> pfa_length (kvs node);
-    case tsl of 0 \<Rightarrow> return (last node) |
-    _ \<Rightarrow> return ti
-})"
-
-partial_function (heap) delete ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
-  where
-"delete k x ti = do {
-  ti' \<leftarrow> del k x ti;
-  reduce_root ti'
-}"
-
-definition empty ::"('a::{default,heap,linorder}) btnode ref option Heap"
-  where "empty = return None"
 
 lemma empty_rule:
   shows "<emp>
@@ -1009,9 +996,6 @@ lemma empty_rule:
 end
 
 
-find_consts name: while
-
-term split
 
 definition lin_split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarrow> 'b \<Rightarrow> nat Heap"
   where

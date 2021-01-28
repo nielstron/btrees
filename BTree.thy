@@ -60,6 +60,40 @@ lemma height_Leaf: "height t = 0 \<longleftrightarrow> t = Leaf"
 
 thm btree.set
 
+fun bal:: "'a btree \<Rightarrow> bool" where
+  "bal Leaf = True" |
+  "bal (Node ts t) = (
+    (\<forall>sub \<in> set (subtrees ts). height t = height sub) \<and>
+    (\<forall>sub \<in> set (subtrees ts). bal sub) \<and>
+    bal t
+  )"
+
+
+(* alt1: following knuths definition to allow for any natural number as order and resolve ambiguity *)
+(* alt2: use range [k,2*k] allowing for valid btrees from k=1 onwards *)
+(* TODO allow for length ts \<le> 2*k+1, NOTE: makes proofs uglier *)
+fun order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
+  "order k Leaf = True" |
+  "order k (Node ts t) = (
+  (length ts \<ge> k)  \<and>
+  (length ts \<le> 2*k) \<and>
+  (\<forall>sub \<in> set (subtrees ts). order k sub) \<and>
+  order k t
+)"
+
+
+(* the invariant for the root of the btree *)
+fun root_order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
+  "root_order k Leaf = True" |
+  "root_order k (Node ts t) = (
+  (length ts > 0) \<and>
+  (length ts \<le> 2*k) \<and>
+  (\<forall>s \<in> set (subtrees ts). order k s) \<and>
+   order k t
+)"
+
+
+
 (* auxiliary lemmas when handling sets *)
 lemma separators_split:
   "set (separators (l@(a,b)#r)) = set (separators l) \<union> set (separators r) \<union> {b}"
@@ -69,7 +103,7 @@ lemma subtrees_split:
   "set (subtrees (l@(a,b)#r)) = set (subtrees l) \<union> set (subtrees r) \<union> {a}"
   by simp
 
-
+(* height and set lemmas *)
 
 lemma max_fold_max: "max (a::(_::linorder)) (fold max bs b) = fold max bs (max a b)"
   apply(induction bs arbitrary: a b)
@@ -127,15 +161,8 @@ lemma some_child_sub:
     and "sep \<in> set (separators t)"
   using assms by force+ 
 
+(* balancedness lemmas *)
 
-
-fun bal:: "'a btree \<Rightarrow> bool" where
-  "bal Leaf = True" |
-  "bal (Node ts t) = (
-    (\<forall>sub \<in> set (subtrees ts). height t = height sub) \<and>
-    (\<forall>sub \<in> set (subtrees ts). bal sub) \<and>
-    bal t
-  )"
 
 lemma bal_all_subtrees_equal: "bal (Node ts t) \<Longrightarrow> (\<forall>s1 \<in> set (subtrees ts). \<forall>s2 \<in> set (subtrees ts). height s1 = height s2)"
   by (metis BTree.bal.simps(2))
@@ -211,32 +238,7 @@ lemma bal_substitute_separator: "bal (Node (ls@(a,b)#rs) t) \<Longrightarrow> ba
   unfolding bal.simps
   by (metis subtrees_split)
 
-(*value "nat \<lceil>(5::nat) / 2\<rceil>"*)
-
-(* alt1: following knuths definition to allow for any natural number as order and resolve ambiguity *)
-(* alt2: use range [k,2*k] allowing for valid btrees from k=1 onwards *)
-(* TODO allow for length ts \<le> 2*k+1, NOTE: makes proofs uglier *)
-fun order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
-  "order k Leaf = True" |
-  "order k (Node ts t) = (
-  (length ts \<ge> k)  \<and>
-  (length ts \<le> 2*k) \<and>
-  (\<forall>sub \<in> set (subtrees ts). order k sub) \<and>
-  order k t
-)"
-
-
-(* the invariant for the root of the btree *)
-fun root_order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
-  "root_order k Leaf = True" |
-  "root_order k (Node ts t) = (
-  (length ts > 0) \<and>
-  (length ts \<le> 2*k) \<and>
-  (\<forall>s \<in> set (subtrees ts). order k s) \<and>
-   order k t
-)"
-
-
+(* order lemmas *)
 
 lemma order_impl_root_order: "\<lbrakk>k > 0; order k t\<rbrakk> \<Longrightarrow> root_order k t"
   apply(cases t)

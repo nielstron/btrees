@@ -10,6 +10,30 @@ it appears that for some reason, removing "node\<^sub>i.simps" does not work any
 *)
 
 
+fun sub_sep_sm where
+  "sub_sep_sm (sub_l, sep_l) (sub_r, sep_r) = (
+    (sep_l < sep_r) \<and>
+    (\<forall>x \<in> set_btree sub_r. sep_l < x)
+  )"
+
+fun sub_sep_cons where
+  "sub_sep_cons (sub, sep) = (
+    \<forall>x \<in> set_btree sub. x < sep
+  )"
+
+subsection "sortedness"
+
+fun sorted_btree where
+  "sorted_btree Leaf = True" |
+  "sorted_btree (Node ts t) = (
+    sorted_wrt sub_sep_sm ts \<and>
+    (\<forall>x \<in> set ts. sub_sep_cons x) \<and>
+    (\<forall>sep \<in> set (separators ts). \<forall>y \<in> set_btree t. sep < y) \<and>
+    (\<forall>sub \<in> set (subtrees ts). sorted_btree sub) \<and>
+    sorted_btree t
+  )"
+
+
 lemma set_btree_list_induct:
   "x \<in> set_btree_list ts = (x \<in> set (separators ts) \<or> (\<exists>sub \<in> set (subtrees ts). x \<in> set_btree sub))"
   by (induction ts) auto
@@ -36,32 +60,7 @@ lemma set_btree_split:
 
 
 
-(* idea: make sorted_list a sorted_wrt *)
-find_theorems sorted_wrt
-thm sorted_wrt_append
 
-fun sub_sep_sm where
-  "sub_sep_sm (sub_l, sep_l) (sub_r, sep_r) = (
-    (sep_l < sep_r) \<and>
-    (\<forall>x \<in> set_btree sub_r. sep_l < x)
-  )"
-
-fun sub_sep_cons where
-  "sub_sep_cons (sub, sep) = (
-    \<forall>x \<in> set_btree sub. x < sep
-  )"
-
-subsection "sortedness"
-
-fun sorted_btree where
-  "sorted_btree Leaf = True" |
-  "sorted_btree (Node ts t) = (
-    sorted_wrt sub_sep_sm ts \<and>
-    (\<forall>x \<in> set ts. sub_sep_cons x) \<and>
-    (\<forall>sep \<in> set (separators ts). \<forall>y \<in> set_btree t. sep < y) \<and>
-    (\<forall>sub \<in> set (subtrees ts). sorted_btree sub) \<and>
-    sorted_btree t
-  )"
 
 value "sorted_less (inorder (Node [(Node [(Node [] Leaf, a\<^sub>1)] Leaf, a\<^sub>2)] Leaf))"
 value "sorted_btree (Node [(Node [(Node [] Leaf, a\<^sub>1)] Leaf, a\<^sub>2)] Leaf)"
@@ -316,9 +315,6 @@ qed auto
 corollary sorted_inorder_subsepsm: "sorted_less (inorder (Node ts t)) \<Longrightarrow> sorted_wrt sub_sep_sm ts"
   using sorted_inorder_impl_list sorted_inorder_list_subsepsm by blast
 
-
-find_theorems sorted_less inorder
-
 lemma sorted_sorted_btree: "sorted_less (inorder t) \<Longrightarrow> sorted_btree t"
   apply(induction t)
    apply(simp)
@@ -337,6 +333,20 @@ lemma sorted_btree_eq: "sorted_less (inorder t) = sorted_btree t"
 
 context split
 begin
+
+
+fun set_up\<^sub>i where
+  "set_up\<^sub>i (T\<^sub>i t) = set_btree t" |
+  "set_up\<^sub>i (Up\<^sub>i l a r) = set_btree l \<union> set_btree r \<union> {a}"
+
+
+fun sorted_up\<^sub>i where
+  "sorted_up\<^sub>i (T\<^sub>i t) = sorted_btree t" |
+  "sorted_up\<^sub>i (Up\<^sub>i l a r) = (sorted_btree l \<and> sorted_btree r \<and> sub_sep_cons (l,a) \<and> (\<forall>y \<in> set_btree r. a < y))"
+
+
+fun invar where "invar k t = (bal t \<and> root_order k t \<and> sorted_btree t)"
+
 
 (* previously format of used lemmas *)
 lemma split_req2:
@@ -563,10 +573,6 @@ lemma height_sub_merge: "height t = height s \<Longrightarrow> height (Node (ls@
 
 (* ins acts as a Set insertion *)
 
-fun set_up\<^sub>i where
-  "set_up\<^sub>i (T\<^sub>i t) = set_btree t" |
-  "set_up\<^sub>i (Up\<^sub>i l a r) = set_btree l \<union> set_btree r \<union> {a}"
-
 thm set_btree_induct
 
 lemma up\<^sub>i_set: "set_up\<^sub>i (Up\<^sub>i (Node ls sub) sep (Node rs t)) = set_btree (Node (ls@(sub,sep)#rs) t)"
@@ -673,15 +679,6 @@ qed simp
 
 
 (* sorted_less invariant *)
-
-thm sorted_btree.simps
-
-find_theorems sorted_wrt take
-
-fun sorted_up\<^sub>i where
-  "sorted_up\<^sub>i (T\<^sub>i t) = sorted_btree t" |
-  "sorted_up\<^sub>i (Up\<^sub>i l a r) = (sorted_btree l \<and> sorted_btree r \<and> sub_sep_cons (l,a) \<and> (\<forall>y \<in> set_btree r. a < y))"
-
 
 lemma sorted_btree_split_rs: "sorted_btree (Node (ls@(sub,sep)#rs) t) \<Longrightarrow> sorted_btree (Node rs t) \<and>  (\<forall>r \<in> set (separators rs). sep < r)"
   apply(induction ls)
@@ -1932,8 +1929,6 @@ lemma delete_sorted: "\<lbrakk>k > 0; bal t; root_order k t; sorted_btree t\<rbr
 
 
 (* preparation for set specification *)
-
-fun invar where "invar k t = (bal t \<and> root_order k t \<and> sorted_btree t)"
 
 (* Traditional Set spec *)
 text "We show that BTrees of order k > 0 fulfill the Set specifications."

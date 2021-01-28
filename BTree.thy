@@ -54,10 +54,6 @@ instance ..
 
 end
 
-
-lemma height_Leaf: "height t = 0 \<longleftrightarrow> t = Leaf"
-  by (induction t) (auto)
-
 thm btree.set
 
 fun bal:: "'a btree \<Rightarrow> bool" where
@@ -94,6 +90,7 @@ fun root_order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
 
 
 
+
 (* auxiliary lemmas when handling sets *)
 lemma separators_split:
   "set (separators (l@(a,b)#r)) = set (separators l) \<union> set (separators r) \<union> {b}"
@@ -104,6 +101,10 @@ lemma subtrees_split:
   by simp
 
 (* height and set lemmas *)
+
+lemma height_Leaf: "height t = 0 \<longleftrightarrow> t = Leaf"
+  by (induction t) (auto)
+
 
 lemma max_fold_max: "max (a::(_::linorder)) (fold max bs b) = fold max bs (max a b)"
   apply(induction bs arbitrary: a b)

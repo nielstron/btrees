@@ -77,7 +77,7 @@ lemma list_assn_append_left: "list_assn A (xs@ys) zs = (\<exists>\<^sub>A zs1 zs
   done
 
 
-lemma list_assn_append_Cons_left: "list_assn A (xs@x#ys) zs = (\<exists>\<^sub>A zs1 z zs2. list_assn A xs zs1 * A x z * list_assn A ys zs2 * \<up>(zs = zs1@z#zs2))"
+lemma list_assn_append_Cons_left: "list_assn A (xs@x#ys) zs = (\<exists>\<^sub>A zs1 z zs2. list_assn A xs zs1 * A x z * list_assn A ys zs2 * \<up>(zs1@z#zs2 = zs))"
   apply (sep_auto simp add: list_assn_Cons_left list_assn_append_left intro!: ent_iffI)
   done
 

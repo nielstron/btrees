@@ -129,9 +129,11 @@ lemma split_half_rule[sep_heap_rules]: "<
   done
 
 locale imp_split = abs_split: BTree_Set.split split
-  for split::"('a btree \<times> 'a::{heap,default,linorder}) list \<Rightarrow> 'a \<Rightarrow> ('a btree \<times> 'a) list \<times> ('a btree \<times> 'a) list" +
+  for split::
+    "('a btree \<times> 'a::{heap,default,linorder}) list \<Rightarrow> 'a
+       \<Rightarrow> ('a btree \<times> 'a) list \<times> ('a btree \<times> 'a) list" +
   fixes imp_split:: "('a btnode ref option \<times> 'a::{heap,default,linorder}) pfarray \<Rightarrow> 'a \<Rightarrow> nat Heap"
-  assumes imp_split_rule [sep_heap_rules]:"sorted_less (map snd ts) \<Longrightarrow>
+  assumes imp_split_rule [sep_heap_rules]:"sorted_less (separators ts) \<Longrightarrow>
    <is_pfa c tsi (a,n)
   * blist_assn k ts tsi> 
     imp_split (a,n) p 
@@ -886,8 +888,29 @@ lemma rebalance_middle_tree_rule:
      
     thm R
     using assms R apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
-
-     apply(sep_auto)
+     apply(auto simp add: R)[]
+    subgoal for _ _ _ _ tp a' n' tt' tsi' _ _ _ _ _ _ _ _ a'' b'' tt'' tsi'' sepi subi zs1 subi' sepi' zs2
+      apply(subgoal_tac "(Some subi, sepi) = (subi', sepi')")
+       apply(rule norm_pre_ex_rule)+
+      subgoal for zs1' zs zs2'
+        apply(rule hoare_triple_preI)
+        thm list_assn_len[where ys=zs1'] list_assn_len[where ys=zs2']
+        find_theorems "_ @ _ = _ @ _ \<Longrightarrow> _"
+       apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
+        apply(vcg)
+         apply(auto)[]
+         apply(rule ent_ex_postI[where x=tsi])
+         apply(rule ent_ex_postI[where x="(a'', b'')"])
+         apply(rule ent_ex_postI[where x="tt''"])
+         apply(rule ent_ex_postI[where x=tsi'])
+         apply(auto)[]
+        subgoal for aha bha al bl ao bo aq bq aa aaa b ba tia tiaa tsi'a tsi'aa aga bga am bn an bp
+       ar bs as bu au bv ab bb tib tsi'b
+          apply(rule ent_ex_postI[where x="(ab,bb)"])
+          apply(rule ent_ex_postI[where x="tiaa"])
+          apply(rule ent_ex_postI[where x="tsi'b"])
+          apply(intro ent_true_drop)
+          apply(sep_auto)[]
     oops
 
 definition rebalance_last_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder}) btnode ref option \<times> 'a) pfarray \<Rightarrow> 'a btnode ref option \<Rightarrow> 'a btnode Heap"

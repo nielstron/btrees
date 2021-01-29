@@ -285,5 +285,4 @@ corollary sorted_inorder_induct_subtree:
 lemma sorted_inorder_induct_last: "sorted_less (inorder (Node ts t)) \<Longrightarrow> sorted_less (inorder t)"
   by (simp add: sorted_wrt_append)
 
-
 end

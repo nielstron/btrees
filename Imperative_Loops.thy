@@ -608,8 +608,14 @@ lemma heap_WHILET_rule'':
     "P \<Longrightarrow>\<^sub>A I s"
     "\<And>s. <I s * true> bi s <\<lambda>r. I s * \<up>(r \<longleftrightarrow> b s)>\<^sub>t"
     "\<And>s. b s \<Longrightarrow> <I s * true> f s <\<lambda>s'. I s' * \<up>((s', s) \<in> R)>\<^sub>t"
-    "\<And>s. \<not> b s \<Longrightarrow> I s \<Longrightarrow>\<^sub>A Q s"
+    "\<And>s. \<not> b s \<Longrightarrow> I s * true \<Longrightarrow>\<^sub>A Q s"
   shows "<P> heap_WHILET bi f s <Q>\<^sub>t"
+  supply R = heap_WHILET_rule'[of R P "\<lambda>s si. \<up>(s = si) * I s" s _ true bi b f "\<lambda>s si.\<up>(s = si) * Q s"]
+  thm R
+  using assms ent_true_drop apply(sep_auto heap: R assms)
+  done
+  (*
+  find_theorems "\<exists>\<^sub>A_ . _"
 proof -
   have "<I s * true> heap_WHILET bi f s <\<lambda>s'. I s' * \<up>(\<not> b s')>\<^sub>t"
     using assms(1)
@@ -633,6 +639,6 @@ proof -
     apply(intro ent_star_mono assms(5) ent_refl)
     .
 qed
-
+*)
 
 end

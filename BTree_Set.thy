@@ -1458,7 +1458,7 @@ proof(induction k x t rule: del.induct)
     proof cases
       case sep_n_x
       then have "bal (del k x sub)" "height (del k x sub) = height sub" using sub_height
-        apply (metis "2.IH"(2) "2.prems"(1) "2.prems"(2) list_split local.Cons order_impl_root_order r_split root_order.simps(2) some_child_sub(1) split_set)
+        apply (metis "2.IH"(2) "2.prems"(1) "2.prems"(2) list_split local.Cons order_impl_root_order r_split root_order.simps(2) some_child_sub(1) split_set(1))
         by (metis "2.prems"(1) "2.prems"(2) list_split Cons order_impl_root_order r_split root_order.simps(2) some_child_sub(1) del_height split_set(1) sub_height(2))
       moreover have "bal (Node (ls@(sub,sep)#rs) t)"
         using "2.prems"(3) list_split Cons r_split split_conc by blast
@@ -1867,7 +1867,7 @@ proof (induction k x t rule: del.induct)
       proof -
         have "height t = height ssub"
           using split_max_height
-          by (metis "2.prems"(1,2,3) bal.simps(2) btree.distinct(1) h_split list_split local.Cons order_bal_nonempty_lasttreebal order_impl_root_order root_order.simps(2) sep_x_Node some_child_sub(1) split_set split_split)
+          by (metis "2.prems"(1,2,3) bal.simps(2) btree.distinct(1) h_split list_split local.Cons order_bal_nonempty_lasttreebal order_impl_root_order root_order.simps(2) sep_x_Node some_child_sub(1) split_set(1) split_split)
         moreover have "case rs of [] \<Rightarrow> True | (rsub, rsep) # list \<Rightarrow> height rsub = height t"
           using "2.prems"(3) bal_sub_height list_conc local.Cons
           by blast

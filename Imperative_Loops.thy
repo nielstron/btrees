@@ -614,7 +614,7 @@ lemma heap_WHILET_rule'':
   thm R
   using assms ent_true_drop apply(sep_auto heap: R assms)
   done
-  (*
+    (*
   find_theorems "\<exists>\<^sub>A_ . _"
 proof -
   have "<I s * true> heap_WHILET bi f s <\<lambda>s'. I s' * \<up>(\<not> b s')>\<^sub>t"

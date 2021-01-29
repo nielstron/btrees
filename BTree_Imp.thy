@@ -106,7 +106,7 @@ lemma index_to_elem_all: "(\<forall>j<length xs. P (xs!j)) = (\<forall>x \<in> s
 
 lemma index_to_elem: "n < length xs \<Longrightarrow> (\<forall>j<n. P (xs!j)) = (\<forall>x \<in> set (take n xs). P x)"
   by (simp add: all_set_conv_nth)
-(* ----------------- *)
+    (* ----------------- *)
 
 definition split_half :: "('a::heap \<times> 'b::{heap}) pfarray \<Rightarrow> nat Heap"
   where
@@ -400,7 +400,7 @@ partial_function (heap) del ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,
 
 partial_function (heap) reduce_root ::"('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
   where
-"reduce_root ti = (case ti of
+    "reduce_root ti = (case ti of
   None \<Rightarrow> return None |
   Some p_t \<Rightarrow> do {
     node \<leftarrow> !p_t;
@@ -411,7 +411,7 @@ partial_function (heap) reduce_root ::"('a::{default,heap,linorder}) btnode ref 
 
 partial_function (heap) delete ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
   where
-"delete k x ti = do {
+    "delete k x ti = do {
   ti' \<leftarrow> del k x ti;
   reduce_root ti'
 }"
@@ -477,7 +477,7 @@ next
         using False apply simp
         apply(subst isin.simps)
         using "2.prems" sorted_inorder_separators 
-          apply(sep_auto)
+        apply(sep_auto)
           (*eliminate vacuous case*)
         apply(auto simp add: split_relation_alt list_assn_append_Cons_left dest!:  mod_starD list_assn_len)[]
           (* simplify towards induction step *)
@@ -587,28 +587,6 @@ lemma node\<^sub>i_no_split: "length ts \<le> 2*k \<Longrightarrow> abs_split.no
   by (simp add: abs_split.node\<^sub>i.simps)
 
 
-lemma node\<^sub>i_rule_app_nosplit: "
-length tsi' < 2 * k \<Longrightarrow>
-<p \<mapsto>\<^sub>r Btnode (tsil, tsin) x23 *
-       is_pfa (2 * k) (tsi' @ [(x21, x22)]) (tsil, tsin) *
-       btree_assn k l x21 *
-       id_assn a x22 *
-       btree_assn k r x23 *
-       blist_assn k ls tsi'>
-       return (T\<^sub>i (Some p)) 
-      <btupi_assn k (abs_split.node\<^sub>i k (ls @ [(l, a)]) r)>"
-  apply(rule hoare_triple_preI)
-  apply(subgoal_tac "length (ls@[(l,a)]) \<le> 2*k")
-  apply(simp add: node\<^sub>i_no_split)
-   apply (vcg)
-   apply auto[]
-   apply(rule ent_ex_postI[where x="(tsil,tsin)"])
-   apply(rule ent_ex_postI[where x="x23"])
-   apply(rule ent_ex_postI[where x="tsi' @ [(x21, x22)]"])   
-   apply sep_auto
-  apply (sep_auto dest!: mod_starD list_assn_len simp add: is_pfa_def)
-  done
-
 lemma node\<^sub>i_rule_app: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1\<rbrakk> \<Longrightarrow>
 <is_pfa c (tsi' @ [(li, ai)]) (aa, al) *
    blist_assn k ls tsi' *
@@ -639,30 +617,6 @@ proof -
   ultimately show ?thesis
     by (simp add: mult.left_assoc list_assn_aux_append_Cons)
 qed
-
-lemma node\<^sub>i_rule_ins_nosplit: "
-Suc (length zs1 + length zs2) < 2 * k \<Longrightarrow>
-<p \<mapsto>\<^sub>r Btnode (tsil, tsin) ti *
-       is_pfa (2 * k) (zs1 @ (x21, x22) # (x23, sep) # zs2) (tsil, tsin) *
-       btree_assn k l x21 *
-       id_assn w x22 *
-       btree_assn k r x23 *
-       blist_assn k ls zs1 *
-       id_assn sep sep *
-       blist_assn k rs zs2 *
-       btree_assn k t ti> return (T\<^sub>i (Some p))
-       <btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, w) # (r, sep) # rs) t)>"
-  apply(rule hoare_triple_preI)
-  apply(subgoal_tac "length (ls @ (l, w) # (r, sep) # rs) \<le> 2*k")
-  apply(simp add: node\<^sub>i_no_split)
-   apply (vcg)
-   apply auto[]
-   apply(rule ent_ex_postI[where x="(tsil,tsin)"])
-   apply(rule ent_ex_postI[where x="ti"])
-   apply(rule ent_ex_postI[where x="(zs1 @ (x21, x22) # (x23, sep) # zs2)"])
-  apply(sep_auto dest!: mod_starD list_assn_len)
-  apply (sep_auto dest!: mod_starD list_assn_len simp add: is_pfa_def)
-  done
 
 lemma ins_rule:
   "sorted_less (inorder t) \<Longrightarrow> <btree_assn k t ti>
@@ -727,11 +681,21 @@ next
               heap add: "2.IH"(1)[of ls rrs tti])
           subgoal for xi
             apply(cases xi)
-             apply sep_auto
+            apply sep_auto
             apply(rule hoare_triple_preI)
             apply(sep_auto)
-              apply(auto dest!: mod_starD simp add: is_pfa_def)[]
-             apply (sep_auto heap add: node\<^sub>i_rule_app_nosplit)
+            apply(auto dest!: mod_starD simp add: is_pfa_def)[]
+            apply (sep_auto)
+            subgoal for li ai ri (* no split case *)
+              apply(subgoal_tac "length (ls @ [(l,a)]) \<le> 2*k")
+              apply(simp add: node\<^sub>i_no_split)
+              apply(rule ent_ex_postI[where x="(tsil,Suc tsin)"])
+              apply(rule ent_ex_postI[where x="ri"])
+              apply(rule ent_ex_postI[where x="tsi' @ [(li, ai)]"])
+              apply(sep_auto)
+              apply (sep_auto dest!: mod_starD list_assn_len simp add: is_pfa_def)
+              done
+                (* split case*)
             apply(sep_auto heap add: node\<^sub>i_rule_app)
             done
           done
@@ -859,26 +823,33 @@ next
             apply (sep_auto heap: 2(2))
             apply(auto split!: btupi.splits)
               (* careful progression for manual value insertion *)
-              apply vcg
+            apply vcg
             apply simp
-            subgoal for x21 x22 x23 u (* no split case *)
+            subgoal for li wi ri u (* no split case *)
               apply (cases u,simp)
               apply (sep_auto dest!: mod_starD list_assn_len heap: pfa_insert_grow_rule)
-                apply (simp add: is_pfa_def)[]
-                apply (metis le_less_linear length_append length_take less_not_refl min.absorb2 trans_less_add1)
-               apply(simp add: is_pfa_def)
-               apply (metis add_Suc_right length_Cons length_append length_take min.absorb2)
-              apply(auto split: prod.splits  dest!: mod_starD list_assn_len)[]
-              apply (vcg heap add: node\<^sub>i_rule_ins_nosplit)
+              apply (simp add: is_pfa_def)[]
+              apply (metis le_less_linear length_append length_take less_not_refl min.absorb2 trans_less_add1)
+              apply(simp add: is_pfa_def)
+              apply (metis add_Suc_right length_Cons length_append length_take min.absorb2)
+              apply(sep_auto split: prod.splits  dest!: mod_starD list_assn_len)[]
+                (* no split case *)
+              apply(subgoal_tac "length (ls @ [(l,w)]) \<le> 2*k")
+              apply(simp add: node\<^sub>i_no_split)
+              apply(rule ent_ex_postI[where x="(tsil,Suc tsin)"])
+              apply(rule ent_ex_postI[where x="ti"])
+              apply(rule ent_ex_postI[where x="(zs1 @ (li, wi) # (ri, sep) # zs2)"])
+              apply(sep_auto dest!: mod_starD list_assn_len)
+              apply (sep_auto dest!: mod_starD list_assn_len simp add: is_pfa_def)
               done
-             apply vcg
+            apply vcg
             apply simp
             subgoal for x21 x22 x23 u (* split case *)
               apply (cases u,simp)
               thm pfa_insert_grow_rule[where ?l="((zs1 @ (suba, sepi) # zs2)[length ls := (x23, sepa)])"]
               apply (sep_auto dest!: mod_starD list_assn_len heap: pfa_insert_grow_rule)
               apply (simp add: is_pfa_def)[]
-                apply (metis le_less_linear length_append length_take less_not_refl min.absorb2 trans_less_add1)
+              apply (metis le_less_linear length_append length_take less_not_refl min.absorb2 trans_less_add1)
               apply(auto split: prod.splits  dest!: mod_starD list_assn_len)[]
 
               apply (vcg heap: node\<^sub>i_rule_ins2)
@@ -936,8 +907,8 @@ lemma rebalance_middle_tree_rule:
   apply(cases t; cases sub)
   subgoal 
     apply(rule hoare_triple_preI)
-       apply(vcg)
-     apply (auto dest!: mod_starD)
+    apply(vcg)
+    apply (auto dest!: mod_starD)
     apply(rule ent_ex_postI[where x=tsi])
     apply sep_auto
     done
@@ -951,37 +922,37 @@ lemma rebalance_middle_tree_rule:
     apply(rule hoare_triple_preI)
     supply R = list_assn_append_Cons_left[where xs=ls and ys=rs and x="(Node sts sti,sep)" and zs=tsi]
     thm R
-       apply(sep_auto dest!: mod_starD)
-      apply (auto  dest!: list_assn_len)[]
-    
-     apply(sep_auto  split!: prod.splits)
-     
+    apply(sep_auto dest!: mod_starD)
+    apply (auto  dest!: list_assn_len)[]
+
+    apply(sep_auto  split!: prod.splits)
+
     thm R
     using assms R apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
-     apply(auto simp add: R)[]
+    apply(auto simp add: R)[]
     subgoal for _ _ _ _ tp a' n' tt' tsi' _ _ _ _ _ _ _ _ a'' b'' tt'' tsi'' sepi subi zs1 subi' sepi' zs2
       apply(subgoal_tac "(Some subi, sepi) = (subi', sepi')")
-       apply(rule norm_pre_ex_rule)+
+      apply(rule norm_pre_ex_rule)+
       subgoal for zs1' zs zs2'
         apply(rule hoare_triple_preI)
         thm list_assn_len[where ys=zs1'] list_assn_len[where ys=zs2']
         find_theorems "_ @ _ = _ @ _ \<Longrightarrow> _"
-       apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
+        apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
         apply(vcg)
-         apply(auto)[]
-         apply(rule ent_ex_postI[where x=tsi])
-         apply(rule ent_ex_postI[where x="(a'', b'')"])
-         apply(rule ent_ex_postI[where x="tt''"])
-         apply(rule ent_ex_postI[where x=tsi'])
-         apply(auto)[]
+        apply(auto)[]
+        apply(rule ent_ex_postI[where x=tsi])
+        apply(rule ent_ex_postI[where x="(a'', b'')"])
+        apply(rule ent_ex_postI[where x="tt''"])
+        apply(rule ent_ex_postI[where x=tsi'])
+        apply(auto)[]
         subgoal for aha bha al bl ao bo aq bq aa aaa b ba tia tiaa tsi'a tsi'aa aga bga am bn an bp
-       ar bs as bu au bv ab bb tib tsi'b
+          ar bs as bu au bv ab bb tib tsi'b
           apply(rule ent_ex_postI[where x="(ab,bb)"])
           apply(rule ent_ex_postI[where x="tiaa"])
           apply(rule ent_ex_postI[where x="tsi'b"])
           apply(intro ent_true_drop)
           apply(sep_auto)[]
-    oops
+          oops
 
 
 
@@ -1034,7 +1005,7 @@ lemma lin_split_rule: "
   apply (metis dual_order.strict_trans nth_take)
   apply (metis nth_take)
   using diff_less_mono2 apply blast
-   apply(sep_auto simp: is_pfa_def)
+  apply(sep_auto simp: is_pfa_def)
   apply(sep_auto simp: is_pfa_def)
   done
 
@@ -1237,7 +1208,7 @@ definition "abs_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<l
 interpretation btree_abs_search: split abs_split
   unfolding abs_split_def sym[OF linear_split_alt]
   by unfold_locales
-  
+
 
 
 locale imp_split_smeq =
@@ -1360,9 +1331,9 @@ interpretation btree_imp_linear_split: imp_split_smeq lin_split
 
 global_interpretation btree_imp_binary_split: imp_split_smeq bin_split
   defines btree_isin = btree_imp_binary_split.isin
-      and btree_ins = btree_imp_binary_split.ins
-      and btree_insert = btree_imp_binary_split.insert
-      and btree_empty = btree_imp_binary_split.empty
+    and btree_ins = btree_imp_binary_split.ins
+    and btree_insert = btree_imp_binary_split.insert
+    and btree_empty = btree_imp_binary_split.empty
   apply unfold_locales
   apply(sep_auto heap: bin_split_rule)
   done

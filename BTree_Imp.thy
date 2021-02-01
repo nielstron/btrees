@@ -903,56 +903,48 @@ lemma rebalance_middle_tree_rule:
   shows "<is_pfa (2*k) tsi (a,n) * blist_assn k (ls@(sub,sep)#rs) tsi * btree_assn k t ti * \<up>(length ls = i)>
   rebalance_middle_tree k (a,n) i ti
   <\<lambda>r. btnode_assn k (abs_split.rebalance_middle_tree k ls sub sep rs t) r >\<^sub>t"
+  apply(simp add: list_assn_append_Cons_left)
+  apply(rule norm_pre_ex_rule)+
+  subgoal for zs1 z zs2
+    apply(cases z)
+    apply auto
+    subgoal for subi sepi
   apply(subst rebalance_middle_tree_def)
   apply(cases t; cases sub)
   subgoal 
     apply(rule hoare_triple_preI)
     apply(vcg)
-    apply (auto dest!: mod_starD)
+    apply (auto dest!: mod_starD list_assn_len)
     apply(rule ent_ex_postI[where x=tsi])
     apply sep_auto
     done
   subgoal
-    using assms apply auto
-    done
+    using assms by auto
   subgoal
-    using assms apply auto
-    done
+    using assms by auto
   subgoal for tts tti sts sti
     apply(rule hoare_triple_preI)
-    supply R = list_assn_append_Cons_left[where xs=ls and ys=rs and x="(Node sts sti,sep)" and zs=tsi]
-    thm R
     apply(sep_auto dest!: mod_starD)
     apply (auto  dest!: list_assn_len)[]
 
     apply(sep_auto  split!: prod.splits)
-
-    thm R
-    using assms R apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
-    apply(auto simp add: R)[]
-    subgoal for _ _ _ _ tp a' n' tt' tsi' _ _ _ _ _ _ _ _ a'' b'' tt'' tsi'' sepi subi zs1 subi' sepi' zs2
-      apply(subgoal_tac "(Some subi, sepi) = (subi', sepi')")
-      apply(rule norm_pre_ex_rule)+
-      subgoal for zs1' zs zs2'
-        apply(rule hoare_triple_preI)
-        thm list_assn_len[where ys=zs1'] list_assn_len[where ys=zs2']
-        find_theorems "_ @ _ = _ @ _ \<Longrightarrow> _"
-        apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
+    using assms apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
+    apply(auto)[]
+    subgoal for _ _ _ _ _ _ _ _ tp tsia' tsin' tia tsi' _ _ _ _ _ _ _ _ aaa ba tiaa tsi'a x2 xa
+      apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
         apply(vcg)
         apply(auto)[]
-        apply(rule ent_ex_postI[where x=tsi])
-        apply(rule ent_ex_postI[where x="(a'', b'')"])
-        apply(rule ent_ex_postI[where x="tt''"])
-        apply(rule ent_ex_postI[where x=tsi'])
-        apply(auto)[]
-        subgoal for aha bha al bl ao bo aq bq aa aaa b ba tia tiaa tsi'a tsi'aa aga bga am bn an bp
-          ar bs as bu au bv ab bb tib tsi'b
-          apply(rule ent_ex_postI[where x="(ab,bb)"])
-          apply(rule ent_ex_postI[where x="tiaa"])
-          apply(rule ent_ex_postI[where x="tsi'b"])
-          apply(intro ent_true_drop)
-          apply(sep_auto)[]
-          oops
+        apply(rule ent_ex_postI[where x="zs1@(Some xa, x2)#zs2"])
+        apply(rule ent_ex_postI[where x="(aaa, ba)"])
+        apply(rule ent_ex_postI[where x="tiaa"])
+        apply(rule ent_ex_postI[where x=tsi'a])
+       apply(sep_auto)[]
+      apply(auto)
+      thm pfa_append_extend_grow_rule
+      thm node\<^sub>i_rule
+      thm max.absorb2
+       apply (sep_auto heap add: pfa_append_extend_grow_rule node\<^sub>i_rule[of "(max (2 * k) (Suc (_ + ba)))"])
+      oops
 
 
 

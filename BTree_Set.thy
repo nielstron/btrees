@@ -554,7 +554,7 @@ qed simp
 
 
 lemma height_list_split: "height_up\<^sub>i (Up\<^sub>i (Node ls a) b (Node rs t)) = height (Node (ls@(a,b)#rs) t) "
-  by (auto simp add: max_fold_max max.commute)
+  by (induction ls) (auto simp add: max.commute)
 
 lemma node\<^sub>i_height: "height_up\<^sub>i (node\<^sub>i k ts t) = height (Node ts t)"
 proof(cases "length ts \<le> 2*k")
@@ -599,20 +599,22 @@ qed simp
 
 
 lemma height_up\<^sub>i_merge: "height_up\<^sub>i (Up\<^sub>i l a r) = height t \<Longrightarrow> height (Node (ls@(t,x)#rs) tt) = height (Node (ls@(l,a)#(r,x)#rs) tt)"
-proof -
-  assume "height_up\<^sub>i (Up\<^sub>i l a r) = height t"
-  then have "height (Node (ls@(t,x)#rs) tt) = max (Suc (max (height l) (height r))) (height (Node (ls@rs) tt))"
-    using fold_max_extract
-    by auto
-  also have "\<dots> = Suc (max (height l) (fold max (map height ((subtrees ls)@r#(subtrees rs))) (height tt)))"
-    by (simp add: max_fold_max)
-  also have "\<dots> = Suc (fold max (map height ((subtrees ls)@l#r#(subtrees rs))) (height tt))"
-    by (metis (no_types, lifting) fold_max_extract list.simps(9) map_append)
-  also have "\<dots> = height (Node (ls@(l,a)#(r,x)#rs) tt)"
-    by auto
-  finally show ?thesis
-    by simp
-qed
+  by simp
+
+find_theorems "Max"
+
+lemma finite_set_ins_swap:
+  assumes "finite A"
+  shows "max a (Max (Set.insert b A)) = max b (Max (Set.insert a A))"
+  using Max_insert assms max.commute max.left_commute by fastforce
+
+lemma finite_set_in_idem:
+  assumes "finite A"
+    and "a = b"
+  shows "max a (Max (Set.insert b A)) = Max (Set.insert a A)"
+  using Max_insert assms max.commute max.left_commute by fastforce
+
+thm Max.in_idem
 
 lemma ins_height: "height_up\<^sub>i (ins k x t) = height t"
 proof(induction k x t rule: ins.induct)
@@ -639,8 +641,7 @@ proof(induction k x t rule: ins.induct)
     next
       case (Up\<^sub>i l a r)
       then have "height (Node ls t) = height (Node (ls@[(l,a)]) r)"
-        using height_btree_order height_sub
-        by (simp add: max_fold_max)
+        using height_btree_order height_sub by (induction ls) auto
       then show ?thesis using 2 Nil split_list Up\<^sub>i split_append
         by (simp del: node\<^sub>i.simps add: node\<^sub>i_height)
     qed
@@ -667,7 +668,7 @@ proof(induction k x t rule: ins.induct)
           by auto
         then show ?thesis 
           using T\<^sub>i height_sub False Cons 2 split_list a_split split_append
-          by auto
+          by (auto simp add: image_Un max.commute finite_set_ins_swap)
       next
         case (Up\<^sub>i l a r)
         then have "height (Node (ls@(sub,sep)#list) t) = height (Node (ls@(l,a)#(r,sep)#list) t)"
@@ -675,7 +676,7 @@ proof(induction k x t rule: ins.induct)
           by fastforce
         then show ?thesis
           using Up\<^sub>i False Cons 2 split_list a_split split_append
-          by (auto simp del: node\<^sub>i.simps simp add: node\<^sub>i_height)
+          by (auto simp del: node\<^sub>i.simps simp add: node\<^sub>i_height image_Un max.commute finite_set_ins_swap)
       qed
     qed
   qed
@@ -1015,18 +1016,15 @@ next
       proof (cases "node\<^sub>i k (mts@(mt,sep)#tts) tt")
         case (T\<^sub>i u)
         then have "height u = max (height t) (height sub)" using height_max by simp
-        then have "height (Node ls u) = height (Node (ls@[(sub,sep)]) t)" using height_btree_order height_btree_sub
-          by (simp add: max_fold_max max.commute)
+        then have "height (Node ls u) = height (Node (ls@[(sub,sep)]) t)"
+          by (induction ls) (auto simp add: max.commute)
         then show ?thesis using Nil False T\<^sub>i
           by (simp add: sub_node t_node)
       next
         case (Up\<^sub>i l a r)
-        then have "height (Node (ls@[(sub,sep)]) t) = Suc (fold max (map height (subtrees ls)) (max (height sub) (height t)))"
-          by (simp add: max_fold_max)
-        also have "\<dots> = Suc (fold max (map height (subtrees ls)) (max (height l) (height r)))"
-          using height_max Up\<^sub>i assms(1) by auto
-        also have "\<dots> = height (Node (ls@[(l,a)]) r)" using fold_max_append_last by auto
-        finally show ?thesis
+        then have "height (Node (ls@[(sub,sep)]) t) =  height (Node (ls@[(l,a)]) r)"
+          using assms(1) height_max by (induction ls) auto
+        then show ?thesis
           using Up\<^sub>i Nil sub_node t_node by auto
       qed
     next
@@ -1045,47 +1043,14 @@ next
       proof (cases "node\<^sub>i k (mts@(mt,sep)#rts) rt")
         case (T\<^sub>i u)
         then have "height u = max (height rsub) (height sub)"
-          using height_max T\<^sub>i by simp
-        then have "fold max (map height (subtrees (ls@(u,rsep)#list))) = fold max (map height (subtrees (ls@(sub,sep)#rs)))"
-          using Cons a_split subtrees_split Max.set_eq_fold by auto
+          using height_max by simp
         then show ?thesis 
           using T\<^sub>i False Cons r_node a_split sub_node t_node by auto
       next
         case (Up\<^sub>i l a r)
-        then have height_max: "max (height l) (height r) = max (height rsub) (height sub)" using height_max by auto
-
-(* TODO: this calculation may be significantly minimized by using sufficiently non-abstract lemmas *)
-        have "fold max (map height (subtrees (ls@(sub,sep)#rs))) (height t) =
-                   max (height sub) (fold max (map height (subtrees (ls@rs))) (height t))"
-          using fold_max_extract by auto
-        also have "\<dots> = max (height sub) (fold max (map height (subtrees (ls@(rsub,rsep)#list))) (height t))"
-          using Cons a_split by auto
-        also have "\<dots> = max (height sub) (max (height rsub) (fold max (map height (subtrees (ls@list))) (height t)))"
-        proof -
-          have "fold max (map height (subtrees (ls@(rsub,rsep)#list))) (height t)
-= max (height rsub) (fold max (map height (subtrees (ls@list))) (height t))"
-            using fold_max_extract by simp
-          then show ?thesis by simp
-        qed
-        also have "\<dots> = max (max (height sub) (height rsub)) (fold max (map height (subtrees (ls@list))) (height t))"
-          by auto
-        also have "\<dots> = max (max (height l) (height r)) (fold max (map height (subtrees (ls@list))) (height t))"
-          using height_max by simp
-        also have "\<dots> = max (height l) (max (height r) (fold max (map height (subtrees (ls@list))) (height t)))"
-          using height_max by simp
-        also have "\<dots> = (fold max (map height ((subtrees ls)@l#r#(subtrees list))) (height t))"
-        proof -
-          have f1: "map height (subtrees ls) @ map height (map fst list) = map height (subtrees (ls @ list))"
-            by simp
-          have f2: "height r # map height (map fst list) = map height (r # subtrees list)"
-            by simp
-          have "map height (subtrees ls) @ height l # map height (r # subtrees list) = map height (subtrees ls @ l # r # subtrees list)"
-            by simp
-          then show ?thesis
-            using f2 f1 by (metis (no_types) fold_max_extract)
-        qed
-        also have "\<dots> = fold max (map height (subtrees (ls@(l,a)#(r,rsep)#list))) (height t)" by auto
-        finally show ?thesis
+        then have height_max: "max (height l) (height r) = max (height rsub) (height sub)"
+          using height_max by auto
+        then show ?thesis
           using Cons a_split r_node Up\<^sub>i sub_node t_node by auto
       qed
     qed
@@ -1157,7 +1122,8 @@ proof(induction k x t rule: del.induct)
       by (metis append_Nil2 nonempty_lasttreebal.simps(2) order_bal_nonempty_lasttreebal)
     moreover have "Node ls t = Node ts t" using split_conc Nil list_split by auto
     ultimately show ?thesis
-      using rebalance_last_tree_height 2 list_split Nil split_conc by auto
+      using rebalance_last_tree_height 2 list_split Nil split_conc 
+      by (auto simp add: max.assoc sup_nat_def max_def)
   next
     case (Cons a rs)
     then have rs_height: "case rs of [] \<Rightarrow> True | (rsub,rsep)#_ \<Rightarrow> height rsub = height t" (* notice the difference if rsub and t are switched *)
@@ -1170,12 +1136,15 @@ proof(induction k x t rule: del.induct)
     then show ?thesis
     proof cases
       case sep_n_x
-      have "height (del k x sub) = height t"
-        by (metis "2.IH"(2) "2.prems"(1) "2.prems"(2) "2.prems"(3) a_split bal.simps(2) list_split local.Cons order_impl_root_order root_order.simps(2) sep_n_x some_child_sub(1) split_set)
+      have height_t_sub: "height t = height sub"
+        using "2.prems"(3) a_split list_split local.Cons split.split_set(1) split_axioms by fastforce
+      have height_t_del: "height (del k x sub) = height t"
+        by (metis "2.IH"(2) "2.prems"(1) "2.prems"(2) "2.prems"(3) a_split bal.simps(2) list_split local.Cons order_impl_root_order root_order.simps(2) sep_n_x some_child_sub(1) split_set(1))
       then have "height (rebalance_middle_tree k ls (del k x sub) sep rs t) = height (Node (ls@((del k x sub),sep)#rs) t)"
         using rs_height rebalance_middle_tree_height by simp
       also have "\<dots> = height (Node (ls@(sub,sep)#rs) t)"
-        using "2.prems"(3) \<open>height (del k x sub) = height t\<close> a_split list_split Cons split_set(1) by fastforce
+        using height_t_sub "2.prems" height_t_del
+        by auto
       also have "\<dots> = height (Node ts t)"
         using 2 a_split sep_n_x list_split Cons split_set(1) split_conc
         by auto
@@ -1186,7 +1155,7 @@ proof(induction k x t rule: del.induct)
       case sep_x_Leaf
       then have "height (Node ts t) = height (Node (ls@rs) t)"
         using bal_split_last(2) "2.prems"(3) a_split list_split Cons split_conc
-        by fastforce
+        by metis
       then show ?thesis
         using a_split list_split Cons sep_x_Leaf 2 by auto
     next
@@ -1199,8 +1168,8 @@ proof(induction k x t rule: del.induct)
       then have "height (rebalance_middle_tree k ls sub_s max_s rs t) = height (Node (ls@(sub_s,sep)#rs) t)"
         using rs_height rebalance_middle_tree_height by simp
       also have "\<dots> = height (Node ts t)"
-        using 2 a_split sep_x_Node list_split Cons split_set(1) split_conc \<open>height sub_s = height t\<close>
-        by fastforce
+        using 2 a_split sep_x_Node list_split Cons split_set(1) \<open>height sub_s = height t\<close>
+        by (auto simp add: split_conc[of ts])
       finally show ?thesis using sep_x_Node Cons a_split list_split 2 sub_node sub_split
         by auto
     qed
@@ -1643,9 +1612,11 @@ proof (induction k x t rule: del.induct)
     moreover obtain lls lsub lsep where ls_split: "ls = lls@[(lsub,lsep)]"
       using 2 Nil list_split
       by (metis append_Nil2 nonempty_lasttreebal.simps(2) order_bal_nonempty_lasttreebal split_conc)
-    moreover have "height t = height (del k x t)" using del_height 2 by (simp add: order_impl_root_order)
+    moreover have "height t = height (del k x t)" using del_height 2
+      by (simp add: order_impl_root_order)
     moreover have "length ls = length ts"
-      using Nil list_split by (auto dest: split_length)
+      using Nil list_split
+      by (auto dest: split_length)
     ultimately have "almost_order k (rebalance_last_tree k ls (del k x t))"
       using rebalance_last_tree_order[of ls lls lsub lsep k "del k x t"]
       by (metis "2.prems"(2) "2.prems"(3) Un_iff append_Nil2 bal.simps(2) list_split Nil root_order.simps(2) singletonI split_conc subtrees_split)

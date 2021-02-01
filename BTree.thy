@@ -48,7 +48,7 @@ begin
 
 fun height_btree :: "'a btree \<Rightarrow> nat" where
   "height Leaf = 0" |
-  "height (Node ts t) = Suc (fold max (map height (subtrees ts)) (height t))"
+  "height (Node ts t) = Suc (Max (height ` (set (subtrees ts@[t]))))"
 
 instance ..
 
@@ -106,40 +106,18 @@ lemma height_Leaf: "height t = 0 \<longleftrightarrow> t = Leaf"
   by (induction t) (auto)
 
 
-lemma max_fold_max: "max (a::(_::linorder)) (fold max bs b) = fold max bs (max a b)"
-  apply(induction bs arbitrary: a b)
-   apply(auto simp add: max.left_commute)
-  done
-
-lemma max_fold_max_append_last: "max (fold max as (a::(_::linorder))) (fold max bs b) = (fold max (as@a#bs) b)"
-  apply(induction as arbitrary: a bs b)
-   apply(auto simp add: max.assoc max.left_commute max_fold_max)
-  done
-
-
-lemma fold_max_extract:"fold max (ls@a#rs) n = max (a::_::linorder) (fold max (ls@rs) n)"
-  apply(induction rs arbitrary: ls a n)
-   apply(auto simp add: max_fold_max max.left_commute)
-  done
-
-lemma fold_max_append_last: "fold max bs (max (a::(_::linorder)) b) = fold max (bs@[a]) b"
-  apply(induction bs arbitrary: a b)
-   apply(auto simp add: max.left_commute)
-  done
-
 lemma height_btree_order:
   "height (Node (ls@[a]) t) = height (Node (a#ls) t)"
-  apply(induction ls arbitrary: a t)
-   apply(simp_all add: max_fold_max max.left_commute)
-  done
+  by simp
 
 lemma height_btree_sub: 
   "height (Node ((sub,x)#ls) t) = max (height (Node ls t)) (Suc (height sub))"
-  by (auto simp add: max_fold_max max.commute)
+  by simp
 
 lemma height_btree_last: 
-  "height (Node ((sub,x)#ls) t) = max (height (Node ls sub)) (Suc (height t))"
-  by (auto simp add: max_fold_max max.commute)
+  "height (Node ((sub,x)#ts) t) = max (height (Node ts sub)) (Suc (height t))"
+  by (induction ts) auto
+
 
 value "(Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
 value "inorder (Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
@@ -175,7 +153,8 @@ lemma fold_max_set: "\<forall>x \<in> set t. x = f \<Longrightarrow> fold max t 
   done
 
 lemma height_bal_tree: "bal (Node ts t) \<Longrightarrow> height (Node ts t) = Suc (height t)"
-  by (simp add: fold_max_set)
+  by (induction ts) auto
+ 
 
 
 lemma bal_split_last: 

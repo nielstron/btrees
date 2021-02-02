@@ -2,12 +2,12 @@ LoC
 
 File                   | functional  | imperative        |proofs 
 ---------------------------------------------------------------------------------------------
-BTree                  | 86          | 0                 | 196
-BTree-Set              | 2 + 197 + 7 | 0                 | 11 + 1731 + 27
+BTree                  | 86          | 0                 | 173
+BTree-Set              | 2 + 197 + 7 | 0                 | 11 + 1687 + 27
 BTree-Set-Traditional  | 23 + 13     | 0                 | 1927
 BTree-Imp              | 32          | 6 + 132 + 15 + 17 | 54 + 12 + 14 + 513 + 25 + 55 + 115
 ---------------------------------------------------------------------------------------------
-Sum (\wo Traditional)  | 324         | 170               | 2753
+Sum (\wo Traditional)  | 324         | 170               | 2686
 
 BTree-Imp: (setup, isin/ins, lin, bin)
 BTree-Imp counted without deletion related stuff!

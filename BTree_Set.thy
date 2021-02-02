@@ -601,7 +601,6 @@ qed simp
 lemma height_up\<^sub>i_merge: "height_up\<^sub>i (Up\<^sub>i l a r) = height t \<Longrightarrow> height (Node (ls@(t,x)#rs) tt) = height (Node (ls@(l,a)#(r,x)#rs) tt)"
   by simp
 
-find_theorems "Max"
 
 lemma finite_set_ins_swap:
   assumes "finite A"
@@ -610,11 +609,9 @@ lemma finite_set_ins_swap:
 
 lemma finite_set_in_idem:
   assumes "finite A"
-    and "a = b"
-  shows "max a (Max (Set.insert b A)) = Max (Set.insert a A)"
+  shows "max a (Max (Set.insert a A)) = Max (Set.insert a A)"
   using Max_insert assms max.commute max.left_commute by fastforce
 
-thm Max.in_idem
 
 lemma ins_height: "height_up\<^sub>i (ins k x t) = height t"
 proof(induction k x t rule: ins.induct)

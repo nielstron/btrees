@@ -87,16 +87,15 @@ lemma compow_comp_id: "c > 0 \<Longrightarrow> f \<circ> f = f \<Longrightarrow>
    apply auto
   by fastforce
 
-
+(* required only for the fold definition of height *)
 lemma compow_id_point: "f x = x \<Longrightarrow> (f ^^ c) x = x"
   apply(induction c)
    apply auto
   done
 
-
 lemma height_full_node: "height (full_node k a h) = h"
   apply(induction k a h rule: full_node.induct)
-   apply (auto simp add: compow_id_point)
+   apply (auto simp add: set_replicate_conv_if)
   done
 
 lemma bal_full_node: "bal (full_node k a h)"
@@ -174,8 +173,8 @@ value "let k = (2::nat) in map (\<lambda>x. ((k+1::nat)^(x)-1)) [0,1,2,3,4]"
 
 
 lemma height_slim_node: "height (slim_node k a h) = h"
-  apply(induction k a h rule: slim_node.induct)
-   apply (auto simp add: compow_id_point)
+  apply(induction k a h rule: full_node.induct)
+   apply (auto simp add: set_replicate_conv_if)
   done
 
 lemma bal_slim_node: "bal (slim_node k a h)"

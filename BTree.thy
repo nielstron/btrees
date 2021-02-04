@@ -1,15 +1,9 @@
 theory BTree                 
-  imports Main "HOL-Data_Structures.Cmp" "HOL-Data_Structures.Set_Specs"
+  imports Main "HOL-Data_Structures.Sorted_Less" "HOL-Data_Structures.Cmp"
 begin
 
 hide_const (open) Sorted_Less.sorted
-term strict_sorted
-
 abbreviation "sorted_less \<equiv> Sorted_Less.sorted"
-
-(* we could also choose to express everything in terms of "strict_sorted" *)
-find_theorems strict_sorted
-find_theorems sorted_less
 
 subsection "General structure and concepts definition"
 
@@ -230,6 +224,7 @@ value "set (inorder (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf,
 value "height (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
   (* a bit weird *)
 value "size (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
+
 
 
 (* sorted inorder implies that some sublists are sorted which can be followed directly *)

@@ -32,7 +32,7 @@ lemma lin_split_rule: "
       R = "measure (\<lambda>i. n - i)"
       and I = "\<lambda>i. is_pfa c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p))"
       and b = "\<lambda>i. i<n \<and> snd (xs!i) < p"
-      and Q="\<lambda>i. is_pfa c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p)) * true"
+      and Q="\<lambda>i. is_pfa c xs (a,n) * \<up>(i\<le>n \<and> (\<forall>j<i. snd (xs!j) < p) \<and> (i<n \<longrightarrow> snd (xs!i)\<ge>p))"
       ]
   thm R
 
@@ -81,7 +81,7 @@ sorted_less xs \<Longrightarrow>
       R = "measure (\<lambda>(l,h). h-l)"
       and I = "\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l\<le>h \<and> h \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (h<n \<longrightarrow> xs!h\<ge>p))"
       and b = "\<lambda>(l,h). l<h"
-      and Q="\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (l<n \<longrightarrow> xs!l\<ge>p)) * true"
+      and Q="\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. xs!j < p) \<and> (l<n \<longrightarrow> xs!l\<ge>p))"
       ]
   thm R
 
@@ -204,7 +204,7 @@ sorted_less (map snd xs) \<Longrightarrow>
       R = "measure (\<lambda>(l,h). h-l)"
       and I = "\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l\<le>h \<and> h \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (h<n \<longrightarrow> snd (xs!h)\<ge>p))"
       and b = "\<lambda>(l,h). l<h"
-      and Q="\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (l<n \<longrightarrow> snd (xs!l)\<ge>p)) * true"
+      and Q="\<lambda>(l,h). is_pfa c xs (a,n) * \<up>(l \<le> n \<and> (\<forall>j<l. snd (xs!j) < p) \<and> (l<n \<longrightarrow> snd (xs!l)\<ge>p))"
       ]
   thm R
 

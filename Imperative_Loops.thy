@@ -6,7 +6,7 @@ theory Imperative_Loops
     "Refine_Imperative_HOL.Pf_Add"
     "Refine_Imperative_HOL.Sepref_Basic"
     "Automatic_Refinement.Refine_Lib"
-    Instantiate_Existentials
+    
 begin
 
 subsection \<open>List-Assn\<close>
@@ -478,56 +478,6 @@ lemma imp_for'_list_all2:
   done
 *)
 
-lemma imp_nfoldli_rule:
-  assumes
-    "P \<Longrightarrow>\<^sub>A I [] xs s"
-    "\<And>xs ys s. <I xs ys s * true> ci s <\<lambda>r. I xs ys s * \<up>(r \<longleftrightarrow> c s)>\<^sub>t"
-    "\<And>as x bs s. xs = as @ x # bs \<Longrightarrow> c s \<Longrightarrow> <I as (x # bs) s * true> f x s <\<lambda>r. I (as @ [x]) bs r>\<^sub>t"
-    "\<And>s. I xs [] s \<Longrightarrow>\<^sub>A Q s" "\<And>ys zs s. xs = ys @ zs \<Longrightarrow> \<not> c s \<Longrightarrow> I ys zs s \<Longrightarrow>\<^sub>A Q s"
-  shows "<P * true> imp_nfoldli xs ci f s <Q>\<^sub>t"
-proof -
-  have "
-    <I as bs s * true>
-      imp_nfoldli bs ci f s
-    <\<lambda>r. I (as @ bs) [] r \<or>\<^sub>A (\<exists>\<^sub>A ys zs. \<up>(bs = ys @ zs \<and> \<not> c r) * I (as @ ys) zs r)>\<^sub>t"
-    if "xs = as @ bs"
-    for as bs s
-    using that
-    apply (induction bs arbitrary: s as)
-     apply (sep_auto, rule ent_star_mono, rule ent_disjI1_direct, rule ent_refl; fail)
-    apply simp
-    apply sep_auto
-     apply (rule assms(2))
-    apply sep_auto
-      apply (rule assms(3))
-       apply assumption+
-     apply (rule cons_post_rule, rprems)
-      apply (simp; fail)
-     apply (sep_auto eintros del: exI)
-    subgoal for a bs s as x xb ys zs
-      apply (inst_existentials "a # ys" zs)
-      apply sep_auto+
-      done
-    apply (sep_auto eintros del: exI)
-    subgoal for a bs s as x
-      apply (inst_existentials "[] :: 'a list" "a # bs")
-      apply (sep_auto eintros: ent_disjI2_direct ent_star_mono)
-      done
-    done
-  then show ?thesis
-    apply (rule cons_rule[rotated 2])
-      apply simp
-    subgoal
-      apply (rule ent_frame_fwd[OF assms(1)])
-       apply solve_entails+
-      done
-    apply (rule ent_star_mono)
-     apply (rule ent_disjE, simp, rule assms(4))
-     apply (solve_entails eintros: assms(5))
-    apply simp
-    done
-qed
-
 
 
 
@@ -608,9 +558,9 @@ lemma heap_WHILET_rule'':
     "P \<Longrightarrow>\<^sub>A I s"
     "\<And>s. <I s * true> bi s <\<lambda>r. I s * \<up>(r \<longleftrightarrow> b s)>\<^sub>t"
     "\<And>s. b s \<Longrightarrow> <I s * true> f s <\<lambda>s'. I s' * \<up>((s', s) \<in> R)>\<^sub>t"
-    "\<And>s. \<not> b s \<Longrightarrow> I s * true \<Longrightarrow>\<^sub>A Q s"
+    "\<And>s. \<not> b s \<Longrightarrow> I s \<Longrightarrow>\<^sub>A Q s"
   shows "<P> heap_WHILET bi f s <Q>\<^sub>t"
-  supply R = heap_WHILET_rule'[of R P "\<lambda>s si. \<up>(s = si) * I s" s _ true bi b f "\<lambda>s si.\<up>(s = si) * Q s"]
+  supply R = heap_WHILET_rule'[of R P "\<lambda>s si. \<up>(s = si) * I s" s _ true bi b f "\<lambda>s si.\<up>(s = si) * Q s * true"]
   thm R
   using assms ent_true_drop apply(sep_auto heap: R assms)
   done

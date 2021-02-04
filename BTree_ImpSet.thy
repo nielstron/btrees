@@ -485,7 +485,7 @@ next
   case [simp]: False
   then obtain ls sub sep rs where
     split_half_eq: "BTree_Set.split_half ts = (ls,(sub,sep)#rs)"
-    using btree_linear_search.node\<^sub>i_cases by blast
+    using abs_split.node\<^sub>i_cases by blast
   then show ?thesis
     apply(subst node\<^sub>i_def)
     apply(rule hoare_triple_preI)
@@ -833,8 +833,7 @@ lemma insert_rule:
   apply(vcg heap: ins_rule[OF assms(2)])
   apply(simp split!: btupi.splits)
   apply(vcg)
-  apply simp
-  apply simp
+  apply auto[]
   apply vcg
   apply auto[]
   subgoal for x21 x22 x23 x21a x22a x23a a b xa
@@ -854,54 +853,102 @@ lemma insert_rule':
   by (sep_auto heap: insert_rule simp add: sorted_ins_list)
 
 
+lemma node\<^sub>i_rule_ins: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1; length ls = length lsi\<rbrakk> \<Longrightarrow>
+ <is_pfa c (lsi @ (li, ai) # rsi) (aa, al) *
+   blist_assn k ls lsi *
+   btree_assn k l li *
+   id_assn a ai *
+   blist_assn k rs rsi *
+   btree_assn k t ti> node\<^sub>i k (aa, al)
+          ti <btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, a) # rs) t)>\<^sub>t"
+proof -
+  assume [simp]: "2*k \<le> c" "c \<le> 4*k+1" "length ls = length lsi"
+  moreover note node\<^sub>i_rule[of k c "(lsi @ (li, ai) # rsi)" aa al "(ls @ (l, a) # rs)" t ti]
+  ultimately show ?thesis
+    by (simp add: mult.left_assoc list_assn_aux_append_Cons)
+qed
+
+
 lemma rebalance_middle_tree_rule:
   assumes "height t = height sub"
     and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"
   shows "<is_pfa (2*k) tsi (a,n) * blist_assn k (ls@(sub,sep)#rs) tsi * btree_assn k t ti * \<up>(length ls = i)>
   rebalance_middle_tree k (a,n) i ti
   <\<lambda>r. btnode_assn k (abs_split.rebalance_middle_tree k ls sub sep rs t) r >\<^sub>t"
-  apply(simp add: list_assn_append_Cons_left)
+apply(simp add: list_assn_append_Cons_left)
   apply(rule norm_pre_ex_rule)+
   subgoal for zs1 z zs2
-    apply(cases z)
-    apply auto
+    apply (cases z)
     subgoal for subi sepi
-  apply(subst rebalance_middle_tree_def)
-  apply(cases t; cases sub)
-  subgoal 
+proof(cases sub)
+  case sub_leaf[simp]: Leaf
+  then have t_leaf[simp]: "t = Leaf" using assms
+    by (cases t) auto
+  show ?thesis
+    apply(subst rebalance_middle_tree_def)
     apply(rule hoare_triple_preI)
     apply(vcg)
     apply (auto dest!: mod_starD list_assn_len)
     apply(rule ent_ex_postI[where x=tsi])
     apply sep_auto
     done
-  subgoal
-    using assms by auto
-  subgoal
-    using assms by auto
-  subgoal for tts tti sts sti
-    apply(rule hoare_triple_preI)
-    apply(sep_auto dest!: mod_starD)
-    apply (auto  dest!: list_assn_len)[]
+next
+  case sub_node[simp]: (Node mts mt)
+  then obtain tts tt where t_node[simp]: "t = Node tts tt" using assms
+    by (cases t) auto
+  then show ?thesis 
+  proof(cases "length mts \<ge> k \<and> length tts \<ge> k")
+    case True
+    then show ?thesis
+      apply(subst rebalance_middle_tree_def)
+      apply(rule hoare_triple_preI)
+      apply(sep_auto dest!: mod_starD)
+       apply (auto  dest!: list_assn_len)[]
 
-    apply(sep_auto  split!: prod.splits)
-    using assms apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
-    apply(auto)[]
+      apply(sep_auto  split!: prod.splits)
+      using assms apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
+       apply(auto)[]
     subgoal for _ _ _ _ _ _ _ _ tp tsia' tsin' tia tsi' _ _ _ _ _ _ _ _ aaa ba tiaa tsi'a x2 xa
       apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
         apply(vcg)
-        apply(auto)[]
+       apply(auto)[]
         apply(rule ent_ex_postI[where x="zs1@(Some xa, x2)#zs2"])
         apply(rule ent_ex_postI[where x="(aaa, ba)"])
         apply(rule ent_ex_postI[where x="tiaa"])
         apply(rule ent_ex_postI[where x=tsi'a])
        apply(sep_auto)[]
-      apply(auto)
-      thm pfa_append_extend_grow_rule
-      thm node\<^sub>i_rule
-      thm max.absorb2
-       apply (sep_auto heap add: pfa_append_extend_grow_rule node\<^sub>i_rule[of "(max (2 * k) (Suc (_ + ba)))"])
+      apply(rule hoare_triple_preI)
+      using True apply(auto dest!: mod_starD list_assn_len)
+      done
+    done
+  next
+    case False
+    then show ?thesis  
+    proof(cases rs)
+      case Nil
+      then show ?thesis
+      apply(subst rebalance_middle_tree_def)
+      apply(rule hoare_triple_preI)
+      apply(sep_auto dest!: mod_starD)
+       apply (auto  dest!: list_assn_len)[]
+
+      apply(sep_auto  split!: prod.splits)
+      using assms apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
+       apply(auto)[]
+   subgoal for _ _ _ _ _ _ _ _ tp tsia' tsin' tia tsi' _ _ _ _ _ _ _ _ aaa ba tiaa tsi'a
+      apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
+      apply(vcg)
+       apply(auto)[]
+     using False apply(auto dest!: mod_starD list_assn_len)
+     done
+      apply(sep_auto dest!: mod_starD)
+     apply (auto  dest!: list_assn_len)[]
+apply (auto  dest!: list_assn_len)[]
+      apply(sep_auto  split!: prod.splits)
+      using assms apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
+       apply(auto)[]
       oops
+
 
 
 

@@ -1,154 +1,11 @@
 theory Imperative_Loops
   imports 
-    "Separation_Logic_Imperative_HOL.Sep_Main"
     "Refine_Imperative_HOL.Sepref_HOL_Bindings"
     "Refine_Imperative_HOL.Pf_Mono_Prover"
     "Refine_Imperative_HOL.Pf_Add"
-    "Refine_Imperative_HOL.Sepref_Basic"
-    "Automatic_Refinement.Refine_Lib"
+
     
 begin
-
-subsection \<open>List-Assn\<close>
-
-
-
-lemma list_assn_cong[fundef_cong]:
-  "\<lbrakk> xs=xs'; ys=ys'; \<And>x y. \<lbrakk> x\<in>set xs; y\<in>set ys \<rbrakk> \<Longrightarrow> A x y = A' x y \<rbrakk> \<Longrightarrow> list_assn A xs ys = list_assn A' xs' ys'"
-  apply (induction xs ys arbitrary: xs' ys' rule: list_assn.induct)
-     apply auto
-  done
-
-lemma list_assn_aux_simps[simp]:
-  "list_assn P [] l' = (\<up>(l'=[]))"
-  "list_assn P l [] = (\<up>(l=[]))"
-   apply (cases l')
-    apply simp
-   apply simp
-  apply (cases l)
-   apply simp
-  apply simp
-  done
-
-lemma list_assn_aux_append[simp]:
-  "length l1=length l1' \<Longrightarrow> 
-    list_assn P (l1@l2) (l1'@l2') 
-    = list_assn P l1 l1' * list_assn P l2 l2'"
-  apply (induct rule: list_induct2)
-   apply simp
-  apply (simp add: star_assoc)
-  done
-
-lemma list_assn_app_one: "list_assn P (l1@[x]) (l1'@[y]) = list_assn P l1 l1' * P x y"
-  apply(induct P l1 l1' rule: list_assn.induct)
-     apply (auto simp add: star_assoc)
-  done
-
-lemma list_assn_aux_ineq_len: "length l \<noteq> length li \<Longrightarrow> list_assn A l li = false"
-proof (induction l arbitrary: li)
-  case (Cons x l li) thus ?case by (cases li; auto)
-qed simp
-
-lemma list_assn_aux_append2[simp]:
-  assumes "length l2=length l2'"  
-  shows "list_assn P (l1@l2) (l1'@l2') 
-    = list_assn P l1 l1' * list_assn P l2 l2'"
-  apply (cases "length l1 = length l1'")
-   apply (erule list_assn_aux_append)
-  apply (simp add: list_assn_aux_ineq_len assms)
-  done
-
-(* ------------------ ADDED in course of btree_imp -------- *)
-
-
-lemma list_assn_len: "h \<Turnstile> list_assn A xs ys \<Longrightarrow> length xs = length ys"
-  using list_assn_aux_ineq_len by fastforce
-
-lemma list_assn_Cons_left: "list_assn A (x#xs) zs = (\<exists>\<^sub>A z zzs. A x z * list_assn A xs zzs * \<up>(zs = z#zzs))"
-  apply(cases zs)
-   apply(auto intro!: ent_iffI ent_ex_postI ent_ex_preI)
-  done
-
-
-lemma list_assn_append_left: "list_assn A (xs@ys) zs = (\<exists>\<^sub>A zs1 zs2. list_assn A xs zs1 * list_assn A ys zs2 * \<up>(zs = zs1@zs2))"
-  apply(induction xs arbitrary: zs)
-   apply(sep_auto simp add: list_assn_Cons_left intro!: ent_iffI)
-  apply(sep_auto simp add: list_assn_Cons_left intro!: ent_iffI)
-  done
-
-
-lemma list_assn_append_Cons_left: "list_assn A (xs@x#ys) zs = (\<exists>\<^sub>A zs1 z zs2. list_assn A xs zs1 * A x z * list_assn A ys zs2 * \<up>(zs1@z#zs2 = zs))"
-  apply (sep_auto simp add: list_assn_Cons_left list_assn_append_left intro!: ent_iffI)
-  done
-
-
-lemma list_assn_aux_append_Cons: 
-  shows "length xs = length zsl \<Longrightarrow> list_assn A (xs@x#ys) (zsl@z#zsr) = (list_assn A xs zsl * A x z * list_assn A ys zsr) "
-  by (sep_auto simp add: mult.assoc)
-
-
-(* -------------------------------------------- *)
-
-subsection \<open>Prod-Assn\<close>
-
-
-lemma prod_assn_cong[fundef_cong]:
-  "\<lbrakk> p=p'; pi=pi'; A (fst p) (fst pi) = A' (fst p) (fst pi); B (snd p) (snd pi) = B' (snd p) (snd pi) \<rbrakk> 
-    \<Longrightarrow> (A\<times>\<^sub>aB) p pi = (A'\<times>\<^sub>aB') p' pi'" 
-  apply (cases p; cases pi)
-  by auto
-
-subsubsection "Imperative Version of nfoldli"
-text \<open>We define an imperative version of \<open>nfoldli\<close>. It is the
-  equivalent to the monadic version in the nres-monad\<close>
-
-definition "imp_nfoldli l c f s \<equiv> heap.fixp_fun (\<lambda>D (l,s). case l of 
-    [] \<Rightarrow> return s
-  | x#ls \<Rightarrow> do {
-      b\<leftarrow>c s;
-      if b then do { s'\<leftarrow>f x s; D (ls,s')} else return s
-    }
-  ) (l,s)"
-
-declare imp_nfoldli_def[code del]
-
-lemma imp_nfoldli_simps[simp,code]:
-  "imp_nfoldli [] c f s = return s"
-  "imp_nfoldli (x#ls) c f s = (do {
-    b \<leftarrow> c s;
-    if b then do { 
-      s'\<leftarrow>f x s; 
-      imp_nfoldli ls c f s'
-    } else return s
-  })"
-   apply -
-  unfolding imp_nfoldli_def
-   apply (subst heap.mono_body_fixp)
-    apply pf_mono
-   apply simp
-  apply (subst heap.mono_body_fixp)
-   apply pf_mono
-  apply simp
-  done
-
-lemma heap_fixp_mono[partial_function_mono]:
-  assumes [partial_function_mono]: 
-    "\<And>x d. mono_Heap (\<lambda>xa. B x xa d)"
-    "\<And>Z xa. mono_Heap (\<lambda>a. B a Z xa)" 
-  shows "mono_Heap (\<lambda>x. heap.fixp_fun (\<lambda>D \<sigma>. B x D \<sigma>) \<sigma>)"
-  apply rule
-  apply (rule ccpo.fixp_mono[OF heap.ccpo, THEN fun_ordD])
-    apply (rule mono_fun_fun_cnv, erule thin_rl, pf_mono)+
-  apply (rule fun_ordI)
-  apply (erule monotoneD[of "fun_ord Heap_ord" Heap_ord, rotated])
-  apply pf_mono
-  done
-
-lemma imp_nfoldli_mono[partial_function_mono]:
-  assumes [partial_function_mono]: "\<And>x \<sigma>. mono_Heap (\<lambda>fa. f fa x \<sigma>)"
-  shows "mono_Heap (\<lambda>x. imp_nfoldli l c (f x) \<sigma>)"
-  unfolding imp_nfoldli_def
-  by pf_mono
 
 
 subsection \<open>For Loops\<close>
@@ -165,17 +22,6 @@ lemma [simp]:
   "i \<ge> u \<Longrightarrow> imp_for i u c f s = return s"
   "i < u \<Longrightarrow> imp_for i u c f s = do {ctn <- c s; if ctn then f i s \<bind> imp_for (i + 1) u c f else return s}"
   by (auto simp: imp_for.simps)
-
-lemma imp_nfoldli_deforest:
-  "imp_nfoldli [l..<u] c = imp_for l u c"
-  apply (intro ext)
-  subgoal for f s
-    apply (induction "u - l" arbitrary: l u s)
-     apply (simp add: upt_conv_Cons; fail)
-    apply (simp add: upt_conv_Cons)
-    apply (fo_rule arg_cong)
-    by (auto cong: if_cong)
-  done
 
 partial_function (heap) imp_for' :: "nat \<Rightarrow> nat \<Rightarrow> (nat \<Rightarrow> 'a \<Rightarrow> 'a Heap) \<Rightarrow> 'a \<Rightarrow> 'a Heap" where
   "imp_for' i u f s = (if i \<ge> u then return s else f i s \<bind> imp_for' (i + 1) u f)"
@@ -208,38 +54,7 @@ partial_function (heap) imp_for_down :: "nat \<Rightarrow> nat \<Rightarrow> ('a
     } else return s
   }"  
 
-declare imp_for_down.simps[code]
-
-lemma imp_nfoldli_deforest_down:
-  "imp_nfoldli (rev [l..<u]) c = 
-    (\<lambda>f s. if u\<le>l then return s else imp_for_down l u c f s)"
-proof (intro ext)
-  fix f s
-  show "imp_nfoldli (rev [l..<u]) c f s =
-          (if l \<ge> u then return s else imp_for_down l u c f s)"
-  proof cases
-    assume "l\<ge>u" thus ?thesis by auto
-  next
-    assume "\<not>(l\<ge>u)" hence "l<u" by auto
-    thus ?thesis 
-      apply simp
-    proof (induction "u - l" arbitrary: u s)
-      case 0 thus ?case by auto
-    next
-      case (Suc u')
-      from Suc.prems Suc.hyps(2) have [simp]: "rev [l..<u] = (u-1)#rev [l..<u-1]"
-        apply simp
-        apply (subst upt_Suc_append[symmetric])
-         apply auto
-        done
-      show ?case using Suc.hyps(1)[of "u-1"] Suc.hyps(2) Suc.prems
-        apply (subst imp_for_down.simps)
-        apply (cases "l < u - Suc 0")
-         apply (auto simp: Let_def cong: if_cong)
-        done
-    qed    
-  qed  
-qed            
+declare imp_for_down.simps[code]    
 
 context begin
 
@@ -551,7 +366,7 @@ proof -
 
 qed
 
-(* Added by NM *)
+(* Added by NM, just a technicality since this rule fits our use case better *)
 lemma heap_WHILET_rule'':
   assumes
     "wf R"

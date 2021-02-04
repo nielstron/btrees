@@ -598,11 +598,11 @@ next
         apply(sep_auto)
         subgoal for p tsil tsin tti
           using Nil list_split
-          by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)
+          by (simp add: list_assn_aux_ineq_len split_relation_alt)
         subgoal for p tsil tsin tti tsi' xb xaa xc sub sep
           apply(rule hoare_triple_preI)
           using Nil list_split
-          by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)
+          by (simp add: list_assn_aux_ineq_len split_relation_alt)
         subgoal for p tsil tsin tti tsi' xb xaa
           thm "2.IH"(1)[of ls rrs tti]
           using Nil list_split T\<^sub>i apply(sep_auto split!: list.splits simp add: split_relation_alt
@@ -621,10 +621,10 @@ next
         apply(sep_auto)
         subgoal for p tsil tsin tti
           using Nil list_split
-          by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)                 
+          by (simp add: list_assn_aux_ineq_len split_relation_alt)                 
         subgoal for p tsil tsin tti tsi' xb xaa xc sub sep
           using Nil list_split 
-          by (simp add: Imperative_Loops.list_assn_aux_ineq_len split_relation_alt)
+          by (simp add: list_assn_aux_ineq_len split_relation_alt)
         subgoal for p tsil tsin tti tsi' xb xaa
           thm "2.IH"(1)[of ls rrs tti]
           using Nil list_split Up\<^sub>i apply(sep_auto split!: list.splits 
@@ -734,7 +734,7 @@ next
               apply (simp add: pure_app_eq)
               apply(sep_auto dest!:  mod_starD list_assn_len)[]
               done
-            apply (metis Imperative_Loops.list_assn_aux_ineq_len Pair_inject list_assn_len nth_append_length star_false_left star_false_right)
+            apply (metis list_assn_aux_ineq_len Pair_inject list_assn_len nth_append_length star_false_left star_false_right)
             done
           subgoal for p tsil tsin ti zs1 subi sepi zs2 _ _ suba
             apply(auto dest!:  mod_starD list_assn_len)[]

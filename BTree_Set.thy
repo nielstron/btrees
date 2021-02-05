@@ -579,8 +579,7 @@ lemma bal_up\<^sub>i_tree: "bal_up\<^sub>i t = bal (tree\<^sub>i t)"
   done
 
 lemma bal_list_split: "bal (Node (ls@(a,b)#rs) t) \<Longrightarrow> bal_up\<^sub>i (Up\<^sub>i (Node ls a) b (Node rs t))"
-  unfolding bal_up\<^sub>i.simps
-  by (metis bal_split_last(1) bal_split_right bal_split_left height_bal_tree)
+  by (auto simp add: image_constant_conv)
 
 lemma node\<^sub>i_bal:
   assumes "bal (Node ts t)"
@@ -599,21 +598,8 @@ proof(cases "length ts \<le> 2*k")
     by (auto simp del: bal.simps bal_up\<^sub>i.simps dest!: bal_list_split[of ls sub sep rs t])
 qed simp
 
-
 lemma height_up\<^sub>i_merge: "height_up\<^sub>i (Up\<^sub>i l a r) = height t \<Longrightarrow> height (Node (ls@(t,x)#rs) tt) = height (Node (ls@(l,a)#(r,x)#rs) tt)"
   by simp
-
-
-lemma finite_set_ins_swap:
-  assumes "finite A"
-  shows "max a (Max (Set.insert b A)) = max b (Max (Set.insert a A))"
-  using Max_insert assms max.commute max.left_commute by fastforce
-
-lemma finite_set_in_idem:
-  assumes "finite A"
-  shows "max a (Max (Set.insert a A)) = Max (Set.insert a A)"
-  using Max_insert assms max.commute max.left_commute by fastforce
-
 
 lemma ins_height: "height_up\<^sub>i (ins k x t) = height t"
 proof(induction k x t rule: ins.induct)
@@ -742,7 +728,8 @@ proof(induction k x t rule: ins.induct)
           using Up\<^sub>i split_app Cons 2 \<open>bal_up\<^sub>i (ins k x sub)\<close> by auto
         moreover have "\<forall>x \<in> set (subtrees (ls@(l,a)#(r,sep)#list)). height x = height t"
           using False Up\<^sub>i split_app Cons 2 \<open>bal_up\<^sub>i (ins k x sub)\<close> ins_height split_res a_prod
-          by simp_all (metis "2.prems" bal.simps(2) bal_split_last(1) fst_conv height_up\<^sub>i.simps(2) image_Un set_append set_map split_set(1) sup.idem sup_nat_def)
+          apply auto
+          by (metis height_up\<^sub>i.simps(2) sup.idem sup_nat_def)
         ultimately show ?thesis using Up\<^sub>i Cons 2 split_res a_prod
           by (simp del: node\<^sub>i.simps add: node\<^sub>i_bal)
       qed
@@ -1323,7 +1310,7 @@ proof (cases t)
         by (metis Un_iff  \<open>height rsub = height t\<close> assms bal.simps(2) bal_split_last(1) height_bal_tree height_up\<^sub>i.simps(2) height_list_split list.set_intros(1) Cons max.idem r_node r_split set_append some_child_sub(1) sub_heights(1) sub_node)
       also have "\<dots> = height rsub"
         using height_bal_tree r_node rsub_height(2) by fastforce
-      finally have 1: "height_up\<^sub>i (node\<^sub>i k (mts@(mt,sep)#rts) rt) = height rsub" by simp
+      finally have 1: "height_up\<^sub>i (node\<^sub>i k (mts@(mt,sep)#rts) rt) = height rsub" .
       moreover have 2: "bal_up\<^sub>i (node\<^sub>i k (mts@(mt,sep)#rts) rt)"
         by (metis bal_list_merge bal_up\<^sub>i.simps(2) node\<^sub>i_bal r_node rsub_height(1) rsub_height(2) sub_heights(1) sub_heights(2) sub_node)
       ultimately show ?thesis
@@ -1925,9 +1912,10 @@ qed (simp add: empty_btree_def)+
 
 find_theorems order node\<^sub>i
 
-(* if we remove this, a lot of proofs fail in BTree_Set_Traditional because... well *)
+(* if we remove this, it is not possible to remove the simp rules in subsequent contexts... *)
 declare node\<^sub>i.simps[simp del]
 
 end
+
 
 end

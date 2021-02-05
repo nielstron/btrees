@@ -53,7 +53,7 @@ thm btree.set
 fun bal:: "'a btree \<Rightarrow> bool" where
   "bal Leaf = True" |
   "bal (Node ts t) = (
-    (\<forall>sub \<in> set (subtrees ts). height t = height sub) \<and>
+    (\<forall>sub \<in> set (subtrees ts). height sub = height t) \<and>
     (\<forall>sub \<in> set (subtrees ts). bal sub) \<and>
     bal t
   )"
@@ -96,6 +96,17 @@ lemma subtrees_split:
 
 (* height and set lemmas *)
 
+
+lemma finite_set_ins_swap:
+  assumes "finite A"
+  shows "max a (Max (Set.insert b A)) = max b (Max (Set.insert a A))"
+  using Max_insert assms max.commute max.left_commute by fastforce
+
+lemma finite_set_in_idem:
+  assumes "finite A"
+  shows "max a (Max (Set.insert a A)) = Max (Set.insert a A)"
+  using Max_insert assms max.commute max.left_commute by fastforce
+
 lemma height_Leaf: "height t = 0 \<longleftrightarrow> t = Leaf"
   by (induction t) (auto)
 
@@ -111,6 +122,7 @@ lemma height_btree_sub:
 lemma height_btree_last: 
   "height (Node ((sub,x)#ts) t) = max (height (Node ts sub)) (Suc (height t))"
   by (induction ts) auto
+
 
 
 value "(Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
@@ -155,49 +167,20 @@ lemma bal_split_last:
   assumes "bal (Node (ls@(sub,sep)#rs) t)"
   shows "bal (Node (ls@rs) t)"
     and "height (Node (ls@(sub,sep)#rs) t) = height (Node (ls@rs) t)"
-proof -
-  from assms have
-    "bal t"
-    "\<forall>sub \<in> set (subtrees (ls@(sub,sep)#rs)). height t = height sub \<and> bal sub"
-    using bal.simps(2) by blast+
-  moreover have "\<forall>sub \<in> set (subtrees ls) \<union> set (subtrees rs). height t = height sub \<and> bal sub"
-    using subtrees_split
-    by (simp add: calculation)
-  ultimately show
-    "bal (Node (ls@rs) t)"
-    by auto
-  then show "height (Node (ls@(sub,sep)#rs) t) = height (Node (ls@rs) t)"
-    using height_bal_tree assms by metis
-qed
+  using assms by auto
 
 
 lemma bal_split_right: 
   assumes "bal (Node (ls@rs) t)"
   shows "bal (Node rs t)"
     and "height (Node rs t) = height (Node (ls@rs) t)"
-proof -
-  show "bal (Node rs t)"
-    using assms by auto
-  then show "height (Node rs t) = height (Node (ls@rs) t)"
-    using height_bal_tree assms
-    by metis
-qed
+  using assms by (auto simp add: image_constant_conv)
 
 lemma bal_split_left:
   assumes "bal (Node (ls@(a,b)#rs) t)"
   shows "bal (Node ls a)"
     and "height (Node ls a) = height (Node (ls@(a,b)#rs) t)"
-proof -
-  from assms have "\<forall>x \<in> set (subtrees ls). height x = height t"
-    using subtrees_split by force
-  then show "bal (Node ls a)"
-    using assms by auto
-  moreover have "height a = height t"
-    using assms by auto
-  ultimately show "height (Node ls a) = height (Node (ls@(a,b)#rs) t)"
-    using assms height_bal_tree
-    by metis
-qed
+  using assms by (auto simp add: image_constant_conv)
 
 
 lemma bal_substitute: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height t = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
@@ -258,5 +241,7 @@ corollary sorted_inorder_induct_subtree:
 
 lemma sorted_inorder_induct_last: "sorted_less (inorder (Node ts t)) \<Longrightarrow> sorted_less (inorder t)"
   by (simp add: sorted_wrt_append)
+
+
 
 end

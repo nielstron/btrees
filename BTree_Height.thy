@@ -1,5 +1,5 @@
 theory BTree_Height
-  imports BTree Main
+  imports BTree
 begin
 
 section "Maximum and minimum height"

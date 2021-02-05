@@ -246,12 +246,12 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
       case r_sub of (Some p_sub) \<Rightarrow>  do {
       sub \<leftarrow> !p_sub;
       l_sub \<leftarrow> pfa_length (kvs sub);
-      l_ti \<leftarrow> pfa_length (kvs ti);
-      if l_sub \<ge> k \<and> l_ti \<ge> k then do {
+      l_tts \<leftarrow> pfa_length (kvs ti);
+      if l_sub \<ge> k \<and> l_tts \<ge> k then do {
         return (Btnode tsi r_ti)
       } else do {
         l_tsi \<leftarrow> pfa_length tsi;
-        if l_tsi = (i+1) then do {
+        if l_tsi = i then do {
           mts' \<leftarrow> pfa_append_extend_grow (kvs sub) (last sub,sep) (kvs ti);
           res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last ti);
           case res_node\<^sub>i of
@@ -868,18 +868,23 @@ proof -
     by (simp add: mult.left_assoc list_assn_aux_append_Cons)
 qed
 
+lemma remPre: "<a> b <c> \<Longrightarrow> (P \<Longrightarrow> <a> b <c>)"
+  by simp
 
 lemma rebalance_middle_tree_rule:
   assumes "height t = height sub"
     and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"
-  shows "<is_pfa (2*k) tsi (a,n) * blist_assn k (ls@(sub,sep)#rs) tsi * btree_assn k t ti * \<up>(length ls = i)>
+  shows "<is_pfa (2*k) tsi (a,n) * blist_assn k (ls@(sub,sep)#rs) tsi * btree_assn k t ti * \<up>(i = length ls)>
   rebalance_middle_tree k (a,n) i ti
   <\<lambda>r. btnode_assn k (abs_split.rebalance_middle_tree k ls sub sep rs t) r >\<^sub>t"
 apply(simp add: list_assn_append_Cons_left)
   apply(rule norm_pre_ex_rule)+
-  subgoal for zs1 z zs2
-    apply (cases z)
-    subgoal for subi sepi
+proof(goal_cases)
+  case (1 zs1 z zs2)
+  then show ?case 
+  proof(cases z)
+    case z_split: (Pair subi sepi)
+    then show ?thesis 
 proof(cases sub)
   case sub_leaf[simp]: Leaf
   then have t_leaf[simp]: "t = Leaf" using assms
@@ -944,11 +949,18 @@ next
       apply(sep_auto dest!: mod_starD)
      apply (auto  dest!: list_assn_len)[]
 apply (auto  dest!: list_assn_len)[]
-      apply(sep_auto  split!: prod.splits)
-      using assms apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
-       apply(auto)[]
-      oops
-
+   apply(sep_auto )
+     apply (auto  dest!: list_assn_len)[]
+    apply (auto  dest!: list_assn_len)[]
+   subgoal for ac bc ae be af bf x aa b tia tsi' ad bd ah bh ai bi aj bj aaa ba tiaa tsi'a ab bb
+       xa
+     apply(subgoal_tac "z = (ab, bb) ")
+      apply(auto)[]
+      apply(vcg)
+     
+     apply(auto dest!: mod_starD)[]
+     thm node\<^sub>i_no_split[of "(mts @ (mt, sep) # tts)"]
+     oops
 
 
 

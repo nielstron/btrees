@@ -1,7 +1,7 @@
-# A Verified Imperative Implementation of B-trees
+# A Verified Imperative Implementation of B-Trees
 
 This repository contains all definitions, lemmas and proofs
-related to the Bachelors Thesis "A Verified Imperative Implementation of B-trees"
+related to the Bachelors Thesis "A Verified Imperative Implementation of B-Trees"
 by Niels Mündler.
 
 For a detailed description of the project, [see the thesis](https://github.com/nielstron/btrees-thesis).

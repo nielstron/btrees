@@ -35,7 +35,7 @@ global_interpretation btree_linear_search: split linear_split
     and btree_ls_delete = btree_linear_search.delete
   apply unfold_locales
   unfolding linear_split_alt
-    apply (auto simp: split: list.splits)
+    apply (auto split: list.splits)
   subgoal
     by (metis (no_types, lifting) case_prodD in_set_conv_decomp takeWhile_eq_all_conv takeWhile_idem)
   subgoal

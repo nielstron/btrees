@@ -54,8 +54,7 @@ fun bal:: "'a btree \<Rightarrow> bool" where
   "bal Leaf = True" |
   "bal (Node ts t) = (
     (\<forall>sub \<in> set (subtrees ts). height sub = height t) \<and>
-    (\<forall>sub \<in> set (subtrees ts). bal sub) \<and>
-    bal t
+    (\<forall>sub \<in> set (subtrees ts). bal sub) \<and> bal t
   )"
 
 
@@ -67,8 +66,7 @@ fun order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
   "order k (Node ts t) = (
   (length ts \<ge> k)  \<and>
   (length ts \<le> 2*k) \<and>
-  (\<forall>sub \<in> set (subtrees ts). order k sub) \<and>
-  order k t
+  (\<forall>sub \<in> set (subtrees ts). order k sub) \<and> order k t
 )"
 
 
@@ -78,8 +76,7 @@ fun root_order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
   "root_order k (Node ts t) = (
   (length ts > 0) \<and>
   (length ts \<le> 2*k) \<and>
-  (\<forall>s \<in> set (subtrees ts). order k s) \<and>
-   order k t
+  (\<forall>s \<in> set (subtrees ts). order k s) \<and> order k t
 )"
 
 
@@ -185,15 +182,15 @@ lemma bal_split_left:
 
 lemma bal_substitute: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height t = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
   unfolding bal.simps
-  by (metis Un_iff singletonD subtrees_split)
+  by auto
 
 lemma bal_substitute_subtree: "\<lbrakk>bal (Node (ls@(a,b)#rs) t); height a = height c; bal c\<rbrakk> \<Longrightarrow> bal (Node (ls@(c,b)#rs) t)"
   using bal_substitute
-  by (metis bal.simps(2) in_set_conv_decomp some_child_sub(1))
+  by auto
 
 lemma bal_substitute_separator: "bal (Node (ls@(a,b)#rs) t) \<Longrightarrow> bal (Node (ls@(a,c)#rs) t)"
   unfolding bal.simps
-  by (metis subtrees_split)
+  by auto
 
 (* order lemmas *)
 

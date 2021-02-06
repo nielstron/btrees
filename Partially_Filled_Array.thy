@@ -75,7 +75,7 @@ lemma pfa_is_empty_rule[sep_heap_rules]: "
 
 
 definition "pfa_append \<equiv> \<lambda>(a,n) x. do {
-  a \<leftarrow> Array.upd n x a;
+  Array.upd n x a;
   return (a,n+1)
 }"
 

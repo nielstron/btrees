@@ -5,7 +5,9 @@ theory BTree_ImpSplit
     Imperative_Loops
 begin
 
+section "Imperative split operations"
 
+subsection "Linear split"
 
 definition lin_split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarrow> 'b \<Rightarrow> nat Heap"
   where
@@ -48,6 +50,9 @@ lemma lin_split_rule: "
   apply(sep_auto simp: is_pfa_def)
   done
 
+subsection "Binary split"
+
+text "First, a binary split on \"normal\" arrays."
 
 definition bin'_split :: "'b::{heap,linorder} array_list \<Rightarrow> 'b \<Rightarrow> nat Heap"
   where
@@ -160,6 +165,8 @@ sorted_less xs \<Longrightarrow>
   apply (sep_auto simp add: is_pfa_def)
   done
 
+text "Then, using the same loop invariant, a binary split on the B-tree-like arrays."
+
 
 definition bin_split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarrow> 'b \<Rightarrow> nat Heap"
   where
@@ -239,8 +246,10 @@ sorted_less (map snd xs) \<Longrightarrow>
   done
 
 
+subsection "Refinement of an abstract split"
 
-
+text "We provide a certain abstract split function
+that is particularly easy to analyse (Idea due to Peter Lammich)."
 
 definition "abs_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
 
@@ -248,7 +257,9 @@ interpretation btree_abs_search: split abs_split
   unfolding abs_split_def sym[OF linear_split_alt]
   by unfold_locales
 
-
+text "Any function that yields the heap rule
+we have obtained for bin_split and lin_split also
+refines this abstract split."
 
 locale imp_split_smeq =
   fixes split_fun :: "('a::{heap,default,linorder} btnode ref option \<times> 'a) array \<times> nat \<Rightarrow> 'a \<Rightarrow> nat Heap"
@@ -359,14 +370,17 @@ sublocale imp_split abs_split split_fun
 
 end
 
+subsection "Obtaining executable code"
+
 interpretation btree_imp_linear_split: imp_split_smeq lin_split
   apply unfold_locales
   apply(sep_auto heap: lin_split_rule)
   done
 
 
-(* obtaining actual code turns out to be slightly more difficult
-  due to the use of locales *)
+text "Obtaining actual code turns out to be slightly more difficult
+  due to the use of locales. However, we successfully obtain
+the B-tree insertion and membership query with binary search splitting."
 
 global_interpretation btree_imp_binary_split: imp_split_smeq bin_split
   defines btree_isin = btree_imp_binary_split.isin

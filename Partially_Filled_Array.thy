@@ -4,6 +4,7 @@ theory Partially_Filled_Array
     Array_SBlit
 begin
 
+section "Partially Filled Arrays"
 
 text "An array that is only partially filled.
 The number of actual elements contained is kept in a second element.
@@ -12,7 +13,7 @@ This represents a weakened version of the array_list from IICF"
 type_synonym 'a pfarray = "'a array_list"
 
 
-section "Operations on Partly Filled Arrays"
+subsection "Operations on Partly Filled Arrays"
 
 
 definition is_pfa where

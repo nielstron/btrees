@@ -2,6 +2,10 @@ theory BTree_Split
   imports BTree_Set
 begin
 
+section "Abstract split functions"
+
+subsection "Linear split"
+
 text "Finally we show that the split axioms are feasible
        by providing an example split function"
 
@@ -13,7 +17,7 @@ fun linear_split_help:: "(_\<times>'a::linorder) list \<Rightarrow> _ \<Rightarr
 fun linear_split:: "(_\<times>'a::linorder) list \<Rightarrow> _ \<Rightarrow> ((_\<times>_) list \<times> (_\<times>_) list)" where
   "linear_split xs x = linear_split_help xs x []"
 
-(* linear split is similar to well known functions, therefore a quick proof can be done *)
+text "Linear split is similar to well known functions, therefore a quick proof can be done."
 
 lemma linear_split_alt: "linear_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
 proof -
@@ -43,8 +47,8 @@ global_interpretation btree_linear_search: split linear_split
   done
 
 
-(* some examples to show that the implementation works and lemmas make sense *)
-(* these are visualized in the thesis *)
+text "Some examples follow to show that the implementation works
+      and the above lemmas make sense. The examples are visualized in the thesis."
 
 abbreviation "btree\<^sub>i \<equiv> btree_ls_insert"
 abbreviation "btree\<^sub>d \<equiv> btree_ls_delete"
@@ -114,8 +118,11 @@ lemma linear_split_req2:
 interpretation split linear_split
   by (simp add: linear_split_req linear_split_req2 linear_split_append split_def)
 
-(* it *is* possible to define a binary split predicate..
-however even proving that it terminates is uncomfortable *)
+
+subsection "Binary split"
+
+text "It is possible to define a binary split predicate.
+      However, even proving that it terminates is uncomfortable."
 
 function (sequential) binary_split_help:: "(_\<times>'a::linorder) list \<Rightarrow> (_\<times>'a) list \<Rightarrow> (_\<times>'a) list \<Rightarrow> 'a \<Rightarrow>  ((_\<times>_) list \<times> (_\<times>_) list)" where
   "binary_split_help ls [] rs x = (ls,rs)" |

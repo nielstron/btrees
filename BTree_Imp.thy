@@ -5,6 +5,10 @@ theory BTree_Imp
     Basic_Assn
 begin
 
+section "Imperative B-tree Definition"
+
+text "The heap data type definition. Anything stored on the heap always contains data,
+leafs are represented as None."
 
 datatype 'a btnode =
   Btnode "('a btnode ref option*'a) pfarray" "'a btnode ref option"
@@ -31,7 +35,7 @@ instance btnode :: (heap) heap
   apply (metis btnode_encode.elims from_nat_to_nat fst_conv snd_conv)
   ..
 
-
+text "The refinement relationship to abstract B-trees."
 
 fun btree_assn :: "nat \<Rightarrow> 'a::heap btree \<Rightarrow> 'a btnode ref option \<Rightarrow> assn" where
   "btree_assn k Leaf None = emp" |
@@ -43,6 +47,10 @@ fun btree_assn :: "nat \<Rightarrow> 'a::heap btree \<Rightarrow> 'a btnode ref 
     * list_assn ((btree_assn k) \<times>\<^sub>a id_assn) ts tsi'
     )" |
   "btree_assn _ _ _ = false"
+
+text "With the current definition of deletion, we would
+also need to directly reason on nodes and not only on references
+to them."
 
 fun btnode_assn :: "nat \<Rightarrow> 'a::heap btree \<Rightarrow> 'a btnode \<Rightarrow> assn" where
   "btnode_assn k (Node ts t) (Btnode tsi ti) = 

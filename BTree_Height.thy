@@ -7,7 +7,12 @@ section "Maximum and minimum height"
 text "Textbooks usually provide some proofs relating the maxmimum and minimum height of the BTree
 for a given number of nodes. We therefore introduce this counting and show the respective proofs."
 
+subsection "Definition of node/size"
+
 thm BTree.btree.size
+  (* the automatically derived size is a bit weird for our purposes *)
+value "size (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
+
 
 text "The default size function does not suit our needs as it regards the length of the list in each node.
  We would like to count the number of nodes in the tree only, not regarding the number of keys."
@@ -21,7 +26,8 @@ fun nodes::"'a btree \<Rightarrow> nat" where
   "nodes Leaf = 0" |
   "nodes (Node ts t) = 1 + (\<Sum>t\<leftarrow>subtrees ts. nodes t) + (nodes t)"
 
-thm nodes.simps
+value "nodes (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
+
 
 (* maximum number of nodes for given height *)
 subsection "Maximum number of nodes for a given height"
@@ -43,7 +49,9 @@ proof(induction t rule: nodes.induct)
         sum_list (map (\<lambda>t. nodes t * (2 * k)) (subtrees ts))"
     using sum_list_mult_const by metis
   also have "\<dots> \<le> sum_list (map (\<lambda>x.?sub_height) (subtrees ts))"
-    using 2 by (simp add: sum_list_mono)
+    using 2
+    using sum_list_mono[of "subtrees ts" "\<lambda>t. nodes t * (2 * k)" "\<lambda>x. bound (2 * k) (height t)"]
+    by (metis bal.simps(2) order.simps(2))
   also have "\<dots> = sum_list (replicate (length ts) ?sub_height)"
     using map_replicate_const[of ?sub_height "subtrees ts"] length_map
     by simp
@@ -136,7 +144,9 @@ proof(induction t rule: nodes.induct)
     using map_replicate_const[of ?sub_height "subtrees ts"] length_map
     by simp
   also have "\<dots> \<le> sum_list (map (\<lambda>t. nodes t * k) (subtrees ts))"
-    using 2 by (simp add: sum_list_mono)
+    using 2 
+    using sum_list_mono[of "subtrees ts" "\<lambda>x. bound k (height t)" "\<lambda>t. nodes t * k"]
+    by (metis bal.simps(2) order.simps(2))
   also have "\<dots> = sum_list (map nodes (subtrees ts)) * k"
     using sum_list_mult_const[of nodes k "subtrees ts"] by auto
   finally have "sum_list (map nodes (subtrees ts))*k \<ge> ?sub_height*k"

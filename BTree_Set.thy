@@ -3,6 +3,9 @@ theory BTree_Set
  "HOL-Data_Structures.Set_Specs"
 begin
 
+section "Set instantiation"
+
+subsection "Auxiliary functions"
 
 fun split_half:: "('a btree\<times>'a) list \<Rightarrow> (('a btree\<times>'a) list \<times> ('a btree\<times>'a) list)" where
   "split_half xs = (take (length xs div 2) xs, drop (length xs div 2) xs)"
@@ -17,7 +20,10 @@ lemma split_half_not_empty: "length xs \<ge> 1 \<Longrightarrow> \<exists>ls sub
   using drop_not_empty
   by (metis (no_types, hide_lams) drop0 drop_eq_Nil eq_snd_iff hd_Cons_tl le_trans not_one_le_zero split_half.simps)
 
+subsection "The split function locale"
 
+text "Here, we abstract away the inner workings of the split function
+      for B-tree operations."
 
 (* TODO what if we define a function "list_split" that returns
  a split list for mapping arbitrary f (separators) and g (subtrees)
@@ -40,13 +46,12 @@ lemma [termination_simp]:"(ls, (sub, sep) # rs) = split ts y \<Longrightarrow>
       size sub < Suc (size_list (\<lambda>x. Suc (size (fst x))) ts  + size l)"
   using split_conc[of ts y ls "(sub,sep)#rs"] by auto
 
-subsection "Functions"
 
 fun invar_inorder where "invar_inorder k t = (bal t \<and> root_order k t)"
 
 definition "empty_btree = Leaf"
 
-text "isin Function"
+subsection "Membership"
 
 fun isin:: "'a btree \<Rightarrow> 'a \<Rightarrow> bool" where
   "isin (Leaf) y = False" |
@@ -60,8 +65,10 @@ fun isin:: "'a btree \<Rightarrow> 'a \<Rightarrow> bool" where
    | (_,[]) \<Rightarrow> isin t y
   )"
 
-text "insert Function"
+subsection "Insertion"
 
+text "The insert function requires an auxiliary data structure
+and auxiliary invariant functions."
 
 datatype 'b up\<^sub>i = T\<^sub>i "'b btree" | Up\<^sub>i "'b btree" 'b "'b btree"
 
@@ -87,8 +94,8 @@ fun inorder_up\<^sub>i where
   "inorder_up\<^sub>i (Up\<^sub>i l a r) = inorder l @ [a] @ inorder r"
 
 
-(* this function merges two nodes and returns separately split nodes
-   if an overflow occurs *)
+text "The following function merges two nodes and returns separately split nodes
+   if an overflow occurs"
 
 fun node\<^sub>i:: "nat \<Rightarrow> ('a btree \<times> 'a) list \<Rightarrow> 'a btree \<Rightarrow> 'a up\<^sub>i" where
   "node\<^sub>i k ts t = (
@@ -131,6 +138,7 @@ fun tree\<^sub>i::"'a up\<^sub>i \<Rightarrow> 'a btree" where
 fun insert::"nat \<Rightarrow> 'a \<Rightarrow> 'a btree \<Rightarrow> 'a btree" where
   "insert k x t = tree\<^sub>i (ins k x t)"
 
+subsection "Deletion"
 
 text "The following deletion method is inspired by Bauer (70) and Fielding (??).
 Rather than stealing only a single node from the neighbour,
@@ -220,8 +228,9 @@ fun reduce_root where
 fun delete where "delete k x t = reduce_root (del k x t)"
 
 
-(* invariant for intermediate states at deletion
-in particular we allow for an underflow to 0 subtrees *)
+text "An invariant for intermediate states at deletion.
+In particular we allow for an underflow to 0 subtrees."
+
 fun almost_order where
   "almost_order k Leaf = True" |
   "almost_order k (Node ts t) = (
@@ -231,7 +240,9 @@ fun almost_order where
 )"
 
 
-(* a recursive property of the "spine" we want to walk along for splitting *)
+text "A recursive property of the \"spine\" we want to walk along for splitting
+    off the maximum of the left subtree."
+
 fun nonempty_lasttreebal where
   "nonempty_lasttreebal Leaf = True" |
   "nonempty_lasttreebal (Node ts t) = (
@@ -239,7 +250,7 @@ fun nonempty_lasttreebal where
      nonempty_lasttreebal t
   )"
 
-subsection "Proofs"
+subsection "Proofs of functional correctness"
 
 lemma split_set: 
   assumes "split ts z = (ls,(a,b)#rs)"
@@ -1878,7 +1889,7 @@ for split fun is 0 *)
 
 (* TODO simpler induction schemes /less boilerplate isabelle/src/HOL/ex/Induction_Schema *)
 
-(* Set specification by inorder *)
+subsection "Set specification by inorder"
 
 
 interpretation S_ordered: Set_by_Ordered where
@@ -1910,7 +1921,6 @@ next
     by auto
 qed (simp add: empty_btree_def)+
 
-find_theorems order node\<^sub>i
 
 (* if we remove this, it is not possible to remove the simp rules in subsequent contexts... *)
 declare node\<^sub>i.simps[simp del]

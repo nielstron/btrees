@@ -4,7 +4,9 @@ theory Basic_Assn
     "Refine_Imperative_HOL.Sepref_Basic"
 begin
 
-(* Auxiliary assertion types and lemmas provided by Peter Lammich *)
+section "Auxilary imperative assumptions"
+
+text "The following auxiliary assertion types and lemmas were provided by Peter Lammich"
 
 subsection \<open>List-Assn\<close>
 

@@ -4,6 +4,9 @@ theory BTree_ImpSet
     BTree_Set
 begin
 
+section "Imperative Set operations"
+
+subsection "Auxiliary operations"
 
 definition "split_relation xs \<equiv>
    \<lambda>(as,bs) i. i \<le> length xs \<and> as = take i xs \<and> bs = drop i xs"
@@ -79,6 +82,13 @@ lemma split_half_rule[sep_heap_rules]: "<
   apply(sep_auto dest!: list_assn_len mod_starD)
   done
 
+subsection "The imperative split locale"
+
+text "This locale extends the abstract split locale,
+assuming that we are provided with an imperative program
+that refines the abstract split function."
+
+
 locale imp_split = abs_split: BTree_Set.split split
   for split::
     "('a btree \<times> 'a::{heap,default,linorder}) list \<Rightarrow> 'a
@@ -93,6 +103,8 @@ locale imp_split = abs_split: BTree_Set.split split
     * blist_assn k ts tsi
     * \<up>(split_relation ts (split ts p) i)>\<^sub>t"
 begin
+
+subsection "Membership"
 
 partial_function (heap) isin :: "'a btnode ref option \<Rightarrow> 'a \<Rightarrow>  bool Heap"
   where
@@ -115,6 +127,7 @@ partial_function (heap) isin :: "'a btnode ref option \<Rightarrow> 'a \<Rightar
     }
 )"
 
+subsection "Insertion"
 
 
 datatype 'b btupi = 
@@ -229,6 +242,10 @@ definition insert :: "nat \<Rightarrow> ('a::{heap,default,linorder}) \<Rightarr
       }
 }"
 
+subsection "Deletion"
+
+text "Note that the below operations have not been verified to
+refine the abstract set operations."
 
 
 (* rebalance middle tree gets a list of trees, an index pointing to
@@ -366,6 +383,8 @@ partial_function (heap) delete ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{defau
   ti' \<leftarrow> del k x ti;
   reduce_root ti'
 }"
+
+subsection "Refinement of the abstract B-tree operations"
 
 definition empty ::"('a::{default,heap,linorder}) btnode ref option Heap"
   where "empty = return None"
@@ -820,6 +839,7 @@ next
   qed
 qed
 
+text "The imperative insert refines the abstract insert."
 
 lemma insert_rule:
   assumes "k > 0" "sorted_less (inorder t)"
@@ -844,7 +864,7 @@ lemma insert_rule:
     done
   done
 
-(* the "pure" resulting rule follows automatically *)
+text "The \"pure\" resulting rule follows automatically."
 lemma insert_rule':
   shows "<btree_assn (Suc k) t ti * \<up>(abs_split.invar_inorder (Suc k) t \<and> sorted_less (inorder t))>
   insert (Suc k) x ti
@@ -868,9 +888,8 @@ proof -
     by (simp add: mult.left_assoc list_assn_aux_append_Cons)
 qed
 
-lemma remPre: "<a> b <c> \<Longrightarrow> (P \<Longrightarrow> <a> b <c>)"
-  by simp
-
+(* TODO verify the deletion operation
+   NOTE it might be necessary to modularize this proof further *)
 lemma rebalance_middle_tree_rule:
   assumes "height t = height sub"
     and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"

@@ -1,5 +1,5 @@
 theory BTree_Map
-imports BTree_Set
+imports BTree_Set "HOL-Data_Structures.Map_Specs"
 begin
 
 term "(1,2)"
@@ -37,16 +37,50 @@ proof(standard, goal_cases)
   then show ?case by (simp add: less_kv_def)
 next
   case (2 x)
-  then show ?case unfolding less_eq_kv_def
-    sorry
+  then show ?case
+    by (transfer; clarsimp)
 next
   case (3 x y z)
-  then show ?case sorry
+  then show ?case
+    by (transfer; auto)
 next
   case (4 x y)
-  then show ?case sorry
+  then show ?case
+    by (transfer; auto)
 next
   case (5 x y)
-  then show ?case sorry
+  then show ?case
+    by (transfer; auto)
 qed
+end
+
+context split
+begin
+
+fun find:: "'a btree \<Rightarrow> 'a \<Rightarrow> 'a option" where
+  "find (Leaf) y = None" |
+  "find (Node ts t) y = (
+      case split ts y of (_,(sub,sep)#rs) \<Rightarrow> (
+          if y = sep then
+             Some sep
+          else
+             find sub y
+      )
+   | (_,[]) \<Rightarrow> find t y
+  )"
+
+fun isin' where "isin' t x = (case find t x of Some y \<Rightarrow> True | None \<Rightarrow> False)"
+
+lemma "isin' t x = isin t x"
+  apply(induction t x rule: find.induct)
+   apply (auto split!: list.splits)
+  done
+
+fun lookup :: "('a \<mapsto> 'b option) btree \<Rightarrow> 'a \<Rightarrow> 'a option"
+  where "lookup t x = (case find t (x,None) of Some (a,b) \<Rightarrow> Some b | None \<Rightarrow> None)"
+
+interpretation btree_map: Map_by_Ordered
+empty_btree 
+
+end
 end

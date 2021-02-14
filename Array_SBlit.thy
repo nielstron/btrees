@@ -57,7 +57,7 @@ primrec rblit :: "_ array \<Rightarrow> nat \<Rightarrow> _ array \<Rightarrow> 
       rblit src si dst di l
     }"
 
-text "For seperated arrays it is equivalent to normal blit.
+text "For separated arrays it is equivalent to normal blit.
       The proof follows similarly to the corresponding proof for blit."
 
 lemma rblit_rule[sep_heap_rules]:
@@ -169,11 +169,12 @@ lemma safe_sblit_rule[sep_heap_rules]:
 thm blit_rule
 thm safe_sblit_rule
 
+subsection "Code Generator Setup"
+
 text "Note that the requirement for correctness
       is even weaker here than in SML.
       We therefore manually handle the case where length is 0 (in which case nothing happens at all)."
 
-subsection "Code Generator Setup"
 code_printing code_module "array_sblit" \<rightharpoonup> (SML)
   \<open>
    fun array_sblit src si di len = (

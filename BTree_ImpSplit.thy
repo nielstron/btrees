@@ -257,9 +257,9 @@ interpretation btree_abs_search: split abs_split
   unfolding abs_split_def sym[OF linear_split_alt]
   by unfold_locales
 
-text "Any function that yields the heap rule
-we have obtained for bin_split and lin_split also
-refines this abstract split."
+text \<open>Any function that yields the heap rule
+we have obtained for bin\_split and lin\_split also
+refines this abstract split.\<close>
 
 locale imp_split_smeq =
   fixes split_fun :: "('a::{heap,default,linorder} btnode ref option \<times> 'a) array \<times> nat \<Rightarrow> 'a \<Rightarrow> nat Heap"

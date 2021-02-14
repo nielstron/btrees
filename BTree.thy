@@ -2,14 +2,19 @@ theory BTree
   imports Main "HOL-Data_Structures.Sorted_Less" "HOL-Data_Structures.Cmp"
 begin
 
-(* some setup to cover up the redifinition of sorted in Sorted_Less
+(* some setup to cover up the redefinition of sorted in Sorted_Less
    but keep the lemmas *)
 hide_const (open) Sorted_Less.sorted
 abbreviation "sorted_less \<equiv> Sorted_Less.sorted"
 
-section "Definition of the B-tree"
+section "Definition of the B-Tree"
 
 subsection "Datatype definition"
+
+text "B-trees can be considered to have all data stored interleaved
+as child nodes and separating elements (also keys or indices).
+We define them to either be a Node that holds a list of pairs of children
+and indices or be a completely empty Leaf."
 
 
 datatype 'a btree = Leaf | Node "('a btree * 'a) list" "'a btree"
@@ -87,7 +92,7 @@ fun order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
   (\<forall>sub \<in> set (subtrees ts). order k sub) \<and> order k t
 )"
 
-text "The special condition for the root is called root_order"
+text \<open>The special condition for the root is called \textit{root\_order}\<close>
 
 (* the invariant for the root of the btree *)
 fun root_order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where

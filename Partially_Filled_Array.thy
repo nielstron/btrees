@@ -6,9 +6,9 @@ begin
 
 section "Partially Filled Arrays"
 
-text "An array that is only partially filled.
+text \<open>An array that is only partially filled.
 The number of actual elements contained is kept in a second element.
-This represents a weakened version of the array_list from IICF"
+This represents a weakened version of the array\_list from IICF.\<close>
 
 type_synonym 'a pfarray = "'a array_list"
 

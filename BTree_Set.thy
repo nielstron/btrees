@@ -3,7 +3,7 @@ theory BTree_Set
  "HOL-Data_Structures.Set_Specs"
 begin
 
-section "Set instantiation"
+section "Set interpretation"
 
 subsection "Auxiliary functions"
 

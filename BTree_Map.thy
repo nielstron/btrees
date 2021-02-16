@@ -54,10 +54,21 @@ next
 qed
 end
 
-context split
+locale split_default = abs_split: BTree_Set.split split
+  for split::
+    "(('a \<mapsto> 'b) btree \<times> ('a::{linorder} \<mapsto> 'b::{default})) list \<Rightarrow> ('a \<mapsto> 'b)
+       \<Rightarrow> (('a \<mapsto> 'b) btree \<times> ('a \<mapsto> 'b)) list \<times> (('a \<mapsto> 'b) btree \<times> ('a \<mapsto> 'b)) list"
 begin
 
-fun find:: "'a btree \<Rightarrow> 'a \<Rightarrow> 'a option" where
+lift_definition lift :: "'a \<Rightarrow> ('a \<mapsto> 'b)" is
+  "\<lambda>a. (a, default)" .
+
+lift_definition val :: "('a \<mapsto> 'b) \<Rightarrow> 'b" is
+  "\<lambda>(a,b). b"
+  apply auto
+  sorry
+
+fun find  where
   "find (Leaf) y = None" |
   "find (Node ts t) y = (
       case split ts y of (_,(sub,sep)#rs) \<Rightarrow> (
@@ -69,12 +80,6 @@ fun find:: "'a btree \<Rightarrow> 'a \<Rightarrow> 'a option" where
    | (_,[]) \<Rightarrow> find t y
   )"
 
-fun isin' where "isin' t x = (case find t x of Some y \<Rightarrow> True | None \<Rightarrow> False)"
-
-lemma "isin' t x = isin t x"
-  apply(induction t x rule: find.induct)
-   apply (auto split!: list.splits)
-  done
 
 fun lookup :: "('a \<mapsto> 'b option) btree \<Rightarrow> 'a \<Rightarrow> 'a option"
   where "lookup t x = (case find t (x,None) of Some (a,b) \<Rightarrow> Some b | None \<Rightarrow> None)"

@@ -175,7 +175,7 @@ lemma fold_max_set: "\<forall>x \<in> set t. x = f \<Longrightarrow> fold max t 
 
 lemma height_bal_tree: "bal (Node ts t) \<Longrightarrow> height (Node ts t) = Suc (height t)"
   by (induction ts) auto
- 
+
 
 
 lemma bal_split_last: 

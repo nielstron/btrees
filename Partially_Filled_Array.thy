@@ -364,7 +364,7 @@ lemma pfa_insert_grow_rule:
 
 
 definition pfa_extend where
-"pfa_extend \<equiv> \<lambda> (a,n) (b,m). do{
+  "pfa_extend \<equiv> \<lambda> (a,n) (b,m). do{
   blit b 0 a n m;
   return (a,n+m)
 }"
@@ -379,7 +379,7 @@ lemma pfa_extend_rule:
 
 
 definition pfa_extend_grow where
-"pfa_extend_grow \<equiv> \<lambda> (a,n) (b,m). do{
+  "pfa_extend_grow \<equiv> \<lambda> (a,n) (b,m). do{
   a' \<leftarrow> array_ensure a (n+m) default;
   blit b 0 a' n m;
   return (a',n+m)
@@ -391,9 +391,9 @@ lemma pfa_extend_grow_rule:
   <\<lambda>(a',n'). is_pfa (max c (n+m)) (l1@l2) (a',n') * \<up>(n'=n+m \<and> c \<ge> n) * is_pfa d l2 (b,m)>\<^sub>t"
   unfolding pfa_extend_grow_def  
   by (sep_auto simp add: is_pfa_def min.absorb1 min.absorb2 heap add: blit_rule)
-  
+
 definition pfa_append_extend_grow where
-"pfa_append_extend_grow \<equiv> \<lambda> (a,n) x (b,m). do{
+  "pfa_append_extend_grow \<equiv> \<lambda> (a,n) x (b,m). do{
   a' \<leftarrow> array_ensure a (n+m+1) default;
   a'' \<leftarrow> Array.upd n x a';
   blit b 0 a'' (n+1) m;
@@ -406,7 +406,7 @@ lemma pfa_append_extend_grow_rule:
   <\<lambda>(a',n'). is_pfa (max c (n+m+1)) (l1@x#l2) (a',n') * \<up>(n'=n+m+1 \<and> c \<ge> n) * is_pfa d l2 (b,m)>\<^sub>t"
   unfolding pfa_append_extend_grow_def  
   by (sep_auto simp add: list_update_last is_pfa_def min.absorb1 min.absorb2 heap add: blit_rule)
-  
+
 
 definition "pfa_delete \<equiv> \<lambda>(a,n) i. do {
   array_shl a (i+1) 1;

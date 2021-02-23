@@ -70,8 +70,8 @@ value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)]
 value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
       btree\<^sub>d k 3 (btree\<^sub>d k 10 (btree\<^sub>i k 1 (btree\<^sub>i k 9 x)))"
 
-
-(* however we can also explicitly derive the locale requirements *)
+text "For completeness, we also proved an explicit proof of the locale
+requirements."
 
 lemma some_child_sm: "linear_split_help t y xs = (ls,(sub,sep)#rs) \<Longrightarrow> y \<le> sep"
   apply(induction t y xs rule: linear_split_help.induct)
@@ -144,6 +144,8 @@ termination
 fun binary_split where
   "binary_split as x = binary_split_help [] as [] x"
 
+text "We can show that it will return sublists that concatenate to
+      the original list again but will not show that it fulfils sortedness properties."
 
 lemma "binary_split_help as bs cs x = (ls,rs) \<Longrightarrow> (as@bs@cs) = (ls@rs)"
   apply(induction as bs cs x arbitrary: ls rs rule: binary_split_help.induct)
@@ -158,11 +160,6 @@ lemma "binary_split_help as bs cs x = (ls,rs) \<Longrightarrow> (as@bs@cs) = (ls
 
 lemma "\<lbrakk>sorted_less (separators (as@bs@cs)); binary_split_help as bs cs x = (ls,rs); \<forall>y \<in> set (separators as). y < x\<rbrakk>
 \<Longrightarrow> \<forall>y \<in> set (separators ls). y < x"
-  apply(induction as bs cs x arbitrary: ls rs rule: binary_split_help.induct)
-    (*apply (auto simp add: drop_not_empty split!: list.splits)
-  subgoal for ls a b va rs  x lsa rsa aa ba x22 ab bb
-    apply(cases "cmp x ba")
-      apply auto*)
   oops
 
 

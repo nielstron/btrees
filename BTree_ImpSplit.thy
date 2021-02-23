@@ -7,7 +7,17 @@ begin
 
 section "Imperative split operations"
 
+text "So far, we have only given a functional specification of a possible split.
+      We will now provide imperative split functions that refine the functional specification.
+      However, rather than tracing the execution of the abstract specification,
+      the imperative versions are implemented using while-loops."
+
+
 subsection "Linear split"
+
+text "The linear split is the most simple split function for binary trees.
+      It serves a good example on how to use while-loops in Imperative/HOL
+      and how to prove Hoare-Triples about its application using loop invariants."
 
 definition lin_split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarrow> 'b \<Rightarrow> nat Heap"
   where
@@ -40,19 +50,22 @@ lemma lin_split_rule: "
   thm R
 
   apply (sep_auto  decon: R simp: less_Suc_eq is_pfa_def) []
-  apply (metis nth_take snd_eqD)
-  apply (metis nth_take snd_eqD)
-  apply (sep_auto simp: is_pfa_def less_Suc_eq)+
-  apply (metis dual_order.strict_trans nth_take)
-  apply (metis nth_take)
+       apply (metis nth_take snd_eqD)
+      apply (metis nth_take snd_eqD)
+     apply (sep_auto simp: is_pfa_def less_Suc_eq)+
+      apply (metis dual_order.strict_trans nth_take)
+     apply (metis nth_take)
   using diff_less_mono2 apply blast
-  apply(sep_auto simp: is_pfa_def)
+   apply(sep_auto simp: is_pfa_def)
   apply(sep_auto simp: is_pfa_def)
   done
 
 subsection "Binary split"
 
-text "First, a binary split on \"normal\" arrays."
+text "To obtain an efficient B-Tree implementation, we prefer a binary split
+function.
+To explore the searching procedure
+and the resulting proof, we first implement the split on singleton arrays."
 
 definition bin'_split :: "'b::{heap,linorder} array_list \<Rightarrow> 'b \<Rightarrow> nat Heap"
   where
@@ -129,10 +142,10 @@ sorted_less xs \<Longrightarrow>
     ultimately show "l'a ! j < p" using t0 b
       using \<open>take n l'a ! ((aa + b) div 2) < p\<close> dual_order.strict_trans by auto
   qed
-  apply sep_auto
-  apply (metis le_less nth_take)
-  apply (metis le_less nth_take)
-  apply sep_auto
+     apply sep_auto
+      apply (metis le_less nth_take)
+     apply (metis le_less nth_take)
+    apply sep_auto
   subgoal for l' aa l'a aaa ba j
   proof -
     assume t0: "aa < n"
@@ -160,12 +173,13 @@ sorted_less xs \<Longrightarrow>
     then show ?thesis
       using \<open>(aa + b) div 2 < n\<close> t5 by auto
   qed
-  apply (metis nth_take order_mono_setup.refl)
-  apply sep_auto
+    apply (metis nth_take order_mono_setup.refl)
+   apply sep_auto
   apply (sep_auto simp add: is_pfa_def)
   done
 
-text "Then, using the same loop invariant, a binary split on the B-tree-like arrays."
+text "Then, using the same loop invariant, a binary split for B-tree-like arrays
+is derived in a straightforward manner."
 
 
 definition bin_split :: "('a::heap \<times> 'b::{heap,linorder}) pfarray \<Rightarrow> 'b \<Rightarrow> nat Heap"
@@ -218,9 +232,9 @@ sorted_less (map snd xs) \<Longrightarrow>
 
   apply (sep_auto decon: R simp: less_Suc_eq is_pfa_def) []
 
-  apply(auto dest!: sndI nth_take_eq[of n _ _ "(_ + _) div 2"])[]
-  apply(auto dest!: sndI nth_take_eq[of n _ _ "(_ + _) div 2"])[]
-  apply (sep_auto dest!: sndI )
+      apply(auto dest!: sndI nth_take_eq[of n _ _ "(_ + _) div 2"])[]
+     apply(auto dest!: sndI nth_take_eq[of n _ _ "(_ + _) div 2"])[]
+    apply (sep_auto dest!: sndI )
   subgoal for ls i ls' _ _ j
     using map_snd_sorted_lesseq[of "take n ls'" j "(i + n) div 2"] 
       less_mult_imp_div_less apply(auto)[]
@@ -229,7 +243,7 @@ sorted_less (map snd xs) \<Longrightarrow>
     using map_snd_sorted_lesseq[of "take n ls'" j' "(i + j) div 2"] 
       less_mult_imp_div_less apply(auto)[]
     done
-  apply sep_auto
+    apply sep_auto
   subgoal for ls i ls' _ _ j
     using map_snd_sorted_less[of "take n ls'" j "(i + n) div 2"] 
       less_mult_imp_div_less
@@ -240,8 +254,8 @@ sorted_less (map snd xs) \<Longrightarrow>
       less_mult_imp_div_less
     apply(auto)[]
     done
-  apply (metis le_less nth_take_eq)
-  apply sep_auto
+    apply (metis le_less nth_take_eq)
+   apply sep_auto
   apply (sep_auto simp add: is_pfa_def)
   done
 
@@ -249,7 +263,7 @@ sorted_less (map snd xs) \<Longrightarrow>
 subsection "Refinement of an abstract split"
 
 text "We provide a certain abstract split function
-that is particularly easy to analyse (Idea due to Peter Lammich)."
+that is particularly easy to analyse. The idea of this function is due to Peter Lammich."
 
 definition "abs_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
 
@@ -283,7 +297,7 @@ lemma abs_split_split:
     and " (case (xs!n) of (_,s) \<Rightarrow> \<not>(s < p))"
   shows "abs_split xs p = (take n xs, drop n xs)"
   using assms  apply (auto simp add: abs_split_def)
-  apply (metis (mono_tags, lifting) id_take_nth_drop old.prod.case takeWhile_eq_all_conv takeWhile_tail)
+   apply (metis (mono_tags, lifting) id_take_nth_drop old.prod.case takeWhile_eq_all_conv takeWhile_tail)
   by (metis (no_types, lifting) Cons_nth_drop_Suc case_prod_conv dropWhile.simps(2) dropWhile_append2 id_take_nth_drop)
 
 
@@ -300,7 +314,7 @@ lemma split_rule_abs_split:
   apply(rule hoare_triple_preI)
   apply (sep_auto heap: split_rule dest!: mod_starD id_assn_list
       simp add: list_assn_prod_map split_ismeq)
-  apply(auto simp add: is_pfa_def)
+    apply(auto simp add: is_pfa_def)
 proof -
 
   fix h l' assume heap_init:
@@ -365,12 +379,16 @@ qed
 
 sublocale imp_split abs_split split_fun
   apply(unfold_locales)
-  apply(sep_auto heap:  split_rule_abs_split)
+  apply(sep_auto heap: split_rule_abs_split)
   done
 
 end
 
 subsection "Obtaining executable code"
+
+text "In order to obtain fully defined functions,
+we need to plug our split function implementations
+into the locales we introduced previously."
 
 interpretation btree_imp_linear_split: imp_split_smeq lin_split
   apply unfold_locales

@@ -31,8 +31,8 @@ fun
 
 instance btnode :: (heap) heap
   apply (rule heap_class.intro)
-  apply (rule countable_classI [of "btnode_encode"])
-  apply (metis btnode_encode.elims from_nat_to_nat fst_conv snd_conv)
+   apply (rule countable_classI [of "btnode_encode"])
+   apply (metis btnode_encode.elims from_nat_to_nat fst_conv snd_conv)
   ..
 
 text "The refinement relationship to abstract B-trees."

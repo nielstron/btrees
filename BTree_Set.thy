@@ -1,6 +1,6 @@
 theory BTree_Set
   imports BTree
- "HOL-Data_Structures.Set_Specs"
+    "HOL-Data_Structures.Set_Specs"
 begin
 
 section "Set interpretation"

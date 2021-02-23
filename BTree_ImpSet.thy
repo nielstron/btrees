@@ -871,6 +871,24 @@ qed
 lemma remPre: "<a> b <c> \<Longrightarrow> (P \<Longrightarrow> <a> b <c>)"
   by simp
 
+lemma rebalance_middle_tree_merge_rule:
+"<btnode_assn k (Node mts mt) sub * btnode_assn k (Node tts tt) ti>
+do {
+      mts' \<leftarrow> pfa_append_extend_grow (kvs sub) (last sub,sep) (kvs ti);
+          res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last ti);
+          case res_node\<^sub>i of
+            T\<^sub>i u \<Rightarrow> return (Btnode tsi u) |
+            Up\<^sub>i l a r \<Rightarrow> do {
+              tsi' \<leftarrow> pfa_append tsi (l,a);
+              return (Btnode tsi' r)
+          }
+} <\<lambda>ri. btnode_assn k (case abs_split.node\<^sub>i k (mts@(mt,sep)#tts) tt of
+       abs_split.T\<^sub>i u \<Rightarrow>
+        Node ls u |
+       abs_split.Up\<^sub>i l a r \<Rightarrow>
+        Node (ls@[(l,a)]) r) ri>\<^sub>t"
+  sorry
+
 lemma rebalance_middle_tree_rule:
   assumes "height t = height sub"
     and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"

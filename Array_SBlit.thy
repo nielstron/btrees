@@ -117,7 +117,8 @@ next
 
   have[simp]: "take len (drop si (lsrc[di + len := lsrc ! (si + len)]))
         = take len (drop si lsrc)"
-    by (metis Nat.le_add_diff Suc.prems(2) add_leD1 drop_update_swap le_add1 le_add_diff_inverse take_update_cancel)
+    sledgehammer
+    by (metis Suc.prems(2) ab_semigroup_add_class.add.commute add_le_cancel_right take_drop take_update_cancel)
   have [simp]: "drop (di + len) (lsrc[di + len := lsrc ! (si + len)])
          = lsrc ! (si+len) # drop (Suc di + len) lsrc"
     by (metis Suc.prems(1) add_Suc_right add_Suc_shift add_less_cancel_left append_take_drop_id le_imp_less_Suc le_refl plus_1_eq_Suc same_append_eq take_update_cancel upd_conv_take_nth_drop)

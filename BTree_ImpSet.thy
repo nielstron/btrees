@@ -46,8 +46,7 @@ lemma split_ismeq: "((a::nat) \<le> b \<and> X) = ((a < b \<and> X) \<or> (a = b
 lemma split_relation_map: "split_relation as (ls,rs) i \<Longrightarrow> split_relation (map f as) (map f ls, map f rs) i"
   apply(induction as arbitrary: ls rs i)
    apply(auto simp add: split_relation_def take_map drop_Cons')
-   apply (metis list.simps(9) take_map)
-  apply (simp add: drop_map)
+  apply(metis list.simps(9) take_map)
   done
 
 lemma split_relation_access: "\<lbrakk>split_relation as (ls,rs) i; rs = r#rrs\<rbrakk> \<Longrightarrow> as!i = r"

@@ -53,11 +53,10 @@ lemma lin_split_rule: "
        apply (metis nth_take snd_eqD)
       apply (metis nth_take snd_eqD)
      apply (sep_auto simp: is_pfa_def less_Suc_eq)+
-      apply (metis dual_order.strict_trans nth_take)
-     apply (metis nth_take)
-  using diff_less_mono2 apply blast
-   apply(sep_auto simp: is_pfa_def)
-  apply(sep_auto simp: is_pfa_def)
+      apply (metis nth_take)
+    apply(sep_auto simp: is_pfa_def)
+  apply (metis le_simps(3) less_Suc_eq less_le_trans nth_take)
+  apply(sep_auto simp: is_pfa_def)+
   done
 
 subsection "Binary split"

@@ -3,15 +3,16 @@ theory Array_SBlit
 begin
 
 (* Resolves TODO by Peter Lammich *)
-
+(* OCaml handles the case of len=0 correctly (i.e.
+as specified by the Hoare Triple in Array_Blit
+not generating an exception if si+len \<le> array length and such) *) 
 code_printing code_module "array_blit" \<rightharpoonup> (OCaml)
   \<open>
    let array_blit src si dst di len = (
       if src=dst then
          raise (Invalid_argument "array_blit: Same arrays")
-      else if len > Z.zero then
+      else
         Array.blit src (Z.to_int si) dst (Z.to_int di) (Z.to_int len)
-      else ()
     )
 \<close>
 
@@ -191,8 +192,10 @@ thm safe_sblit_rule
 subsection "Code Generator Setup"
 
 text "Note that the requirement for correctness
-      is even weaker here than in SML.
-      We therefore manually handle the case where length is 0 (in which case nothing happens at all)."
+      is even weaker here than in SML/OCaml.
+      In particular, if the length of the slice to copy is equal to 0,
+      we will never throw an exception.
+      We therefore manually handle this case, where nothing happens at all."
 
 code_printing code_module "array_sblit" \<rightharpoonup> (SML)
   \<open>
@@ -225,7 +228,7 @@ lemma [code]:
       = safe_sblit' src (integer_of_nat si) (integer_of_nat di) 
           (integer_of_nat len)" by (simp add: safe_sblit'_def)
 
-(* TODO: Export to other languages: OCaml, Haskell *)
+(* TODO: Export to other languages: Haskell *)
 code_printing constant safe_sblit' \<rightharpoonup>
   (SML) "(fn/ ()/ => /array'_sblit _ _ _ _)"
   and (Scala) "{ ('_: Unit)/=>/

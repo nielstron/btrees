@@ -411,7 +411,8 @@ global_interpretation btree_imp_binary_split: imp_split_smeq bin_split
 thm btree_imp_binary_split.ins.simps
 declare btree_imp_binary_split.ins.simps[code] btree_imp_binary_split.isin.simps[code]
 
-export_code btree_empty btree_isin btree_insert checking SML Scala
+export_code btree_empty btree_isin btree_insert checking OCaml SML Scala
+export_code btree_empty btree_isin btree_insert in OCaml module_name BTreeInsert
 export_code btree_empty btree_isin btree_insert in SML module_name BTreeInsert
 export_code btree_empty btree_isin btree_insert in Scala module_name BTreeInsert
 

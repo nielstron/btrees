@@ -2,6 +2,25 @@ theory Array_SBlit
   imports "Separation_Logic_Imperative_HOL.Array_Blit"
 begin
 
+(* Resolves TODO by Peter Lammich *)
+
+code_printing code_module "array_blit" \<rightharpoonup> (OCaml)
+  \<open>
+   let array_blit src si dst di len = (
+      if src=dst then
+         raise (Invalid_argument "array_blit: Same arrays")
+      else if len > Z.zero then
+        Array.blit src (Z.to_int si) dst (Z.to_int di) (Z.to_int len)
+      else ()
+    )
+\<close>
+
+code_printing constant blit' \<rightharpoonup>
+ (OCaml) "(fun () -> /array'_blit _ _ _ _ _)"
+
+
+export_code blit checking OCaml
+
 section "Same array Blit"
 
 text "The standard framework already provides a function to copy array
@@ -117,7 +136,6 @@ next
 
   have[simp]: "take len (drop si (lsrc[di + len := lsrc ! (si + len)]))
         = take len (drop si lsrc)"
-    sledgehammer
     by (metis Suc.prems(2) ab_semigroup_add_class.add.commute add_le_cancel_right take_drop take_update_cancel)
   have [simp]: "drop (di + len) (lsrc[di + len := lsrc ! (si + len)])
          = lsrc ! (si+len) # drop (Suc di + len) lsrc"
@@ -188,6 +206,15 @@ code_printing code_module "array_sblit" \<rightharpoonup> (SML)
     )
 \<close>
 
+code_printing code_module "array_sblit" \<rightharpoonup> (OCaml)
+  \<open>
+   let array_sblit src si di len = (
+      if len > Z.zero then
+        (Array.blit src (Z.to_int si) src (Z.to_int di) (Z.to_int len))
+      else ()
+    )
+\<close>
+
 definition safe_sblit' where
   [code del]: "safe_sblit' src si di len 
       = safe_sblit src (nat_of_integer si) (nat_of_integer di) 
@@ -211,7 +238,13 @@ code_printing constant safe_sblit' \<rightharpoonup>
       safescopy(_.array,_.toInt,_.toInt,_.toInt)
     }"
 
-export_code safe_sblit checking SML Scala
+code_printing constant safe_sblit' \<rightharpoonup>
+ (OCaml) "(fun () -> /array'_sblit _ _ _ _)"
+
+
+export_code safe_sblit checking SML Scala OCaml
+
+
 
 
 subsection "Derived operations"

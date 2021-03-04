@@ -2,6 +2,10 @@ theory BTree_Split
   imports BTree_Set
 begin
 
+section "Abstract split functions"
+
+subsection "Linear split"
+
 text "Finally we show that the split axioms are feasible
        by providing an example split function"
 
@@ -13,7 +17,7 @@ fun linear_split_help:: "(_\<times>'a::linorder) list \<Rightarrow> _ \<Rightarr
 fun linear_split:: "(_\<times>'a::linorder) list \<Rightarrow> _ \<Rightarrow> ((_\<times>_) list \<times> (_\<times>_) list)" where
   "linear_split xs x = linear_split_help xs x []"
 
-(* linear split is similar to well known functions, therefore a quick proof can be done *)
+text "Linear split is similar to well known functions, therefore a quick proof can be done."
 
 lemma linear_split_alt: "linear_split xs x = (takeWhile (\<lambda>(_,s). s<x) xs, dropWhile (\<lambda>(_,s). s<x) xs)"
 proof -
@@ -43,8 +47,8 @@ global_interpretation btree_linear_search: split linear_split
   done
 
 
-(* some examples to show that the implementation works and lemmas make sense *)
-(* these are visualized in the thesis *)
+text "Some examples follow to show that the implementation works
+      and the above lemmas make sense. The examples are visualized in the thesis."
 
 abbreviation "btree\<^sub>i \<equiv> btree_ls_insert"
 abbreviation "btree\<^sub>d \<equiv> btree_ls_delete"
@@ -66,8 +70,8 @@ value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)]
 value "let k=2::nat; x::nat btree = (Node [(Node [(Leaf, 3),(Leaf, 5),(Leaf, 6)] Leaf, 10)] (Node [(Leaf, 14), (Leaf, 20)] Leaf)) in
       btree\<^sub>d k 3 (btree\<^sub>d k 10 (btree\<^sub>i k 1 (btree\<^sub>i k 9 x)))"
 
-
-(* however we can also explicitly derive the locale requirements *)
+text "For completeness, we also proved an explicit proof of the locale
+requirements."
 
 lemma some_child_sm: "linear_split_help t y xs = (ls,(sub,sep)#rs) \<Longrightarrow> y \<le> sep"
   apply(induction t y xs rule: linear_split_help.induct)
@@ -114,8 +118,11 @@ lemma linear_split_req2:
 interpretation split linear_split
   by (simp add: linear_split_req linear_split_req2 linear_split_append split_def)
 
-(* it *is* possible to define a binary split predicate..
-however even proving that it terminates is uncomfortable *)
+
+subsection "Binary split"
+
+text "It is possible to define a binary split predicate.
+      However, even proving that it terminates is uncomfortable."
 
 function (sequential) binary_split_help:: "(_\<times>'a::linorder) list \<Rightarrow> (_\<times>'a) list \<Rightarrow> (_\<times>'a) list \<Rightarrow> 'a \<Rightarrow>  ((_\<times>_) list \<times> (_\<times>_) list)" where
   "binary_split_help ls [] rs x = (ls,rs)" |
@@ -137,6 +144,8 @@ termination
 fun binary_split where
   "binary_split as x = binary_split_help [] as [] x"
 
+text "We can show that it will return sublists that concatenate to
+      the original list again but will not show that it fulfils sortedness properties."
 
 lemma "binary_split_help as bs cs x = (ls,rs) \<Longrightarrow> (as@bs@cs) = (ls@rs)"
   apply(induction as bs cs x arbitrary: ls rs rule: binary_split_help.induct)
@@ -151,11 +160,6 @@ lemma "binary_split_help as bs cs x = (ls,rs) \<Longrightarrow> (as@bs@cs) = (ls
 
 lemma "\<lbrakk>sorted_less (separators (as@bs@cs)); binary_split_help as bs cs x = (ls,rs); \<forall>y \<in> set (separators as). y < x\<rbrakk>
 \<Longrightarrow> \<forall>y \<in> set (separators ls). y < x"
-  apply(induction as bs cs x arbitrary: ls rs rule: binary_split_help.induct)
-    (*apply (auto simp add: drop_not_empty split!: list.splits)
-  subgoal for ls a b va rs  x lsa rsa aa ba x22 ab bb
-    apply(cases "cmp x ba")
-      apply auto*)
   oops
 
 

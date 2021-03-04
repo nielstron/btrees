@@ -2,13 +2,20 @@ theory Array_SBlit
   imports "Separation_Logic_Imperative_HOL.Array_Blit"
 begin
 
+section "Same array Blit"
+
+text "The standard framework already provides a function to copy array
+      elements."
+
 term blit
 thm blit_rule
 thm blit.simps
   (* Same array BLIT *)
 definition "sblit a s d l \<equiv> blit a s a d l"
 
-text "blit only works for moving elements of an array to the left"
+text "When copying values within arrays,
+      blit only works for moving elements to the left."
+
 lemma sblit_rule[sep_heap_rules]:
   assumes LEN:
     "si+len \<le> length lsrc"
@@ -37,6 +44,8 @@ next
     by (sep_auto simp: take_update_last drop_upd_irrelevant)
 qed
 
+subsection "A reverse blit"
+
 text "The function rblit may be used to copy elements a defined offset to the right"
 
 (* Right BLIT or Reverse BLIT *)
@@ -48,7 +57,8 @@ primrec rblit :: "_ array \<Rightarrow> nat \<Rightarrow> _ array \<Rightarrow> 
       rblit src si dst di l
     }"
 
-text "For seperated arrays it is equivalent to normal blit"
+text "For separated arrays it is equivalent to normal blit.
+      The proof follows similarly to the corresponding proof for blit."
 
 lemma rblit_rule[sep_heap_rules]:
   assumes LEN: "si+len \<le> length lsrc" "di+len \<le> length ldst"
@@ -86,7 +96,8 @@ qed
 
 definition "srblit a s d l \<equiv> rblit a s a d l"
 
-(* however for the same arrays we can now copy to the right *)
+text "However, within arrays we can now copy to the right."
+
 lemma srblit_rule[sep_heap_rules]:
   assumes LEN:
     "di+len \<le> length lsrc"
@@ -106,7 +117,8 @@ next
 
   have[simp]: "take len (drop si (lsrc[di + len := lsrc ! (si + len)]))
         = take len (drop si lsrc)"
-    by (metis Nat.le_add_diff Suc.prems(2) add_leD1 drop_update_swap le_add1 le_add_diff_inverse take_update_cancel)
+    sledgehammer
+    by (metis Suc.prems(2) ab_semigroup_add_class.add.commute add_le_cancel_right take_drop take_update_cancel)
   have [simp]: "drop (di + len) (lsrc[di + len := lsrc ! (si + len)])
          = lsrc ! (si+len) # drop (Suc di + len) lsrc"
     by (metis Suc.prems(1) add_Suc_right add_Suc_shift add_less_cancel_left append_take_drop_id le_imp_less_Suc le_refl plus_1_eq_Suc same_append_eq take_update_cancel upd_conv_take_nth_drop)
@@ -125,7 +137,10 @@ next
     by (sep_auto simp: take_update_last drop_upd_irrelevant)
 qed
 
-text "For convenience, a function that is oblivious to the direction of the shift"
+subsection "Modeling target language blit"
+
+text "For convenience, a function that is oblivious to the direction of the shift
+      is defined."
 definition "safe_sblit a s d l \<equiv> 
     if s > d then
       sblit a s d l
@@ -133,11 +148,12 @@ definition "safe_sblit a s d l \<equiv>
       srblit a s d l
 "
 
-(* Compare this to blit_rule *)
-thm blit_rule
+text "We obtain a heap rule similar to the one of blit,
+      but for copying within one array."
+
 lemma safe_sblit_rule[sep_heap_rules]:
   assumes LEN:
-    "len > 0 \<Longrightarrow> di+len \<le> length lsrc \<and> si+len \<le> length lsrc"
+    "len > 0 \<longrightarrow> di+len \<le> length lsrc \<and> si+len \<le> length lsrc"
   shows
     "< src \<mapsto>\<^sub>a lsrc  >
     safe_sblit src si di len
@@ -150,10 +166,16 @@ lemma safe_sblit_rule[sep_heap_rules]:
   apply sep_auto
   done
 
-(* note that the requirement for correctness
-   is even weaker here than in SML 
-  we therefore also handle the case where length is 0 (in which case nothing happens at all) *)
+(* Compare this to blit_rule *)
+thm blit_rule
+thm safe_sblit_rule
+
 subsection "Code Generator Setup"
+
+text "Note that the requirement for correctness
+      is even weaker here than in SML.
+      We therefore manually handle the case where length is 0 (in which case nothing happens at all)."
+
 code_printing code_module "array_sblit" \<rightharpoonup> (SML)
   \<open>
    fun array_sblit src si di len = (
@@ -192,7 +214,7 @@ code_printing constant safe_sblit' \<rightharpoonup>
 export_code safe_sblit checking SML Scala
 
 
-section "Derived methods"
+subsection "Derived operations"
 
 definition array_shr where
   "array_shr a i k \<equiv> do {

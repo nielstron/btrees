@@ -2,19 +2,37 @@ theory BTree
   imports Main "HOL-Data_Structures.Sorted_Less" "HOL-Data_Structures.Cmp"
 begin
 
+(* some setup to cover up the redefinition of sorted in Sorted_Less
+   but keep the lemmas *)
 hide_const (open) Sorted_Less.sorted
 abbreviation "sorted_less \<equiv> Sorted_Less.sorted"
 
-subsection "General structure and concepts definition"
+section "Definition of the B-Tree"
 
-text "General structure:  nat values in the leafs and nat/tree node internal node list (nat always larger than every element in the corresponding subtree)"
-  (* definition heavily based on Tree234_Set, Pair structure from popl10 (malecha)/mtps08*)
+subsection "Datatype definition"
+
+text "B-trees can be considered to have all data stored interleaved
+as child nodes and separating elements (also keys or indices).
+We define them to either be a Node that holds a list of pairs of children
+and indices or be a completely empty Leaf."
 
 
 datatype 'a btree = Leaf | Node "('a btree * 'a) list" "'a btree"
 
 type_synonym 'a btree_list =  "('a btree * 'a) list"
 type_synonym 'a btree_pair =  "('a btree * 'a)"
+
+abbreviation subtrees where "subtrees xs \<equiv> (map fst xs)"
+abbreviation separators where "separators xs \<equiv> (map snd xs)"
+
+subsection "Inorder and Set"
+
+text "The set of B-tree elements is defined automatically."
+
+thm btree.set
+value "set_btree (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
+
+text "The inorder view is defined with the help of the concat function."
 
 fun inorder :: "'a btree \<Rightarrow> 'a list" where
   "inorder Leaf = []" |
@@ -23,16 +41,12 @@ fun inorder :: "'a btree \<Rightarrow> 'a list" where
 abbreviation "inorder_pair  \<equiv> \<lambda>(sub,sep). inorder sub @ [sep]"
 abbreviation "inorder_list ts \<equiv> concat (map inorder_pair ts)"
 
-
-(* this abbreviation makes handling the list much easier *)
+(* this abbreviation makes handling the list much nicer *)
 thm inorder.simps
 
-abbreviation subtrees where "subtrees xs \<equiv> (map fst xs)"
-abbreviation separators where "separators xs \<equiv> (map snd xs)"
-abbreviation "set_btree_pair uu \<equiv> (\<Union>(set_btree ` Basic_BNFs.fsts uu) \<union> Basic_BNFs.snds uu)"
-abbreviation "set_btree_list ts \<equiv> (\<Union>uu\<in>set ts. set_btree_pair uu)"
+value "inorder (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
 
-
+subsection "Height and Balancedness"
 
 class height =
   fixes height :: "'a \<Rightarrow> nat"
@@ -48,7 +62,7 @@ instance ..
 
 end
 
-thm btree.set
+text "Balancedness is defined is close accordance to the definition by Ernst"
 
 fun bal:: "'a btree \<Rightarrow> bool" where
   "bal Leaf = True" |
@@ -58,9 +72,18 @@ fun bal:: "'a btree \<Rightarrow> bool" where
   )"
 
 
-(* alt1: following knuths definition to allow for any natural number as order and resolve ambiguity *)
-(* alt2: use range [k,2*k] allowing for valid btrees from k=1 onwards *)
-(* TODO allow for length ts \<le> 2*k+1, NOTE: makes proofs uglier *)
+value "height (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
+
+
+subsection "Order"
+
+text "The order of a B-tree is defined just as in the original paper by Bayer."
+
+(* alt1: following knuths definition to allow for any
+   natural number as order and resolve ambiguity *)
+(* alt2: use range [k,2*k] allowing for valid btrees
+   from k=1 onwards NOTE this is what I ended up implementing *)
+
 fun order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
   "order k Leaf = True" |
   "order k (Node ts t) = (
@@ -69,6 +92,7 @@ fun order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
   (\<forall>sub \<in> set (subtrees ts). order k sub) \<and> order k t
 )"
 
+text \<open>The special condition for the root is called \textit{root\_order}\<close>
 
 (* the invariant for the root of the btree *)
 fun root_order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
@@ -80,7 +104,7 @@ fun root_order:: "nat \<Rightarrow> 'a btree \<Rightarrow> bool" where
 )"
 
 
-
+subsection "Auxiliary Lemmas"
 
 (* auxiliary lemmas when handling sets *)
 lemma separators_split:
@@ -107,7 +131,6 @@ lemma finite_set_in_idem:
 lemma height_Leaf: "height t = 0 \<longleftrightarrow> t = Leaf"
   by (induction t) (auto)
 
-
 lemma height_btree_order:
   "height (Node (ls@[a]) t) = height (Node (a#ls) t)"
   by simp
@@ -119,11 +142,6 @@ lemma height_btree_sub:
 lemma height_btree_last: 
   "height (Node ((sub,x)#ts) t) = max (height (Node ts sub)) (Suc (height t))"
   by (induction ts) auto
-
-
-
-value "(Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
-value "inorder (Node [(Leaf, (1::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 10), (Leaf, 30), (Leaf, 100)] Leaf)"
 
 
 lemma set_btree_inorder: "set (inorder t) = set_btree t"
@@ -157,7 +175,7 @@ lemma fold_max_set: "\<forall>x \<in> set t. x = f \<Longrightarrow> fold max t 
 
 lemma height_bal_tree: "bal (Node ts t) \<Longrightarrow> height (Node ts t) = Suc (height t)"
   by (induction ts) auto
- 
+
 
 
 lemma bal_split_last: 
@@ -200,14 +218,7 @@ lemma order_impl_root_order: "\<lbrakk>k > 0; order k t\<rbrakk> \<Longrightarro
   done
 
 
-value "set (inorder (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf))"
-value "height (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
-  (* a bit weird *)
-value "size (Node [(Leaf, (0::nat)), (Node [(Leaf, 1), (Leaf, 10)] Leaf, 12), (Leaf, 30), (Leaf, 100)] Leaf)"
-
-
-
-(* sorted inorder implies that some sublists are sorted which can be followed directly *)
+(* sorted inorder implies that some sublists are sorted. This can be followed directly *)
 
 lemma sorted_inorder_list_separators: "sorted_less (inorder_list ts) \<Longrightarrow> sorted_less (separators ts)"
   apply(induction ts)

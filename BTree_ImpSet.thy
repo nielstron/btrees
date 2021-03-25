@@ -254,12 +254,13 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
     "rebalance_middle_tree \<equiv> \<lambda> k tsi i r_ti. (
   case r_ti of
   None \<Rightarrow> do {
-    return (Btnode tsi r_ti)
+      (r_sub,sep) \<leftarrow> pfa_get tsi i;
+      case r_sub of None \<Rightarrow>  return (Btnode tsi r_ti)
   } |
   Some p_t \<Rightarrow> do {
-      ti \<leftarrow> !p_t;
       (r_sub,sep) \<leftarrow> pfa_get tsi i;
       case r_sub of (Some p_sub) \<Rightarrow>  do {
+      ti \<leftarrow> !p_t;
       sub \<leftarrow> !p_sub;
       l_sub \<leftarrow> pfa_length (kvs sub);
       l_tts \<leftarrow> pfa_length (kvs ti);
@@ -267,7 +268,7 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
         return (Btnode tsi r_ti)
       } else do {
         l_tsi \<leftarrow> pfa_length tsi;
-        if l_tsi = i then do {
+        if i+1 \<ge> l_tsi then do {
           mts' \<leftarrow> pfa_append_extend_grow (kvs sub) (last sub,sep) (kvs ti);
           res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last ti);
           case res_node\<^sub>i of
@@ -284,8 +285,8 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
             res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last rsub);
             case res_node\<^sub>i of
              T\<^sub>i u \<Rightarrow> do {
-              tsi' \<leftarrow> pfa_set tsi (i+1) (u,rsep);              
-              tsi'' \<leftarrow> pfa_delete tsi' i;
+              tsi' \<leftarrow> pfa_set tsi i (u,rsep);              
+              tsi'' \<leftarrow> pfa_delete tsi' (i+1);
               return (Btnode tsi'' r_ti)
             } |
              Up\<^sub>i l a r \<Rightarrow> do {

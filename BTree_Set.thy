@@ -106,6 +106,11 @@ fun node\<^sub>i:: "nat \<Rightarrow> ('a btree \<times> 'a) list \<Rightarrow> 
     )
   )"
 
+lemma nodei_ti_simp: "node\<^sub>i k ts t = T\<^sub>i x \<Longrightarrow> x = Node ts t"
+  apply (cases "length ts \<le> 2*k")
+  apply (auto split!: list.splits)
+  done
+
 
 fun ins:: "nat \<Rightarrow> 'a \<Rightarrow> 'a btree \<Rightarrow> 'a up\<^sub>i" where
   "ins k x Leaf = (Up\<^sub>i Leaf x Leaf)" |

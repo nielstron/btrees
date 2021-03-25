@@ -888,25 +888,6 @@ proof -
     by (simp add: mult.left_assoc list_assn_aux_append_Cons)
 qed
 
-
-lemma rebalance_middle_tree_merge_rule:
-"<btnode_assn k (Node mts mt) sub * btnode_assn k (Node tts tt) ti>
-do {
-      mts' \<leftarrow> pfa_append_extend_grow (kvs sub) (last sub,sep) (kvs ti);
-          res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last ti);
-          case res_node\<^sub>i of
-            T\<^sub>i u \<Rightarrow> return (Btnode tsi u) |
-            Up\<^sub>i l a r \<Rightarrow> do {
-              tsi' \<leftarrow> pfa_append tsi (l,a);
-              return (Btnode tsi' r)
-          }
-} <\<lambda>ri. btnode_assn k (case abs_split.node\<^sub>i k (mts@(mt,sep)#tts) tt of
-       abs_split.T\<^sub>i u \<Rightarrow>
-        Node ls u |
-       abs_split.Up\<^sub>i l a r \<Rightarrow>
-        Node (ls@[(l,a)]) r) ri>\<^sub>t"
-  oops
-
 lemma rebalance_middle_tree_rule:
   assumes "height t = height sub"
     and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"
@@ -926,11 +907,13 @@ proof(cases sub)
   then have t_leaf[simp]: "t = Leaf" using assms
     by (cases t) auto
   show ?thesis
-    apply(subst rebalance_middle_tree_def)
-    apply(rule hoare_triple_preI)
-    apply(vcg)
-    apply (auto dest!: mod_starD list_assn_len)
-    apply(rule ent_ex_postI[where x=tsi])
+    apply (subst rebalance_middle_tree_def)
+    apply (rule hoare_triple_preI)
+    apply (vcg)
+    apply (auto dest!: mod_starD list_assn_len split!: option.splits)
+    apply (vcg)
+    apply (auto dest!: mod_starD list_assn_len split!: option.splits)
+    apply (rule ent_ex_postI[where x=tsi])
     apply sep_auto
     done
 next
@@ -983,20 +966,21 @@ next
      using False apply(auto dest!: mod_starD list_assn_len)
      done
       apply(sep_auto dest!: mod_starD)
-     apply (auto  dest!: list_assn_len)[]
-apply (auto  dest!: list_assn_len)[]
-   apply(sep_auto )
-     apply (auto  dest!: list_assn_len)[]
-    apply (auto  dest!: list_assn_len)[]
-   subgoal for ac bc ae be af bf x aa b tia tsi' ad bd ah bh ai bi aj bj aaa ba tiaa tsi'a ab bb
-       xa
-     apply(subgoal_tac "z = (ab, bb) ")
-      apply(auto)[]
-      apply(vcg)
-     
-     apply(auto dest!: mod_starD)[]
-     thm node\<^sub>i_no_split[of "(mts @ (mt, sep) # tts)"]
-     oops
+     apply (auto dest!: list_assn_len)[]
+    apply (auto dest!: list_assn_len)[]
+   apply(sep_auto)
+     apply (auto dest!: list_assn_len mod_starD)
+   apply(vcg heap add: node\<^sub>i_rule_ins)
+   apply(auto split!: abs_split.up\<^sub>i.splits)[]
+   subgoal for ac bc x aa b tia tsi' ah bh ai bi aj bj aaa ba tiaa tsi'a xa ab bd tib tsi'b am bn an
+       bo ao bp ad bb tic tsi'c x1
+     find_theorems "abs_split.node\<^sub>i _ _ _ = _"
+        apply(rule ent_ex_postI[where x="zs1@(Some xa, sep)#zs2"])
+    apply (auto dest!: list_assn_len mod_starD abs_split.nodei_ti_simp)[]
+        apply(rule ent_ex_postI[where x="(aaa, ba)"])
+        apply(rule ent_ex_postI[where x="tiaa"])
+        apply(rule ent_ex_postI[where x="tsi'a"])
+    oops
 
 
 lemma empty_rule:

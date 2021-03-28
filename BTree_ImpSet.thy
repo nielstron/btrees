@@ -268,13 +268,16 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
         return (Btnode tsi r_ti)
       } else do {
         l_tsi \<leftarrow> pfa_length tsi;
-        if i+1 \<ge> l_tsi then do {
+        if i+1 = l_tsi then do {
           mts' \<leftarrow> pfa_append_extend_grow (kvs sub) (last sub,sep) (kvs ti);
           res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last ti);
           case res_node\<^sub>i of
-            T\<^sub>i u \<Rightarrow> return (Btnode tsi u) |
+            T\<^sub>i u \<Rightarrow> do {
+              tsi' \<leftarrow> pfa_shrink i tsi;
+              return (Btnode tsi' u)
+            } |
             Up\<^sub>i l a r \<Rightarrow> do {
-              tsi' \<leftarrow> pfa_append tsi (l,a);
+              tsi' \<leftarrow> pfa_set tsi i (l,a);
               return (Btnode tsi' r)
             }
         } else do {
@@ -888,6 +891,17 @@ proof -
     by (simp add: mult.left_assoc list_assn_aux_append_Cons)
 qed
 
+lemma btupi_assn_T: "h \<Turnstile> btupi_assn k (abs_split.node\<^sub>i k ts t) (T\<^sub>i x) \<Longrightarrow> abs_split.node\<^sub>i k ts t = abs_split.T\<^sub>i (Node ts t)"
+  apply(auto simp add: abs_split.node\<^sub>i.simps dest!: mod_starD split!: list.splits)
+  done
+
+lemma btupi_assn_Up: "h \<Turnstile> btupi_assn k (abs_split.node\<^sub>i k ts t) (Up\<^sub>i l a r) \<Longrightarrow>
+  abs_split.node\<^sub>i k ts t = (
+    case BTree_Set.split_half ts of (ls, (sub,sep)#rs) \<Rightarrow>
+      abs_split.Up\<^sub>i (Node ls sub) sep (Node rs t))"
+  apply(auto simp add: abs_split.node\<^sub>i.simps dest!: mod_starD split!: list.splits)
+  done
+
 lemma rebalance_middle_tree_rule:
   assumes "height t = height sub"
     and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"
@@ -969,17 +983,80 @@ next
      apply (auto dest!: list_assn_len)[]
     apply (auto dest!: list_assn_len)[]
    apply(sep_auto)
-     apply (auto dest!: list_assn_len mod_starD)
-   apply(vcg heap add: node\<^sub>i_rule_ins)
-   apply(auto split!: abs_split.up\<^sub>i.splits)[]
-   subgoal for ac bc x aa b tia tsi' ah bh ai bi aj bj aaa ba tiaa tsi'a xa ab bd tib tsi'b am bn an
-       bo ao bp ad bb tic tsi'c x1
-     find_theorems "abs_split.node\<^sub>i _ _ _ = _"
-        apply(rule ent_ex_postI[where x="zs1@(Some xa, sep)#zs2"])
-    apply (auto dest!: list_assn_len mod_starD abs_split.nodei_ti_simp)[]
-        apply(rule ent_ex_postI[where x="(aaa, ba)"])
-        apply(rule ent_ex_postI[where x="tiaa"])
-        apply(rule ent_ex_postI[where x="tsi'a"])
+     apply (auto dest!: list_assn_len mod_starD)[]
+     apply (auto dest!: list_assn_len mod_starD)[]
+(* Issue: we do not know yet what  'xa' is pointing at *)
+   subgoal for ac bc ae be af bf x aa b tia tsi' ad bd ah bh ai bi aj bj aaa ba tiaa tsi'a ab bb xa
+     apply(subgoal_tac "z = (ab, bb)")
+     prefer 2
+     apply (metis list_assn_len nth_append_length)
+     apply simp
+  apply(vcg)
+     subgoal
+  (* still the "IF" branch *)
+       apply(rule entailsI)
+  (* solves impossible case*)
+       using False apply (auto dest!: list_assn_len mod_starD)[]
+       done
+     apply simp
+     apply(rule hoare_triple_preI)
+     apply(sep_auto heap add: node\<^sub>i_rule_ins dest!: mod_starD)
+    apply (auto simp add: is_pfa_def)[]
+    apply (auto simp add: is_pfa_def)[]
+    apply (auto simp add: is_pfa_def)[]
+    apply (auto simp add: is_pfa_def)[]
+    apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+     subgoal for aab bf tiab tsi'b aba bca ada bda tiaaa tsi'aa aha bha aja bja an bn ap bp aq bq ar br
+       at bt av bv ax bx az bz cc cd ce cf cg ch xb xaa xba
+       apply(rule hoare_triple_preI)
+     apply(sep_auto split!: btupi.splits)
+       apply(auto dest!: btupi_assn_T mod_starD)[]
+        apply(rule ent_ex_postI[where x="zs1"])
+       apply sep_auto
+       apply sep_auto
+       apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
+       subgoal for x21 x22 x23 abb bba adb bdb af bf ahb bhb ajb bjb al bl ag bg x22a
+        apply(rule ent_ex_postI[where x="zs1 @ [(x21, x22)]"])
+         apply sep_auto
+         done
+       apply(auto dest!: btupi_assn_T mod_starD)[]
+       apply sep_auto
+       apply sep_auto
+       apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
+       subgoal for x21 x22 x23 abb bba adb bdb af bf ahb bhb ajb bjb al bl ag bg x22a
+        apply(rule ent_ex_postI[where x="zs1 @ [(x21, x22)]"])
+         apply sep_auto
+         done
+       apply(auto dest!: btupi_assn_T mod_starD)[]
+       apply sep_auto
+       apply sep_auto
+       apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
+       subgoal for x21 x22 x23 abb bba adb bdb af bf ahb bhb ajb bjb al bl ag bg x22a
+        apply(rule ent_ex_postI[where x="zs1 @ [(x21, x22)]"])
+         apply sep_auto
+         done
+       apply(auto dest!: btupi_assn_T mod_starD)[]
+       apply sep_auto
+       apply sep_auto
+       apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
+       subgoal for x21 x22 x23 abb bba adb bdb af bf ahb bhb ajb bjb al bl ag bg x22a
+        apply(rule ent_ex_postI[where x="zs1 @ [(x21, x22)]"])
+         apply sep_auto
+         done
+       done
+     apply sep_auto
+     apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
+     apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
+     apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
+     apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
+     apply sep_auto
+     apply(auto dest!: list_assn_len mod_starD)[]
+     apply(auto dest!: list_assn_len mod_starD)[]
+     apply(auto dest!: list_assn_len mod_starD)[]
+     apply(auto dest!: list_assn_len mod_starD)[]
+     apply(auto dest!: list_assn_len mod_starD)[]
+     done
+   done
     oops
 
 

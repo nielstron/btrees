@@ -882,8 +882,9 @@ lemma node\<^sub>i_rule_ins: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1; length ls = l
    btree_assn k l li *
    id_assn a ai *
    blist_assn k rs rsi *
-   btree_assn k t ti> node\<^sub>i k (aa, al)
-          ti <btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, a) # rs) t)>\<^sub>t"
+   btree_assn k t ti>
+     node\<^sub>i k (aa, al) ti
+ <btupi_assn k (abs_split.node\<^sub>i k (ls @ (l, a) # rs) t)>\<^sub>t"
 proof -
   assume [simp]: "2*k \<le> c" "c \<le> 4*k+1" "length ls = length lsi"
   moreover note node\<^sub>i_rule[of k c "(lsi @ (li, ai) # rsi)" aa al "(ls @ (l, a) # rs)" t ti]
@@ -901,6 +902,9 @@ lemma btupi_assn_Up: "h \<Turnstile> btupi_assn k (abs_split.node\<^sub>i k ts t
       abs_split.Up\<^sub>i (Node ls sub) sep (Node rs t))"
   apply(auto simp add: abs_split.node\<^sub>i.simps dest!: mod_starD split!: list.splits)
   done
+
+lemma second_last_access:"(xs@a#b#ys) ! Suc(length xs) = b"
+  by (simp add: nth_via_drop)
 
 lemma rebalance_middle_tree_rule:
   assumes "height t = height sub"
@@ -1057,7 +1061,223 @@ next
      apply(auto dest!: list_assn_len mod_starD)[]
      done
    done
-    oops
+next
+  case (Cons rss rrs)
+  then show ?thesis
+      apply(subst rebalance_middle_tree_def)
+      apply(rule hoare_triple_preI)
+      apply(sep_auto dest!: mod_starD)
+       apply (auto  dest!: list_assn_len)[]
+
+      apply(sep_auto  split!: prod.splits)
+      using assms apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
+       apply(auto)[]
+   subgoal for _ _ _ _ _ _ _ _ tp tsia' tsin' tia tsi' _ _ _ _ _ _ _ _ aaa ba tiaa tsi'a
+      apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
+      apply(vcg)
+       apply(auto)[]
+     using False apply(auto dest!: mod_starD list_assn_len)
+     done
+      apply(sep_auto dest!: mod_starD)
+     apply (auto dest!: list_assn_len)[]
+    apply (auto dest!: list_assn_len)[]
+   apply(sep_auto)
+     apply (auto dest!: list_assn_len mod_starD)[]
+     apply (auto dest!: list_assn_len mod_starD)[]
+(* Issue: we do not know yet what  'xa' is pointing at *)
+   subgoal for ac bc af bf ag bg ah bh x aa b tia tsi' ad bd ai bi aj bj ak bk aaa ba tiaa tsi'a ab
+       bb xaa
+     apply(subgoal_tac "z = (ab, bb)")
+     prefer 2
+     apply (metis list_assn_len nth_append_length)
+     apply simp
+  apply(vcg)
+     subgoal
+  (* still the "IF" branch *)
+       apply(rule entailsI)
+  (* solves impossible case*)
+       using False apply (auto dest!: list_assn_len mod_starD)[]
+       done
+     apply simp
+     subgoal for tsia tiab tsi'b xa xab xb xc
+    (* TODO different nodei rule here *)
+       supply R = node\<^sub>i_rule_ins[where k=k and c="(max (2 * k) (Suc (_ + ba)))" and lsi=tsi'b]
+       thm R
+       apply(cases tsia)
+     apply(sep_auto heap add: R pfa_append_extend_grow_rule dest!: mod_starD)
+(* all of these cases are vacuous *)
+      apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+      apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+      apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+      apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+      apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+      apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+     apply(sep_auto split!: btupi.splits)
+      apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+      apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+      apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+      apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+      apply(rule hoare_triple_preI)
+       apply (cases zs2)
+       apply(auto dest!: list_assn_len mod_starD)[]
+       subgoal for aab be aaaa baa tiac tsi'c ae bea aga bga ah bh aia bia xd h aba list
+(* ensuring that the tree to the right is not none *)
+         apply (cases aba)
+         apply(subgoal_tac "xd = aba")
+         prefer 2
+         apply(auto dest!: list_assn_len simp add: second_last_access)[]
+         apply (simp add: prod_assn_def)
+         apply(cases rss)
+         apply simp
+         subgoal for aac _ x1 bab
+         apply(subgoal_tac "height x1 \<noteq> 0")
+           prefer 2
+          using assms apply(auto)[]
+          apply(cases x1; cases aac)
+         apply(cases aac)
+          apply simp+
+(* now we may proceed *)
+       apply (vcg (ss))
+       apply (vcg (ss))
+       apply (vcg (ss))
+       apply (vcg (ss))
+       apply (vcg (ss))
+          subgoal for x21 x22 aad tsiaa tiad tsi'd xe
+          apply(cases "kvs xe")
+            apply (vcg (ss))
+            apply (vcg (ss))
+            apply (vcg (ss))
+            apply (vcg (ss))
+            apply (vcg (ss))
+            subgoal for _ bh xf
+            apply (cases xf)
+              apply simp
+              apply (vcg (ss))
+              subgoal for aae _
+              supply R = node\<^sub>i_rule_ins[where
+                   k=k and
+                   c="max (2*k) (Suc (be + bh))" and
+                   ls="mts" and
+                   lsi="tsi'b" and
+                   al="Suc (be+bh)" and
+                   aa=aae and
+                   ti=tiad and
+                   rsi=tsi'd and
+                    li=tiab and a=sep and ai=sep
+              ]
+              thm R
+              apply (sep_auto heap add: R)
+              sorry
+       apply(auto simp add: is_pfa_def dest!: list_assn_len)[]
+              apply (vcg (ss))
+(*TODO*)
+         subgoal for aac abb bba aca bca af bf ah bh an bn ap bp ar br at bt av bv ax bx ay b_y az bz rsep x1
+       x2 ada bda aea beb
+(* TODO why is this repeated 5 times? *)
+         apply(subgoal_tac "height x1 \<noteq> 0")
+           prefer 2
+          using assms apply(auto)[]
+          apply(cases x1)
+          apply auto
+          apply(cases aac)
+           apply auto
+         apply(subgoal_tac "(zs1 @ (Some xaa, sep) # (aac, x2) # list) ! Suc (length ls) = (aac, x2)")
+         apply(auto dest!: list_assn_len simp add: second_last_access)
+        done
+          apply(auto dest!: mod_starD simp add: prod_assn_def split!: prod.splits)[]
+         subgoal for aac abb bba aca bca af bf ah bh an bn ap bp ar br at bt av bv ax bx ay b_y az bz rsep x1
+       x2 ada bda aea beb
+         apply(subgoal_tac "height x1 \<noteq> 0")
+           prefer 2
+          using assms apply(auto)[]
+          apply(cases x1)
+          apply auto
+          apply(cases aac)
+           apply auto
+         apply(subgoal_tac "(zs1 @ (Some xaa, sep) # (aac, x2) # list) ! Suc (length ls) = (aac, x2)")
+         apply(auto dest!: list_assn_len simp add: second_last_access)
+        done
+          apply(auto dest!: mod_starD simp add: prod_assn_def split!: prod.splits)[]
+         subgoal for aac abb bba aca bca af bf ah bh an bn ap bp ar br at bt av bv ax bx ay b_y az bz rsep x1
+       x2 ada bda aea beb
+         apply(subgoal_tac "height x1 \<noteq> 0")
+           prefer 2
+          using assms apply(auto)[]
+          apply(cases x1)
+          apply auto
+          apply(cases aac)
+           apply auto
+         apply(subgoal_tac "(zs1 @ (Some xaa, sep) # (aac, x2) # list) ! Suc (length ls) = (aac, x2)")
+         apply(auto dest!: list_assn_len simp add: second_last_access)
+        done
+          apply(auto dest!: mod_starD simp add: prod_assn_def split!: prod.splits)[]
+         subgoal for aac abb bba aca bca af bf ah bh an bn ap bp ar br at bt av bv ax bx ay b_y az bz rsep x1
+       x2 ada bda aea beb
+         apply(subgoal_tac "height x1 \<noteq> 0")
+           prefer 2
+          using assms apply(auto)[]
+          apply(cases x1)
+          apply auto
+          apply(cases aac)
+           apply auto
+         apply(subgoal_tac "(zs1 @ (Some xaa, sep) # (aac, x2) # list) ! Suc (length ls) = (aac, x2)")
+         apply(auto dest!: list_assn_len simp add: second_last_access)
+        done
+         find_theorems "btree_assn"
+       sorry
+       apply(rule entailsI)
+       apply(auto dest!: btupi_assn_T)[]
+        apply(rule ent_ex_postI[where x="zs1"])
+       apply sep_auto
+       apply sep_auto
+       apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
+       subgoal for x21 x22 x23 abb bba adb bdb af bf ahb bhb ajb bjb al bl ag bg x22a
+        apply(rule ent_ex_postI[where x="zs1 @ [(x21, x22)]"])
+         apply sep_auto
+         done
+       apply(auto dest!: btupi_assn_T mod_starD)[]
+       apply sep_auto
+       apply sep_auto
+       apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
+       subgoal for x21 x22 x23 abb bba adb bdb af bf ahb bhb ajb bjb al bl ag bg x22a
+        apply(rule ent_ex_postI[where x="zs1 @ [(x21, x22)]"])
+         apply sep_auto
+         done
+       apply(auto dest!: btupi_assn_T mod_starD)[]
+       apply sep_auto
+       apply sep_auto
+       apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
+       subgoal for x21 x22 x23 abb bba adb bdb af bf ahb bhb ajb bjb al bl ag bg x22a
+        apply(rule ent_ex_postI[where x="zs1 @ [(x21, x22)]"])
+         apply sep_auto
+         done
+       apply(auto dest!: btupi_assn_T mod_starD)[]
+       apply sep_auto
+       apply sep_auto
+       apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
+       subgoal for x21 x22 x23 abb bba adb bdb af bf ahb bhb ajb bjb al bl ag bg x22a
+        apply(rule ent_ex_postI[where x="zs1 @ [(x21, x22)]"])
+         apply sep_auto
+         done
+       done
+     apply sep_auto
+     apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
+     apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
+     apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
+     apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
+     apply sep_auto
+     apply(auto dest!: list_assn_len mod_starD)[]
+     apply(auto dest!: list_assn_len mod_starD)[]
+     apply(auto dest!: list_assn_len mod_starD)[]
+     apply(auto dest!: list_assn_len mod_starD)[]
+     apply(auto dest!: list_assn_len mod_starD)[]
+     done
+   done
+qed
+qed
+qed
+qed
+qed
 
 
 lemma empty_rule:

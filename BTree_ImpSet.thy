@@ -1414,6 +1414,31 @@ qed
 qed
 qed
 
+lemma rebalance_last_tree_rule:
+  assumes "height t = height sub"
+    and "ts = list@[(sub,sep)]"
+  shows "<is_pfa (2*k) tsi (a,n) * blist_assn k ts tsi * btree_assn k t ti>
+  rebalance_last_tree k (a,n) ti
+  <\<lambda>r. btnode_assn k (abs_split.rebalance_last_tree k ts  t) r >\<^sub>t"
+  apply(subst rebalance_last_tree_def)
+  apply(rule hoare_triple_preI)
+  using assms apply(auto dest!: mod_starD)
+  apply(subgoal_tac "length tsi - Suc 0 = length list")
+  prefer 2
+  apply(auto dest!: list_assn_len)[]
+  using assms apply(sep_auto)
+  supply R = rebalance_middle_tree_rule[where 
+    ls="list" and 
+    rs="[]" and
+    i="length tsi - 1", simplified]
+  using R by blast
+
+lemma split_max_rule:
+  assumes "nonempty_lasttreebal t"
+    and "t \<noteq> Leaf"
+  shows "<btree_assn k t ti>
+  split_max k ti
+  <((btree_assn k) \<times>\<^sub>a id_assn) (abs_split.split_max k t)>\<^sub>t"
 
 lemma empty_rule:
   shows "<emp>

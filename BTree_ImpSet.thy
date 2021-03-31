@@ -312,80 +312,6 @@ definition rebalance_last_tree:: "nat \<Rightarrow> (('a::{default,heap,linorder
    rebalance_middle_tree k tsi (l_tsi-1) ti
 }"
 
-partial_function (heap) split_max ::"nat \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> ('a btnode ref option \<times> 'a) Heap"
-  where
-    "split_max k r_t = (case r_t of Some p_t \<Rightarrow> do {
-   t \<leftarrow> !p_t;
-   (case t of Btnode tsi r_ti \<Rightarrow>
-     case r_ti of None \<Rightarrow> do {
-      (sub,sep) \<leftarrow> pfa_last tsi;
-      tsi' \<leftarrow> pfa_butlast tsi;
-      p_t := Btnode tsi' sub;
-      return (Some p_t, sep)
-  } |
-    _ \<Rightarrow> do {
-      (sub,sep) \<leftarrow> split_max k r_ti;
-      p_t' \<leftarrow> rebalance_last_tree k tsi sub;
-      p_t := p_t';
-      return (Some p_t, sep)
-  })
-})
-"
-
-partial_function (heap) del ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
-  where
-    "del k x ti = (case ti of None \<Rightarrow> return None |
-   Some p \<Rightarrow> do {
-   node \<leftarrow> !p;
-   i \<leftarrow> imp_split (kvs node) x;
-   tsl \<leftarrow> pfa_length (kvs node);
-   if i < tsl then do {
-     s \<leftarrow> pfa_get (kvs node) i;
-     let (sub,sep) = s in
-     if x \<noteq> sep then do {
-       sub' \<leftarrow> del k x sub;
-       kvs' \<leftarrow> pfa_set (kvs node) i (sub',sep);
-       node' \<leftarrow> rebalance_middle_tree k kvs' i (last node);
-       ti' \<leftarrow> ref node';
-       return (Some ti')
-      }
-     else if sub = None then do{
-       pfa_delete (kvs node) i;
-       return ti
-     }
-     else do {
-        sm \<leftarrow> split_max k sub;
-        kvs' \<leftarrow> pfa_set (kvs node) i sm;
-        node' \<leftarrow> rebalance_middle_tree k kvs' i (last node);
-        ti' \<leftarrow> ref node';
-        return (Some ti')
-     }
-   } else do {
-       t' \<leftarrow> del k x (last node);
-       node' \<leftarrow> rebalance_last_tree k (kvs node) t';
-       ti' \<leftarrow> ref node';
-       return (Some ti')
-    }
-})
-"
-
-partial_function (heap) reduce_root ::"('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
-  where
-    "reduce_root ti = (case ti of
-  None \<Rightarrow> return None |
-  Some p_t \<Rightarrow> do {
-    node \<leftarrow> !p_t;
-    tsl \<leftarrow> pfa_length (kvs node);
-    case tsl of 0 \<Rightarrow> return (last node) |
-    _ \<Rightarrow> return ti
-})"
-
-partial_function (heap) delete ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
-  where
-    "delete k x ti = do {
-  ti' \<leftarrow> del k x ti;
-  reduce_root ti'
-}"
 
 subsection "Refinement of the abstract B-tree operations"
 
@@ -1417,8 +1343,8 @@ qed
 lemma rebalance_last_tree_rule:
   assumes "height t = height sub"
     and "ts = list@[(sub,sep)]"
-  shows "<is_pfa (2*k) tsi (a,n) * blist_assn k ts tsi * btree_assn k t ti>
-  rebalance_last_tree k (a,n) ti
+  shows "<is_pfa (2*k) tsi tsia * blist_assn k ts tsi * btree_assn k t ti>
+  rebalance_last_tree k tsia ti
   <\<lambda>r. btnode_assn k (abs_split.rebalance_last_tree k ts  t) r >\<^sub>t"
   apply(subst rebalance_last_tree_def)
   apply(rule hoare_triple_preI)
@@ -1431,14 +1357,214 @@ lemma rebalance_last_tree_rule:
     ls="list" and 
     rs="[]" and
     i="length tsi - 1", simplified]
+  apply(cases tsia)
   using R by blast
 
+partial_function (heap) split_max ::"nat \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> ('a btnode ref option \<times> 'a) Heap"
+  where
+    "split_max k r_t = (case r_t of Some p_t \<Rightarrow> do {
+   t \<leftarrow> !p_t;
+   (case (last t) of None \<Rightarrow> do {
+      (sub,sep) \<leftarrow> pfa_last (kvs t);
+      tsi' \<leftarrow> pfa_butlast (kvs t);
+      p_t := Btnode tsi' sub;
+      return (Some p_t, sep)
+  } |
+    Some x \<Rightarrow> do {
+      (sub,sep) \<leftarrow> split_max k (Some x);
+      p_t' \<leftarrow> rebalance_last_tree k (kvs t) sub;
+      p_t := p_t';
+      return (Some p_t, sep)
+  })
+})
+"
+
+declare pfa_last_rule[sep_heap_rules]
+lemma pfa_last_rule_alt[sep_heap_rules del]: "
+  xs = ls@[x] \<Longrightarrow>
+  <is_pfa c xs a> 
+    pfa_last a
+  <\<lambda>r. is_pfa c xs a * \<up>(r=x)>"
+  apply (sep_auto simp: pfa_last_def arl_last_def is_pfa_def last_take_nth_conv)
+  apply (metis length_0_conv length_append_singleton less_nat_zero_code linorder_neqE_nat nat.simps(3) nz_le_conv_less take_eq_Nil)
+  apply (sep_auto simp: pfa_last_def arl_last_def is_pfa_def last_take_nth_conv)
+  by (metis One_nat_def last_snoc last_take_nth_conv neq_Nil_rev_conv take0)
+
+declare  abs_split.split_max.simps [simp del] abs_split.rebalance_last_tree.simps [simp del] height_btree.simps [simp del]
+
 lemma split_max_rule:
-  assumes "nonempty_lasttreebal t"
+  assumes "abs_split.nonempty_lasttreebal t"
     and "t \<noteq> Leaf"
   shows "<btree_assn k t ti>
   split_max k ti
   <((btree_assn k) \<times>\<^sub>a id_assn) (abs_split.split_max k t)>\<^sub>t"
+  using assms
+proof(induction k t arbitrary: ti rule: abs_split.split_max.induct)
+  case (2 a)
+  then show ?case by auto
+next
+  case (1 k ts t)
+  then show ?case
+  proof(cases t)
+    case Leaf
+    then show ?thesis
+  apply(subst split_max.simps)
+  apply (vcg)
+  using assms apply auto[]
+  apply (vcg (ss))
+  apply simp
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply(rule hoare_triple_preI)
+  apply (vcg (ss))
+  using 1 apply(auto dest!: mod_starD)[]
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  subgoal for x tsi tia tsi' xa xb sub sep
+  apply(cases tsi)
+  apply(rule hoare_triple_preI)
+  apply (vcg)
+    apply(auto simp add: prod_assn_def abs_split.split_max.simps split!: prod.splits)
+    subgoal for a b aa ba bb x2 x1a
+           apply(rule ent_ex_postI[where x="(a, bb)"])
+           apply(rule ent_ex_postI[where x="sub"])
+           apply(rule ent_ex_postI[where x="(butlast tsi')"])
+      using 1 apply (auto dest!: mod_starD simp add: list_assn_append_Cons_left)
+      apply sep_auto
+      done
+    done
+  apply(sep_auto)
+  done
+  next
+    case (Node tts tt)
+    have IH_help: "abs_split.nonempty_lasttreebal t \<Longrightarrow>
+t \<noteq> Leaf \<Longrightarrow>
+<btree_assn k (Node tts tt) (Some xb)> split_max k (Some xb) <(btree_assn k \<times>\<^sub>a id_assn) (abs_split.split_max k t)>\<^sub>t" for xb
+      using "1.IH" Node by blast
+    obtain list l_sub l_sep where ts_split:"tts = list@[(l_sub, l_sep)]"
+      using 1 Node by auto
+    from Node show ?thesis
+  apply(subst split_max.simps)
+  apply (vcg)
+  using 1 apply auto[]
+  apply (vcg (ss))
+  apply simp
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  apply (vcg (ss))
+  using 1 apply(auto dest!: mod_starD)[]
+  apply (vcg (ss))
+  subgoal for x tsi ti tsi' xa xb
+  using "1.prems" apply (vcg heap add: IH_help)
+  apply simp
+  apply simp
+  apply(subst prod_assn_def)
+  apply(cases "abs_split.split_max k t")
+  apply (auto simp del: abs_split.split_max.simps abs_split.rebalance_last_tree.simps height_btree.simps)[]
+  subgoal for a b aa ba ls tsub lsa tsuba tsep tsepa
+    apply(rule hoare_triple_preI)
+    supply R = rebalance_last_tree_rule[where k=k and tsia=tsi and ti=a and t=aa and tsi=tsi' and ts=" (ls @ [(tsub, tsep)])"
+and list=ls and sub=tsub and sep=tsep]
+  thm R
+    using ts_split
+(*TODO weird post conditions... *)
+    apply (sep_auto heap add: R
+simp del: abs_split.split_max.simps abs_split.rebalance_last_tree.simps height_btree.simps
+dest!: mod_starD)
+    apply (metis abs_split.nonempty_lasttreebal.simps(2) abs_split.split_max_height btree.distinct(1))
+    apply simp
+    apply(rule hoare_triple_preI)
+    apply (simp add: prod_assn_def)
+    apply vcg
+    apply(subst abs_split.split_max.simps)
+    using "1.prems" apply(auto dest!: mod_starD split!: prod.splits btree.splits) 
+    subgoal for ab bb ae be ah bh ai bi aj bj xc ad bd ag bg ak bk
+    apply(cases "abs_split.rebalance_last_tree k (ls @ [(tsub, tsep)]) aa"; cases xc)
+       apply auto
+      apply(rule ent_ex_preI)
+      subgoal for x21 x22 ac bc x2 tsi'a tsi'aa
+           apply(rule ent_ex_postI[where x="(ac, bc)"])
+        apply(rule ent_ex_postI[where x="x2"])
+        apply(rule ent_ex_postI[where x="tsi'aa"])
+        apply sep_auto
+        done
+      done
+    done
+  done
+  done
+  qed
+qed
+
+partial_function (heap) del ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
+  where
+    "del k x ti = (case ti of None \<Rightarrow> return None |
+   Some p \<Rightarrow> do {
+   node \<leftarrow> !p;
+   i \<leftarrow> imp_split (kvs node) x;
+   tsl \<leftarrow> pfa_length (kvs node);
+   if i < tsl then do {
+     s \<leftarrow> pfa_get (kvs node) i;
+     let (sub,sep) = s in
+     if x \<noteq> sep then do {
+       sub' \<leftarrow> del k x sub;
+       kvs' \<leftarrow> pfa_set (kvs node) i (sub',sep);
+       node' \<leftarrow> rebalance_middle_tree k kvs' i (last node);
+       ti' \<leftarrow> ref node';
+       return (Some ti')
+      }
+     else if sub = None then do{
+       pfa_delete (kvs node) i;
+       return ti
+     }
+     else do {
+        sm \<leftarrow> split_max k sub;
+        kvs' \<leftarrow> pfa_set (kvs node) i sm;
+        node' \<leftarrow> rebalance_middle_tree k kvs' i (last node);
+        ti' \<leftarrow> ref node';
+        return (Some ti')
+     }
+   } else do {
+       t' \<leftarrow> del k x (last node);
+       node' \<leftarrow> rebalance_last_tree k (kvs node) t';
+       ti' \<leftarrow> ref node';
+       return (Some ti')
+    }
+})
+"
+
+partial_function (heap) reduce_root ::"('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
+  where
+    "reduce_root ti = (case ti of
+  None \<Rightarrow> return None |
+  Some p_t \<Rightarrow> do {
+    node \<leftarrow> !p_t;
+    tsl \<leftarrow> pfa_length (kvs node);
+    case tsl of 0 \<Rightarrow> return (last node) |
+    _ \<Rightarrow> return ti
+})"
+
+partial_function (heap) delete ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
+  where
+    "delete k x ti = do {
+  ti' \<leftarrow> del k x ti;
+  reduce_root ti'
+}"
 
 lemma empty_rule:
   shows "<emp>

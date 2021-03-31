@@ -875,6 +875,10 @@ lemma insert_rule':
   using abs_split.insert_bal abs_split.insert_order abs_split.insert_inorder 
   by (sep_auto heap: insert_rule simp add: sorted_ins_list)
 
+lemma list_update_length2 [simp]:
+  "(xs @ x # y # ys)[Suc (length xs) := z] = (xs @ x # z # ys)"
+  by (induct xs, auto)
+
 
 lemma node\<^sub>i_rule_ins: "\<lbrakk>2*k \<le> c; c \<le> 4*k+1; length ls = length lsi\<rbrakk> \<Longrightarrow>
  <is_pfa c (lsi @ (li, ai) # rsi) (aa, al) *
@@ -1129,7 +1133,7 @@ next
          apply (simp add: prod_assn_def)
          apply(cases rss)
          apply simp
-         subgoal for aac _ x1 bab
+         subgoal for aac rsep x1 bab
          apply(subgoal_tac "height x1 \<noteq> 0")
            prefer 2
           using assms apply(auto)[]
@@ -1232,12 +1236,178 @@ next
      apply(rule hoare_triple_preI)
             apply(sep_auto dest!: btupi_assn_Up mod_starD)
               apply(auto split!: list.split)
-        apply(rule ent_ex_postI[where x="((zs1 @ (Some xaa, sep) # (Some aad, bab) # list)
-         [length ls := (x21a, x22a), Suc (length ls) := (x23, bab)])"])
-              thm list.split
-              thm list.splits
-            sorry
+        apply(rule ent_ex_postI[where x="((zs1 @ (x21a, x22a) # (Some aad, bab) # list)[Suc (length zs1) := (x23, bab)])"])
+        apply(rule ent_ex_postI[where x="(aaa, ba)"])
+        apply(rule ent_ex_postI[where x="tiaa"])
+        apply(rule ent_ex_postI[where x="tsi'a"])
+              apply (sep_auto dest!: list_assn_len)
+              done
+              apply sep_auto
+            apply(auto dest!: list_assn_len)[]
+              apply sep_auto
+              apply(subgoal_tac "length (zs1 @ (Some xaa, sep) # (Some aad, bab) # list) \<le> n")
+             apply(auto  dest!: mod_starD list_assn_len)[]
+              apply(simp add: is_pfa_def) (* would yield "linarith split limit exceeded when attempted with auto *)
+              subgoal
+            proof -
+              assume "\<exists>l'. (ac, bc) \<Turnstile> a \<mapsto>\<^sub>a l' \<and>
+         2 * k = length l' \<and> n \<le> 2 * k \<and> zs1 @ (Some xaa, sep) # (Some aad, rsep) # list = take n l'"
+              then guess l' by auto
+              then have "length (zs1 @ (Some xaa, sep) # (Some aad, rsep) # list) = length (take n l')"
+                by auto
+              also have "\<dots> = min (2*k) n" 
+                by (simp add: \<open>2 * k = length l'\<close>)
+              also have "\<dots> \<le> n"
+                by auto
+              finally show "Suc (Suc (length zs1 + length list)) \<le> n"
+                by auto
+            qed
+            subgoal for aaf bh aaab bac tiae tsi'e abb bba tiaaa tsi'aa x1a xg
+            apply(rule hoare_triple_preI)
+                   apply (auto dest!: btupi_assn_T mod_starD)[]
+            apply(vcg)
+              apply(cases xg)
+            apply simp
+              apply(rule P_imp_Q_implies_P)
+        apply(rule ent_ex_postI[where x="((take (Suc (length ls)) zs1 @
+           take (Suc (length ls) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))
+          [length ls := (x1a, bab)] @
+          drop (Suc (Suc (length ls))) zs1 @
+          drop (Suc (Suc (length ls)) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))"])
+        apply(rule ent_ex_postI[where x="(aaa, ba)"])
+        apply(rule ent_ex_postI[where x="tiaa"])
+        apply(rule ent_ex_postI[where x="tsi'a"])
+              apply (sep_auto dest!: list_assn_len)
+              done
+              apply sep_auto
+            apply(auto dest!: list_assn_len)[]
+              apply sep_auto
+            apply(auto dest!: list_assn_len)[]
+            apply(rule hoare_triple_preI)
+                   apply (auto dest!: btupi_assn_Up mod_starD)[]
+              apply sep_auto
+            subgoal for aaf bac tiae tsi'e abb bba tiaaa tsi'aa x21a x22a x23
+              apply(auto split!: list.split)
+        apply(rule ent_ex_postI[where x="((zs1 @ (x21a, x22a) # (Some aad, bab) # list)[Suc (length zs1) := (x23, bab)])"])
+        apply(rule ent_ex_postI[where x="(aaa, ba)"])
+        apply(rule ent_ex_postI[where x="tiaa"])
+        apply(rule ent_ex_postI[where x="tsi'a"])
+              apply (sep_auto dest!: list_assn_len)
+              done
+              apply sep_auto
+            apply(auto dest!: list_assn_len)[]
+              apply sep_auto
+            apply(auto dest!: list_assn_len)[]
+              apply(subgoal_tac "length (zs1 @ (Some xaa, sep) # (Some aad, bab) # list) \<le> n")
+             apply(auto  dest!: mod_starD list_assn_len)[]
+              apply(simp add: is_pfa_def) (* would yield "linarith split limit exceeded when attempted with auto *)
+              subgoal
+            proof -
+              assume "\<exists>l'. (ac, bc) \<Turnstile> a \<mapsto>\<^sub>a l' \<and>
+         2 * k = length l' \<and> n \<le> 2 * k \<and> zs1 @ (Some xaa, sep) # (Some aad, rsep) # list = take n l'"
+              then guess l' by auto
+              then have "length (zs1 @ (Some xaa, sep) # (Some aad, rsep) # list) = length (take n l')"
+                by auto
+              also have "\<dots> = min (2*k) n" 
+                by (simp add: \<open>2 * k = length l'\<close>)
+              also have "\<dots> \<le> n"
+                by auto
+              finally show "Suc (Suc (length zs1 + length list)) \<le> n"
+                by auto
+            qed
+            subgoal for aaf bh aaab bac tiae tsi'e abb bba tiaaa tsi'aa x1a xg
+            apply(rule hoare_triple_preI)
+                   apply (auto dest!: btupi_assn_T mod_starD)[]
+            apply(vcg)
+              apply(cases xg)
+            apply simp
+              apply(rule P_imp_Q_implies_P)
+        apply(rule ent_ex_postI[where x="((take (Suc (length ls)) zs1 @
+           take (Suc (length ls) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))
+          [length ls := (x1a, bab)] @
+          drop (Suc (Suc (length ls))) zs1 @
+          drop (Suc (Suc (length ls)) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))"])
+        apply(rule ent_ex_postI[where x="(aaa, ba)"])
+        apply(rule ent_ex_postI[where x="tiaa"])
+        apply(rule ent_ex_postI[where x="tsi'a"])
+              apply (sep_auto dest!: list_assn_len)
+              done
+              apply sep_auto
+            apply(auto dest!: list_assn_len)[]
+              apply sep_auto
+            apply(auto dest!: list_assn_len)[]
+            apply(rule hoare_triple_preI)
+                   apply (auto dest!: btupi_assn_Up mod_starD)[]
+              apply sep_auto
+            subgoal for aaf bac tiae tsi'e abb bba tiaaa tsi'aa x21a x22a x23
+              apply(auto split!: list.split)
+        apply(rule ent_ex_postI[where x="((zs1 @ (x21a, x22a) # (Some aad, bab) # list)[Suc (length zs1) := (x23, bab)])"])
+        apply(rule ent_ex_postI[where x="(aaa, ba)"])
+        apply(rule ent_ex_postI[where x="tiaa"])
+        apply(rule ent_ex_postI[where x="tsi'a"])
+              apply (sep_auto dest!: list_assn_len)
+              done
+              apply sep_auto
+            apply(auto dest!: list_assn_len)[]
+              apply sep_auto
+            apply(auto dest!: list_assn_len)[]
+              apply(subgoal_tac "length (zs1 @ (Some xaa, sep) # (Some aad, bab) # list) \<le> n")
+             apply(auto  dest!: mod_starD list_assn_len)[]
+              apply(simp add: is_pfa_def) (* would yield "linarith split limit exceeded when attempted with auto *)
+              subgoal
+            proof -
+              assume "\<exists>l'. (ac, bc) \<Turnstile> a \<mapsto>\<^sub>a l' \<and>
+         2 * k = length l' \<and> n \<le> 2 * k \<and> zs1 @ (Some xaa, sep) # (Some aad, rsep) # list = take n l'"
+              then guess l' by auto
+              then have "length (zs1 @ (Some xaa, sep) # (Some aad, rsep) # list) = length (take n l')"
+                by auto
+              also have "\<dots> = min (2*k) n" 
+                by (simp add: \<open>2 * k = length l'\<close>)
+              also have "\<dots> \<le> n"
+                by auto
+              finally show "Suc (Suc (length zs1 + length list)) \<le> n"
+                by auto
+            qed
+            subgoal for aaf bh aaab bac tiae tsi'e abb bba tiaaa tsi'aa x1a xg
+            apply(rule hoare_triple_preI)
+                   apply (auto dest!: btupi_assn_T mod_starD)[]
+            apply(vcg)
+              apply(cases xg)
+            apply simp
+              apply(rule P_imp_Q_implies_P)
+        apply(rule ent_ex_postI[where x="((take (Suc (length ls)) zs1 @
+           take (Suc (length ls) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))
+          [length ls := (x1a, bab)] @
+          drop (Suc (Suc (length ls))) zs1 @
+          drop (Suc (Suc (length ls)) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))"])
+        apply(rule ent_ex_postI[where x="(aaa, ba)"])
+        apply(rule ent_ex_postI[where x="tiaa"])
+        apply(rule ent_ex_postI[where x="tsi'a"])
+              apply (sep_auto dest!: list_assn_len)
+              done
+              apply sep_auto
+            apply(auto dest!: list_assn_len)[]
+              apply sep_auto
+            apply(auto dest!: list_assn_len)[]
+            apply(rule hoare_triple_preI)
+                   apply (auto dest!: btupi_assn_Up mod_starD)[]
+              apply sep_auto
+            subgoal for aaf bac tiae tsi'e abb bba tiaaa tsi'aa x21a x22a x23
+              apply(auto split!: list.split)
+        apply(rule ent_ex_postI[where x="((zs1 @ (x21a, x22a) # (Some aad, bab) # list)[Suc (length zs1) := (x23, bab)])"])
+        apply(rule ent_ex_postI[where x="(aaa, ba)"])
+        apply(rule ent_ex_postI[where x="tiaa"])
+        apply(rule ent_ex_postI[where x="tsi'a"])
+              apply (sep_auto dest!: list_assn_len)
+              done
           done
+        done
+      done
+    done
+  done
+  done
+  done
+  done
 qed
 qed
 qed

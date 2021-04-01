@@ -1538,6 +1538,25 @@ partial_function (heap) del ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,
     }
 })"
 
+lemma rebalance_middle_tree_update_rule:
+  assumes "height tt = height sub"
+    and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height tt | [] \<Rightarrow> True"
+    and "i = length ls"
+  shows "<is_pfa (2 * k) (zs1 @ (x', sep) # zs2) a * btree_assn k sub x' *
+     blist_assn k ls zs1 *
+     id_assn sep sep *
+     blist_assn k rs zs2 *
+     btree_assn k tt ti>
+  rebalance_middle_tree k a i ti
+   <btnode_assn k (abs_split.rebalance_middle_tree k ls sub sep rs tt)>\<^sub>t"
+proof (cases a)
+  case [simp]: (Pair a n)
+  note R=rebalance_middle_tree_rule[of tt sub rs i ls k "zs1@(x', sep)#zs2" a n sep ti]
+  show ?thesis
+    apply(rule hoare_triple_preI)
+    using R assms apply (sep_auto dest!: mod_starD list_assn_len simp add: prod_assn_def)
+    using assn_times_assoc star_aci(3) by auto
+qed
 
 lemma del_rul:
   assumes "bal t" and "sorted (inorder t)" and "root_order k t" and "k > 0"
@@ -1632,6 +1651,8 @@ and list=tss and sep=lastts_sep]
       using Nil  apply (auto simp add: split_relation_alt dest!: list_assn_len)[]
       subgoal for zs1 ai zs2
         apply(subgoal_tac "ai = None")
+         prefer 2
+          apply(auto dest!: list_assn_len)[]
         supply R = "2.IH"(2)[of ls rs a list sub sep]
         thm R
         using split_ts apply(sep_auto heap add: R)
@@ -1640,19 +1661,74 @@ and list=tss and sep=lastts_sep]
         using "2.prems" apply auto[]
         apply (meson "2.prems"(4) order_impl_root_order)
         using "2.prems"(4) apply fastforce
-        supply R = rebalance_middle_tree_rule
+        apply(vcg (ss))
+        apply(vcg (ss))
+        apply(vcg (ss))
+         apply (auto simp add: split_relation_alt dest!: list_assn_len)[]
+        apply(vcg (ss))
+        apply(vcg (ss); simp)
+          apply(cases tsi; simp)
+        subgoal for x' xab a n
+        supply R = rebalance_middle_tree_update_rule 
         thm R
-        apply (sep_auto heap add: R)
+(* TODO create a new heap rule, in the node_i style *)
+        apply(auto dest!: list_assn_len)[]
+        apply(rule hoare_triple_preI)
+        apply (sep_auto heap add: R dest!: mod_starD)
+        using "2.prems" abs_split.del_height[of k sub x] order_impl_root_order[of k sub] apply (auto)[]
+        using "2.prems" apply (auto split!: list.splits)[]
+        apply auto[]
+        apply sep_auto
+        subgoal for aba bb ad bd af bf aha bha al bl am bm an bn x''''
+          apply (cases "(abs_split.rebalance_middle_tree k ls (abs_split.del k x sub) sepa list tt)"; cases x'''')
+          apply sep_auto
+          apply sep_auto
+          done
+        done
+      done
       using Nil  apply (auto simp add: split_relation_alt dest!: mod_starD list_assn_len)[]
-      apply (sep_auto simp add: split_relation_alt list_assn_append_Cons_left heap add: R)
-      using Nil  apply (auto simp add: split_relation_alt dest!: mod_starD list_assn_len)[]
-      using Nil  apply (auto simp add: split_relation_alt dest!: mod_starD list_assn_len)[]
-      using Nil  apply (auto simp add: split_relation_alt dest!: mod_starD list_assn_len)[]
-      apply (sep_auto heap add: "2.IH"(1))
-      using "2.prems" apply (auto dest!: mod_starD)[]
-      using "2.prems" apply (auto dest!: mod_starD simp add: sorted_wrt_append)[]
-      using "2.prems" order_impl_root_order apply (auto dest!: mod_starD)[]
-      using "2.prems" apply (auto)[]
+(* copy pasta of "none" branch *)
+      subgoal for y zs1 ai zs2
+        apply(subgoal_tac "ai = Some y")
+         prefer 2
+          apply(auto dest!: list_assn_len)[]
+        supply R = "2.IH"(2)[of ls rs a list sub sep]
+        thm R
+        using split_ts apply(sep_auto heap add: R)
+        using "2.prems" apply auto[]
+        apply (metis "2.prems"(2) sorted_inorder_induct_subtree)
+        using "2.prems" apply auto[]
+        apply (meson "2.prems"(4) order_impl_root_order)
+        using "2.prems"(4) apply fastforce
+        apply(vcg (ss))
+        apply(vcg (ss))
+        apply(vcg (ss))
+         apply (auto simp add: split_relation_alt dest!: list_assn_len)[]
+        apply(vcg (ss))
+        apply(vcg (ss); simp)
+          apply(cases tsi; simp)
+        subgoal for x' xab a n
+        supply R = rebalance_middle_tree_update_rule 
+        thm R
+(* TODO create a new heap rule, in the node_i style *)
+        apply(auto dest!: list_assn_len)[]
+        apply(rule hoare_triple_preI)
+        apply (sep_auto heap add: R dest!: mod_starD)
+        using "2.prems" abs_split.del_height[of k sub x] order_impl_root_order[of k sub] apply (auto)[]
+        using "2.prems" apply (auto split!: list.splits)[]
+        apply auto[]
+        apply sep_auto
+        subgoal for aba bb ad bd af bf aha bha al bl am bm an bn x''''
+          apply (cases "(abs_split.rebalance_middle_tree k ls (abs_split.del k x sub) sepa list tt)"; cases x'''')
+          apply sep_auto
+          apply sep_auto
+          done
+        done
+      done
+    done
+  apply(rule hoare_triple_preI)
+      using Cons  apply (auto simp add: split_relation_alt dest!: mod_starD list_assn_len)[]
+      done
     next
       case sep_x_Leaf
       then show ?thesis sorry

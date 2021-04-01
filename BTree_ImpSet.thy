@@ -1558,7 +1558,7 @@ proof (cases a)
     using assn_times_assoc star_aci(3) by auto
 qed
 
-lemma del_rul:
+lemma del_rule:
   assumes "bal t" and "sorted (inorder t)" and "root_order k t" and "k > 0"
   shows "<btree_assn k t ti>
   del k x ti
@@ -1876,7 +1876,7 @@ and list=tss and sep=lastts_sep]
   qed
 qed
 
-partial_function (heap) reduce_root ::"('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
+definition reduce_root ::"('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
   where
     "reduce_root ti = (case ti of
   None \<Rightarrow> return None |
@@ -1887,12 +1887,26 @@ partial_function (heap) reduce_root ::"('a::{default,heap,linorder}) btnode ref 
     _ \<Rightarrow> return ti
 })"
 
-partial_function (heap) delete ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
+lemma reduce_root_rule:
+"<btree_assn k t ti> reduce_root ti <btree_assn k (abs_split.reduce_root t)>\<^sub>t"
+  apply(subst reduce_root_def)
+  apply(cases t; cases ti)
+  apply (sep_auto split!: nat.splits list.splits)+
+  done
+
+definition delete ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,heap,linorder}) btnode ref option \<Rightarrow> 'a btnode ref option Heap"
   where
     "delete k x ti = do {
   ti' \<leftarrow> del k x ti;
   reduce_root ti'
 }"
+
+lemma delete_rule:
+  assumes "bal t" and "root_order k t" and "k > 0" and "sorted (inorder t)"
+  shows "<btree_assn k t ti> delete k x ti <btree_assn k (abs_split.delete k x t)>\<^sub>t"
+  apply(subst delete_def)
+  using assms apply (sep_auto heap add: del_rule reduce_root_rule)
+  done
 
 lemma empty_rule:
   shows "<emp>

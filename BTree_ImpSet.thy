@@ -268,19 +268,7 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
         return (Btnode tsi r_ti)
       } else do {
         l_tsi \<leftarrow> pfa_length tsi;
-        if i+1 = l_tsi then do {
-          mts' \<leftarrow> pfa_append_extend_grow (kvs sub) (last sub,sep) (kvs ti);
-          res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last ti);
-          case res_node\<^sub>i of
-            T\<^sub>i u \<Rightarrow> do {
-              tsi' \<leftarrow> pfa_shrink i tsi;
-              return (Btnode tsi' u)
-            } |
-            Up\<^sub>i l a r \<Rightarrow> do {
-              tsi' \<leftarrow> pfa_set tsi i (l,a);
-              return (Btnode tsi' r)
-            }
-        } else do {
+        if i+1 < l_tsi then do {
           (r_rsub,rsep) \<leftarrow> pfa_get tsi (i+1);
           case r_rsub of Some p_rsub \<Rightarrow> do {
             rsub \<leftarrow> !p_rsub;
@@ -298,6 +286,18 @@ definition rebalance_middle_tree:: "nat \<Rightarrow> (('a::{default,heap,linord
               return (Btnode tsi'' r_ti)
             }
           }
+        } else do {
+          mts' \<leftarrow> pfa_append_extend_grow (kvs sub) (last sub,sep) (kvs ti);
+          res_node\<^sub>i \<leftarrow> node\<^sub>i k mts' (last ti);
+          case res_node\<^sub>i of
+            T\<^sub>i u \<Rightarrow> do {
+              tsi' \<leftarrow> pfa_shrink i tsi;
+              return (Btnode tsi' u)
+            } |
+            Up\<^sub>i l a r \<Rightarrow> do {
+              tsi' \<leftarrow> pfa_set tsi i (l,a);
+              return (Btnode tsi' r)
+            }
         }
       }
   }
@@ -935,16 +935,29 @@ next
      apply simp
      apply(rule hoare_triple_preI)
      apply(sep_auto heap add: node\<^sub>i_rule_ins dest!: mod_starD)
-    apply (auto simp add: is_pfa_def)[]
-    apply (auto simp add: is_pfa_def)[]
-    apply (auto simp add: is_pfa_def)[]
-    apply (auto simp add: is_pfa_def)[]
-    apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
+    apply (auto dest!: list_assn_len)[]
+    apply (auto dest!: list_assn_len)[]
+    apply (auto dest!: list_assn_len)[]
+    apply (auto dest!: list_assn_len)[]
+    apply (auto dest!: list_assn_len)[]
      subgoal for aab bf tiab tsi'b aba bca ada bda tiaaa tsi'aa aha bha aja bja an bn ap bp aq bq ar br
-       at bt av bv ax bx az bz cc cd ce cf cg ch xb xaa xba
+       at bt av bv ax bx az bz cc cd ce cf cg ch xb
        apply(rule hoare_triple_preI)
-     apply(sep_auto split!: btupi.splits)
+     apply(sep_auto split!: btupi.splits heap add: node\<^sub>i_rule_ins)
        apply(auto dest!: btupi_assn_T mod_starD)[]
+     apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
+     apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
+     apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
+     apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
+     apply(auto simp add: is_pfa_def dest!: list_assn_len mod_starD)[]
+    apply (simp add: is_pfa_def)[]
+            proof -
+              assume "\<exists>l'. (ce, cf) \<Turnstile> aaa \<mapsto>\<^sub>a l' \<and> 2 * k = length l' \<and> ba \<le> 2 * k \<and> tsi'a = take ba l'"
+              then guess l' by auto
+              moreover assume "bf \<le> 2*k " 
+              finally show "bf + ba \<le> 4*k"
+                by auto
+            qed
         apply(rule ent_ex_postI[where x="zs1"])
        apply sep_auto
        apply sep_auto

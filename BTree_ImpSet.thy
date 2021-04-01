@@ -1519,31 +1519,31 @@ partial_function (heap) del ::"nat \<Rightarrow> 'a \<Rightarrow> ('a::{default,
    i \<leftarrow> imp_split (kvs node) x;
    tsl \<leftarrow> pfa_length (kvs node);
    if i < tsl then do {
-     s \<leftarrow> pfa_get (kvs node) i;
-     let (sub,sep) = s in
-     if x \<noteq> sep then do {
+     (sub,sep) \<leftarrow> pfa_get (kvs node) i;
+     if sep \<noteq> x then do {
        sub' \<leftarrow> del k x sub;
        kvs' \<leftarrow> pfa_set (kvs node) i (sub',sep);
        node' \<leftarrow> rebalance_middle_tree k kvs' i (last node);
-       ti' \<leftarrow> ref node';
-       return (Some ti')
+       p := node';
+       return (Some p)
       }
      else if sub = None then do{
-       pfa_delete (kvs node) i;
-       return ti
+       kvs' \<leftarrow> pfa_delete (kvs node) i;
+       p := (Btnode kvs' (last node));
+       return (Some p)
      }
      else do {
         sm \<leftarrow> split_max k sub;
         kvs' \<leftarrow> pfa_set (kvs node) i sm;
         node' \<leftarrow> rebalance_middle_tree k kvs' i (last node);
-        ti' \<leftarrow> ref node';
-        return (Some ti')
+        p := node';
+        return (Some p)
      }
    } else do {
        t' \<leftarrow> del k x (last node);
        node' \<leftarrow> rebalance_last_tree k (kvs node) t';
-       ti' \<leftarrow> ref node';
-       return (Some ti')
+       p := node';
+       return (Some p)
     }
 })
 "

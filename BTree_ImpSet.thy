@@ -836,6 +836,7 @@ lemma btupi_assn_Up: "h \<Turnstile> btupi_assn k (abs_split.node\<^sub>i k ts t
 lemma second_last_access:"(xs@a#b#ys) ! Suc(length xs) = b"
   by (simp add: nth_via_drop)
 
+
 lemma rebalance_middle_tree_rule:
   assumes "height t = height sub"
     and "case rs of (rsub,rsep) # list \<Rightarrow> height rsub = height t | [] \<Rightarrow> True"
@@ -846,7 +847,7 @@ lemma rebalance_middle_tree_rule:
 apply(simp add: list_assn_append_Cons_left)
   apply(rule norm_pre_ex_rule)+
 proof(goal_cases)
-  case (1 zs1 z zs2)
+  case (1 lsi z rsi)
   then show ?case 
   proof(cases z)
     case z_split: (Pair subi sepi)
@@ -880,15 +881,15 @@ next
 
       using assms apply(sep_auto  split!: prod.splits)
       using assms apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
-       apply(auto)[]
-    subgoal for _ _ _ _ _ _ _ _ tp tsia' tsin' tia tsi' _ _ _ _ _ _ _ _ aaa ba tiaa tsi'a x2 xa  
+      using z_split apply(auto)[]
+    subgoal for _ _ _ _ _ _ _ _ tp tsia' tsin' _ _  _ _ _ _ _ _ _ _ tsia tsin tti ttsi sepi subp  
       apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
         apply(vcg)
        apply(auto)[]
-        apply(rule ent_ex_postI[where x="zs1@(Some xa, x2)#zs2"])
-        apply(rule ent_ex_postI[where x="(aaa, ba)"])
-        apply(rule ent_ex_postI[where x="tiaa"])
-        apply(rule ent_ex_postI[where x=tsi'a])
+        apply(rule ent_ex_postI[where x="lsi@(Some subp, sepi)#rsi"])
+        apply(rule ent_ex_postI[where x="(tsia, tsin)"])
+        apply(rule ent_ex_postI[where x="tti"])
+        apply(rule ent_ex_postI[where x=ttsi])
        apply(sep_auto)[]
       apply(rule hoare_triple_preI)
       using True apply(auto dest!: mod_starD list_assn_len)
@@ -907,8 +908,8 @@ next
 
       apply(sep_auto  split!: prod.splits)
       using assms apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
-       apply(auto)[]
-   subgoal for _ _ _ _ _ _ _ _ tp tsia' tsin' tia tsi' _ _ _ _ _ _ _ _ aaa ba tiaa tsi'a
+       using z_split apply(auto)[]
+    subgoal for _ _ _ _ _ _ _ _ tp tsia' tsin' _ _  _ _ _ _ _ _ _ _ tsia tsin tti ttsi  
       apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
       apply(vcg)
        apply(auto)[]
@@ -920,9 +921,9 @@ next
    apply(sep_auto)
      using assms apply (auto dest!: list_assn_len mod_starD)[]
      using assms apply (auto dest!: list_assn_len mod_starD)[]
-(* Issue: we do not know yet what  'xa' is pointing at *)
-   subgoal for ac bc ae be af bf x aa b tia tsi' ad bd ah bh ai bi aj bj aaa ba tiaa tsi'a ab bb xa
-     apply(subgoal_tac "z = (ab, bb)")
+(* Issue: we do not know yet what  'subp is pointing at *)
+   subgoal for _ _ _ _ _ _ tp tsia tsin tti ttsi _ _ _ _ _ _ _ _ tsia' tsin' tti' tsi' subi sepi subp
+     apply(subgoal_tac "z = (subi, sepi)")
      prefer 2
     apply (metis assms(3) list_assn_len nth_append_length)
      apply simp
@@ -941,41 +942,40 @@ next
     apply (auto simp add: is_pfa_def)[]
     apply (auto simp add: is_pfa_def)[]
     apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
-     subgoal for aab bf tiab tsi'b aba bca ada bda tiaaa tsi'aa aha bha aja bja an bn ap bp aq bq ar br
-       at bt av bv ax bx az bz cc cd ce cf cg ch xb xaa xba
+     subgoal
        apply(rule hoare_triple_preI)
      apply(sep_auto split!: btupi.splits)
        apply(auto dest!: btupi_assn_T mod_starD)[]
-        apply(rule ent_ex_postI[where x="zs1"])
+        apply(rule ent_ex_postI[where x="lsi"])
        apply sep_auto
        apply sep_auto
        apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
-       subgoal for x21 x22 x23 abb bba adb bdb af bf ahb bhb ajb bjb al bl ag bg x22a
-        apply(rule ent_ex_postI[where x="zs1 @ [(x21, x22)]"])
+       subgoal for li ai ri
+        apply(rule ent_ex_postI[where x="lsi @ [(li, ai)]"])
          apply sep_auto
          done
        apply(auto dest!: btupi_assn_T mod_starD)[]
        apply sep_auto
        apply sep_auto
        apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
-       subgoal for x21 x22 x23 abb bba adb bdb af bf ahb bhb ajb bjb al bl ag bg x22a
-        apply(rule ent_ex_postI[where x="zs1 @ [(x21, x22)]"])
+       subgoal for li ai ri
+        apply(rule ent_ex_postI[where x="lsi @ [(li, ai)]"])
          apply sep_auto
          done
        apply(auto dest!: btupi_assn_T mod_starD)[]
        apply sep_auto
        apply sep_auto
        apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
-       subgoal for x21 x22 x23 abb bba adb bdb af bf ahb bhb ajb bjb al bl ag bg x22a
-        apply(rule ent_ex_postI[where x="zs1 @ [(x21, x22)]"])
+       subgoal for li ai ri
+        apply(rule ent_ex_postI[where x="lsi @ [(li, ai)]"])
          apply sep_auto
          done
        apply(auto dest!: btupi_assn_T mod_starD)[]
        apply sep_auto
        apply sep_auto
        apply(auto dest!: btupi_assn_Up mod_starD split!: list.splits)[]
-       subgoal for x21 x22 x23 abb bba adb bdb af bf ahb bhb ajb bjb al bl ag bg x22a
-        apply(rule ent_ex_postI[where x="zs1 @ [(x21, x22)]"])
+       subgoal for li ai ri
+        apply(rule ent_ex_postI[where x="lsi @ [(li, ai)]"])
          apply sep_auto
          done
        done

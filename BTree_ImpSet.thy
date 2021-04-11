@@ -1003,7 +1003,7 @@ next
       apply(sep_auto  split!: prod.splits)
       using assms apply (auto simp del: height_btree.simps dest!: mod_starD list_assn_len)[]
        apply(auto)[]
-   subgoal for _ _ _ _ _ _ _ _ tp tsia' tsin' tia tsi' _ _ _ _ _ _ _ _ aaa ba tiaa tsi'a
+    subgoal for _ _ _ _ _ _ _ _ tp tsia' tsin' _ _  _ _ _ _ _ _ _ _ tsia tsin tti ttsi  
       apply(auto dest!: mod_starD list_assn_len simp: prod_assn_def)[]
       apply(vcg)
        apply(auto)[]
@@ -1016,9 +1016,8 @@ next
      using assms apply (auto dest!: list_assn_len mod_starD)[]
      using assms apply (auto dest!: list_assn_len mod_starD)[]
 (* Issue: we do not know yet what  'xa' is pointing at *)
-   subgoal for ac bc af bf ag bg ah bh x aa b tia tsi' ad bd ai bi aj bj ak bk aaa ba tiaa tsi'a ab
-       bb xaa
-     apply(subgoal_tac "z = (ab, bb)")
+   subgoal for list_heap1 list_heap2 _ _ _ _ _ _ tp ttsia' ttsin' tti' ttsi' _ _ _ _ _ _ _ _ ttsia ttsin tti ttsi subi sepi subp
+     apply(subgoal_tac "z = (subi, sepi)")
      prefer 2
      apply (metis assms(3) list_assn_len nth_append_length)
      apply simp
@@ -1030,11 +1029,11 @@ next
        using False apply (auto dest!: list_assn_len mod_starD)[]
        done
      apply simp
-     subgoal for tsia tiab tsi'b xa xab xb xc
+     subgoal for subtsi subti subts ti subi subtsl ttsl
     (* TODO different nodei rule here *)
-       supply R = node\<^sub>i_rule_ins[where k=k and c="(max (2 * k) (Suc (_ + ba)))" and lsi=tsi'b]
+       supply R = node\<^sub>i_rule_ins[where k=k and c="(max (2 * k) (Suc (_ + ttsin)))" and lsi=subts]
        thm R
-       apply(cases tsia)
+       apply(cases subtsi)
      apply(sep_auto heap add: R pfa_append_extend_grow_rule dest!: mod_starD)
 (* all of these cases are vacuous *)
       using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
@@ -1049,23 +1048,23 @@ next
      using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
      using assms apply (auto simp add: is_pfa_def dest!: list_assn_len)[]
       apply(rule hoare_triple_preI)
-       apply (cases zs2)
+       apply (cases rsi)
        apply(auto dest!: list_assn_len mod_starD)[]
-       subgoal for aab be aaaa baa tiac tsi'c ae bea aga bga ah bh aia bia xd h aba list
+       subgoal for subtsa subtsn mtsa mtsn mtt mtsi _ _ _ _ _ _ _ _ rsubsep _ rrsi rssi
 (* ensuring that the tree to the right is not none *)
-         apply (cases aba)
-         apply(subgoal_tac "xd = aba")
+         apply (cases rsubsep)
+         apply(subgoal_tac "rsubsep = rrsi")
          prefer 2
          using assms apply(auto dest!: list_assn_len simp add: second_last_access)[]
          apply (simp add: prod_assn_def)
          apply(cases rss)
          apply simp
-         subgoal for aac rsep x1 bab
-         apply(subgoal_tac "height x1 \<noteq> 0")
+         subgoal for rsubi rsepi rsub rsep
+         apply(subgoal_tac "height rsub \<noteq> 0")
            prefer 2
           using assms apply(auto)[]
-          apply(cases x1; cases aac)
-         apply(cases aac)
+          apply(cases rsub; cases rsubi)
+         apply(cases rsubi)
           apply simp+
 (* now we may proceed *)
        apply (vcg (ss))
@@ -1073,89 +1072,85 @@ next
        apply (vcg (ss))
        apply (vcg (ss))
        apply (vcg (ss))
-          subgoal for x21 x22 aad tsiaa tiad tsi'd xe
-          apply(cases "kvs xe")
+          subgoal for rsubts rsubt rsubp rsubtspfa rsubti rsubtsi subnode
+          apply(cases "kvs subnode")
             apply (vcg (ss))
             apply (vcg (ss))
             apply (vcg (ss))
             apply (vcg (ss))
             apply (vcg (ss))
-            subgoal for _ bh xf
-            apply (cases xf)
+            subgoal for _ rsubtsn subtsmergedi
+            apply (cases subtsmergedi)
               apply simp
               apply (vcg (ss))
-              subgoal for aae _
+              subgoal for subtsmergeda _
               supply R = node\<^sub>i_rule_ins[where
                    k=k and
-                   c="max (2*k) (Suc (be + bh))" and
+                   c="max (2*k) (Suc (subtsn + rsubtsn))" and
                    ls="mts" and
-                   lsi="tsi'b" and
-                   al="Suc (be+bh)" and
-                   aa=aae and
-                   ti=tiad and
-                   rsi=tsi'd and
-                    li=tiab and a=sep and ai=sep
+                   al="Suc (subtsn+rsubtsn)" and
+                   aa=subtsmergeda and
+                   ti=rsubti and
+                   rsi=rsubtsi and
+                    li=subti and a=sep and ai=sep
               ]
               thm R
               apply(rule P_imp_Q_implies_P)
      apply(rule hoare_triple_preI)
               apply (sep_auto heap add: R)
              apply(auto  dest!: mod_starD list_assn_len)[]
-              apply(subgoal_tac "bh \<le> 2*k \<and> be \<le> 2*k")
+              apply(subgoal_tac "subtsn \<le> 2*k \<and> rsubtsn \<le> 2*k")
               apply auto[]
               apply (auto simp add: is_pfa_def)[]
              apply(auto  dest!: mod_starD list_assn_len)[]
-              apply(subgoal_tac "bh \<le> 2*k \<and> be \<le> 2*k")
+              apply(subgoal_tac "subtsn \<le> 2*k \<and> rsubtsn \<le> 2*k")
               apply auto[]
               apply (auto simp add: is_pfa_def)[]
              apply(auto  dest!: mod_starD list_assn_len)[]
-              apply(subgoal_tac "bh \<le> 2*k \<and> be \<le> 2*k")
+              apply(subgoal_tac "subtsn \<le> 2*k \<and> rsubtsn \<le> 2*k")
               apply auto[]
               apply (auto simp add: is_pfa_def)[]
              apply(auto  dest!: mod_starD list_assn_len)[]
-              apply(subgoal_tac "bh \<le> 2*k \<and> be \<le> 2*k")
+              apply(subgoal_tac "subtsn \<le> 2*k \<and> rsubtsn \<le> 2*k")
               apply auto[]
               apply (auto simp add: is_pfa_def)[]
              apply(auto  dest!: mod_starD list_assn_len)[]
               apply(sep_auto split!: btupi.splits)
              using assms apply(auto  dest!: mod_starD list_assn_len)[]
-              apply(sep_auto )
+              apply(sep_auto)
              using assms apply(auto  dest!: mod_starD list_assn_len)[]
-              apply(subgoal_tac "length (zs1 @ (Some xaa, sep) # (Some aad, bab) # list) \<le> n")
+              apply(subgoal_tac "length (lsi @ (Some subp, sep) # (Some rsubp, rsep) # rssi) \<le> n")
              apply(auto  dest!: mod_starD list_assn_len)[]
               apply(simp add: is_pfa_def)
               subgoal
             proof -
-              assume "\<exists>l'. (ac, bc) \<Turnstile> a \<mapsto>\<^sub>a l' \<and>
+              assume "\<exists>l'. (list_heap1, list_heap2) \<Turnstile> a \<mapsto>\<^sub>a l' \<and>
             2 * k = length l' \<and>
-            n \<le> 2 * k \<and> zs1 @ (Some xaa, sep) # (Some aad, bab) # list = take n l'"
+            n \<le> 2 * k \<and> lsi @ (Some subp, sep) # (Some rsubp, rsep) # rssi = take n l'"
               then guess l' by auto
-              then have "length (zs1 @ (Some xaa, sep) # (Some aad, bab) # list) = length (take n l')"
+              then have "length (lsi @ (Some subp, sep) # (Some rsubp, rsep) # rssi) = length (take n l')"
                 by auto
               also have "\<dots> = min (2*k) n" 
                 by (simp add: \<open>2 * k = length l'\<close>)
               also have "\<dots> \<le> n"
                 by auto
-              finally show "Suc (Suc (length zs1 + length list)) \<le> n"
+              finally show "Suc (Suc (length lsi + length rssi)) \<le> n"
                 by auto
             qed
             apply(rule hoare_triple_preI)
                    apply (auto dest!: btupi_assn_T mod_starD)[]
             apply(vcg)
             apply simp
-            subgoal for aaf bac tib tsi'e abb bba tiae tsi'aa x1a
+            subgoal for _ _ _ _ _ _ _ _ ai
               apply(rule P_imp_Q_implies_P)
-        apply(rule ent_ex_postI[where x="((take (Suc (length ls)) zs1 @
-        take (Suc (length ls) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))
-       [length ls := (x1a, bab)] @
-       drop (Suc (Suc (length ls))) zs1 @
-       drop (Suc (Suc (length ls)) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))"])
-        apply(rule ent_ex_postI[where x="(aaa, ba)"])
-        apply(rule ent_ex_postI[where x="tiaa"])
-        apply(rule ent_ex_postI[where x="tsi'a"])
+        apply(rule ent_ex_postI[where x="((take (Suc i) lsi @ take (Suc i - length lsi) ((Some subp, sep) # (Some rsubp, rsep) # rssi))[i := (ai, rsep)] @
+      drop (Suc (Suc i)) lsi @ drop (Suc (Suc i) - length lsi) ((Some subp, sep) # (Some rsubp, rsep) # rssi))"])
+        apply(rule ent_ex_postI[where x="(ttsia, ttsin)"])
+        apply(rule ent_ex_postI[where x="tti"])
+        apply(rule ent_ex_postI[where x="ttsi"])
               using assms apply (sep_auto dest!: list_assn_len)
               done
-            subgoal for aaf bh aaab bac tiae tsi'e abb bba tiaaa tsi'aa x21a x22a x23
+            subgoal for _ _ rsubtsa rsubtsn rsubti rsubtsi rsubtsa' rsubtsn' rsubti' rsubtsi' li ai ri
             apply(sep_auto)
             using assms apply(auto dest!: list_assn_len)[]
             apply(sep_auto)
@@ -1163,47 +1158,45 @@ next
      apply(rule hoare_triple_preI)
             apply(sep_auto dest!: btupi_assn_Up mod_starD)
               apply(auto split!: list.split)
-        apply(rule ent_ex_postI[where x="((zs1 @ (x21a, x22a) # (Some aad, bab) # list)[Suc (length zs1) := (x23, bab)])"])
-        apply(rule ent_ex_postI[where x="(aaa, ba)"])
-        apply(rule ent_ex_postI[where x="tiaa"])
-        apply(rule ent_ex_postI[where x="tsi'a"])
+        apply(rule ent_ex_postI[where x="(lsi @ (Some subp, sep) # (Some rsubp, rsepi) # rssi)[i := (li, ai), Suc i := (ri, rsep)]"])
+        apply(rule ent_ex_postI[where x="(ttsia, ttsin)"])
+        apply(rule ent_ex_postI[where x="tti"])
+        apply(rule ent_ex_postI[where x="ttsi"])
               using assms apply (sep_auto dest!: list_assn_len)
               done
               apply sep_auto
             using assms apply(auto dest!: list_assn_len)[]
               apply sep_auto
-              apply(subgoal_tac "length (zs1 @ (Some xaa, sep) # (Some aad, bab) # list) \<le> n")
+              apply(subgoal_tac "length (lsi @ (Some subp, sep) # (Some rsubp, rsepi) # rssi) \<le> n")
              using assms apply(auto  dest!: mod_starD list_assn_len)[]
               apply(simp add: is_pfa_def) (* would yield "linarith split limit exceeded when attempted with auto *)
               subgoal
             proof -
-              assume "\<exists>l'. (ac, bc) \<Turnstile> a \<mapsto>\<^sub>a l' \<and>
-         2 * k = length l' \<and> n \<le> 2 * k \<and> zs1 @ (Some xaa, sep) # (Some aad, rsep) # list = take n l'"
+              assume "\<exists>l'. (list_heap1, list_heap2) \<Turnstile> a \<mapsto>\<^sub>a l' \<and>
+            2 * k = length l' \<and>
+            n \<le> 2 * k \<and> lsi @ (Some subp, sep) # (Some rsubp, rsepi) # rssi = take n l'"
               then guess l' by auto
-              then have "length (zs1 @ (Some xaa, sep) # (Some aad, rsep) # list) = length (take n l')"
+              then have "length (lsi @ (Some subp, sep) # (Some rsubp, rsepi) # rssi) = length (take n l')"
                 by auto
               also have "\<dots> = min (2*k) n" 
                 by (simp add: \<open>2 * k = length l'\<close>)
               also have "\<dots> \<le> n"
                 by auto
-              finally show "Suc (Suc (length zs1 + length list)) \<le> n"
+              finally show "Suc (Suc (length lsi + length rssi)) \<le> n"
                 by auto
             qed
-            subgoal for aaf bh aaab bac tiae tsi'e abb bba tiaaa tsi'aa x1a xg
+            subgoal for _ _ _ _ _ _ _ _ _ _ a ai
             apply(rule hoare_triple_preI)
                    apply (auto dest!: btupi_assn_T mod_starD)[]
             apply(vcg)
-              apply(cases xg)
+              apply(cases ai)
             apply simp
               apply(rule P_imp_Q_implies_P)
-        apply(rule ent_ex_postI[where x="((take (Suc (length ls)) zs1 @
-           take (Suc (length ls) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))
-          [length ls := (x1a, bab)] @
-          drop (Suc (Suc (length ls))) zs1 @
-          drop (Suc (Suc (length ls)) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))"])
-        apply(rule ent_ex_postI[where x="(aaa, ba)"])
-        apply(rule ent_ex_postI[where x="tiaa"])
-        apply(rule ent_ex_postI[where x="tsi'a"])
+        apply(rule ent_ex_postI[where x="((take (Suc i) lsi @ take (Suc i - length lsi) ((Some subp, sep) # (Some rsubp, rsep) # rssi))[i := (a, rsep)] @
+         drop (Suc (Suc i)) lsi @ drop (Suc (Suc i) - length lsi) ((Some subp, sep) # (Some rsubp, rsep) # rssi))"])
+        apply(rule ent_ex_postI[where x="(ttsia, ttsin)"])
+        apply(rule ent_ex_postI[where x="tti"])
+        apply(rule ent_ex_postI[where x="ttsi"])
               using assms apply (sep_auto dest!: list_assn_len)
               done
               apply sep_auto
@@ -1213,50 +1206,48 @@ next
             apply(rule hoare_triple_preI)
                    apply (auto dest!: btupi_assn_Up mod_starD)[]
               apply sep_auto
-            subgoal for aaf bac tiae tsi'e abb bba tiaaa tsi'aa x21a x22a x23
+            subgoal for _ _ rsubtsa rsubtsn rsubti rsubtsi rsubtsa' rsubtsn' rsubti' rsubtsi' li ai ri
               using assms apply(auto split!: list.split)
-        apply(rule ent_ex_postI[where x="((zs1 @ (x21a, x22a) # (Some aad, bab) # list)[Suc (length zs1) := (x23, bab)])"])
-        apply(rule ent_ex_postI[where x="(aaa, ba)"])
-        apply(rule ent_ex_postI[where x="tiaa"])
-        apply(rule ent_ex_postI[where x="tsi'a"])
+        apply(rule ent_ex_postI[where x="((lsi @ (Some subp, sep) # (Some rsubp, rsep) # rssi)[length ls := (rsubti', rsubtsi'), Suc (length ls) := (li, rsep)])"])
+        apply(rule ent_ex_postI[where x="(ttsia, ttsin)"])
+        apply(rule ent_ex_postI[where x="tti"])
+        apply(rule ent_ex_postI[where x="ttsi"])
               using assms apply (sep_auto dest!: list_assn_len)
               done
               apply sep_auto
             using assms apply(auto dest!: list_assn_len)[]
               apply sep_auto
             using assms apply(auto dest!: list_assn_len)[]
-              apply(subgoal_tac "length (zs1 @ (Some xaa, sep) # (Some aad, bab) # list) \<le> n")
+              apply(subgoal_tac "length (lsi @ (Some subp, sep) # (Some rsubp, rsepi) # rssi) \<le> n")
              using assms apply(auto  dest!: mod_starD list_assn_len)[]
               apply(simp add: is_pfa_def) (* would yield "linarith split limit exceeded when attempted with auto *)
               subgoal
             proof -
-              assume "\<exists>l'. (ac, bc) \<Turnstile> a \<mapsto>\<^sub>a l' \<and>
-         2 * k = length l' \<and> n \<le> 2 * k \<and> zs1 @ (Some xaa, sep) # (Some aad, rsep) # list = take n l'"
+              assume "\<exists>l'. (list_heap1, list_heap2) \<Turnstile> a \<mapsto>\<^sub>a l' \<and>
+            2 * k = length l' \<and>
+            n \<le> 2 * k \<and> lsi @ (Some subp, sep) # (Some rsubp, rsepi) # rssi = take n l'"
               then guess l' by auto
-              then have "length (zs1 @ (Some xaa, sep) # (Some aad, rsep) # list) = length (take n l')"
+              then have "length (lsi @ (Some subp, sep) # (Some rsubp, rsepi) # rssi) = length (take n l')"
                 by auto
               also have "\<dots> = min (2*k) n" 
                 by (simp add: \<open>2 * k = length l'\<close>)
               also have "\<dots> \<le> n"
                 by auto
-              finally show "Suc (Suc (length zs1 + length list)) \<le> n"
+              finally show "Suc (Suc (length lsi + length rssi)) \<le> n"
                 by auto
             qed
-            subgoal for aaf bh aaab bac tiae tsi'e abb bba tiaaa tsi'aa x1a xg
+            subgoal for _ _ _ _ _ _ _ _ _ _ a ai
             apply(rule hoare_triple_preI)
                    apply (auto dest!: btupi_assn_T mod_starD)[]
             apply(vcg)
-              apply(cases xg)
+              apply(cases ai)
             apply simp
               apply(rule P_imp_Q_implies_P)
-        apply(rule ent_ex_postI[where x="((take (Suc (length ls)) zs1 @
-           take (Suc (length ls) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))
-          [length ls := (x1a, bab)] @
-          drop (Suc (Suc (length ls))) zs1 @
-          drop (Suc (Suc (length ls)) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))"])
-        apply(rule ent_ex_postI[where x="(aaa, ba)"])
-        apply(rule ent_ex_postI[where x="tiaa"])
-        apply(rule ent_ex_postI[where x="tsi'a"])
+        apply(rule ent_ex_postI[where x="((take (Suc i) lsi @ take (Suc i - length lsi) ((Some subp, sep) # (Some rsubp, rsep) # rssi))[i := (a, rsep)] @
+         drop (Suc (Suc i)) lsi @ drop (Suc (Suc i) - length lsi) ((Some subp, sep) # (Some rsubp, rsep) # rssi))"])
+        apply(rule ent_ex_postI[where x="(ttsia, ttsin)"])
+        apply(rule ent_ex_postI[where x="tti"])
+        apply(rule ent_ex_postI[where x="ttsi"])
               using assms apply (sep_auto dest!: list_assn_len)
               done
               apply sep_auto
@@ -1266,50 +1257,48 @@ next
             apply(rule hoare_triple_preI)
                    apply (auto dest!: btupi_assn_Up mod_starD)[]
               apply sep_auto
-            subgoal for aaf bac tiae tsi'e abb bba tiaaa tsi'aa x21a x22a x23
-              apply(auto split!: list.split)
-        apply(rule ent_ex_postI[where x="((zs1 @ (x21a, x22a) # (Some aad, bab) # list)[Suc (length zs1) := (x23, bab)])"])
-        apply(rule ent_ex_postI[where x="(aaa, ba)"])
-        apply(rule ent_ex_postI[where x="tiaa"])
-        apply(rule ent_ex_postI[where x="tsi'a"])
+            subgoal for _ _ rsubtsa rsubtsn rsubti rsubtsi rsubtsa' rsubtsn' rsubti' rsubtsi' li ai ri
+              using assms apply(auto split!: list.split)
+        apply(rule ent_ex_postI[where x="((lsi @ (Some subp, sep) # (Some rsubp, rsep) # rssi)[length ls := (rsubti', rsubtsi'), Suc (length ls) := (li, rsep)])"])
+        apply(rule ent_ex_postI[where x="(ttsia, ttsin)"])
+        apply(rule ent_ex_postI[where x="tti"])
+        apply(rule ent_ex_postI[where x="ttsi"])
               using assms apply (sep_auto dest!: list_assn_len)
               done
               apply sep_auto
             using assms apply(auto dest!: list_assn_len)[]
               apply sep_auto
             using assms apply(auto dest!: list_assn_len)[]
-              apply(subgoal_tac "length (zs1 @ (Some xaa, sep) # (Some aad, bab) # list) \<le> n")
+              apply(subgoal_tac "length (lsi @ (Some subp, sep) # (Some rsubp, rsepi) # rssi) \<le> n")
              using assms apply(auto  dest!: mod_starD list_assn_len)[]
               apply(simp add: is_pfa_def) (* would yield "linarith split limit exceeded when attempted with auto *)
               subgoal
             proof -
-              assume "\<exists>l'. (ac, bc) \<Turnstile> a \<mapsto>\<^sub>a l' \<and>
-         2 * k = length l' \<and> n \<le> 2 * k \<and> zs1 @ (Some xaa, sep) # (Some aad, rsep) # list = take n l'"
+              assume "\<exists>l'. (list_heap1, list_heap2) \<Turnstile> a \<mapsto>\<^sub>a l' \<and>
+            2 * k = length l' \<and>
+            n \<le> 2 * k \<and> lsi @ (Some subp, sep) # (Some rsubp, rsepi) # rssi = take n l'"
               then guess l' by auto
-              then have "length (zs1 @ (Some xaa, sep) # (Some aad, rsep) # list) = length (take n l')"
+              then have "length (lsi @ (Some subp, sep) # (Some rsubp, rsepi) # rssi) = length (take n l')"
                 by auto
               also have "\<dots> = min (2*k) n" 
                 by (simp add: \<open>2 * k = length l'\<close>)
               also have "\<dots> \<le> n"
                 by auto
-              finally show "Suc (Suc (length zs1 + length list)) \<le> n"
+              finally show "Suc (Suc (length lsi + length rssi)) \<le> n"
                 by auto
             qed
-            subgoal for aaf bh aaab bac tiae tsi'e abb bba tiaaa tsi'aa x1a xg
+            subgoal for _ _ _ _ _ _ _ _ _ _ a ai
             apply(rule hoare_triple_preI)
                    apply (auto dest!: btupi_assn_T mod_starD)[]
             apply(vcg)
-              apply(cases xg)
+              apply(cases ai)
             apply simp
               apply(rule P_imp_Q_implies_P)
-        apply(rule ent_ex_postI[where x="((take (Suc (length ls)) zs1 @
-           take (Suc (length ls) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))
-          [length ls := (x1a, bab)] @
-          drop (Suc (Suc (length ls))) zs1 @
-          drop (Suc (Suc (length ls)) - length zs1) ((Some xaa, sep) # (Some aad, bab) # list))"])
-        apply(rule ent_ex_postI[where x="(aaa, ba)"])
-        apply(rule ent_ex_postI[where x="tiaa"])
-        apply(rule ent_ex_postI[where x="tsi'a"])
+        apply(rule ent_ex_postI[where x="((take (Suc i) lsi @ take (Suc i - length lsi) ((Some subp, sep) # (Some rsubp, rsep) # rssi))[i := (a, rsep)] @
+         drop (Suc (Suc i)) lsi @ drop (Suc (Suc i) - length lsi) ((Some subp, sep) # (Some rsubp, rsep) # rssi))"])
+        apply(rule ent_ex_postI[where x="(ttsia, ttsin)"])
+        apply(rule ent_ex_postI[where x="tti"])
+        apply(rule ent_ex_postI[where x="ttsi"])
               using assms apply (sep_auto dest!: list_assn_len)
               done
               apply sep_auto
@@ -1319,12 +1308,12 @@ next
             apply(rule hoare_triple_preI)
                    apply (auto dest!: btupi_assn_Up mod_starD)[]
               apply sep_auto
-            subgoal for aaf bac tiae tsi'e abb bba tiaaa tsi'aa x21a x22a x23
-              apply(auto split!: list.split)
-        apply(rule ent_ex_postI[where x="((zs1 @ (x21a, x22a) # (Some aad, bab) # list)[Suc (length zs1) := (x23, bab)])"])
-        apply(rule ent_ex_postI[where x="(aaa, ba)"])
-        apply(rule ent_ex_postI[where x="tiaa"])
-        apply(rule ent_ex_postI[where x="tsi'a"])
+            subgoal for _ _ rsubtsa rsubtsn rsubti rsubtsi rsubtsa' rsubtsn' rsubti' rsubtsi' li ai ri
+              using assms apply(auto split!: list.split)
+        apply(rule ent_ex_postI[where x="((lsi @ (Some subp, sep) # (Some rsubp, rsep) # rssi)[length ls := (rsubti', rsubtsi'), Suc (length ls) := (li, rsep)])"])
+        apply(rule ent_ex_postI[where x="(ttsia, ttsin)"])
+        apply(rule ent_ex_postI[where x="tti"])
+        apply(rule ent_ex_postI[where x="ttsi"])
               using assms apply (sep_auto dest!: list_assn_len)
               done
           done

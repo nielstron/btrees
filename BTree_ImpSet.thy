@@ -1584,9 +1584,9 @@ next
       using "2.prems" apply (auto dest!: mod_starD simp add: sorted_wrt_append)[]
       using "2.prems" order_impl_root_order apply (auto dest!: mod_starD)[]
       using "2.prems" apply (auto)[]
-      subgoal for xx a b ti tsi' xb aa ba xaa
+      subgoal for tp tsia tsin tti tsi i _ _ tti'
       apply(rule hoare_triple_preI)
-        supply R = rebalance_last_tree_rule[where t="(abs_split.del k x tt)" and ti=xaa and ts=ts and sub=lastts_sub
+        supply R = rebalance_last_tree_rule[where t="(abs_split.del k x tt)" and ti=tti' and ts=ts and sub=lastts_sub
 and list=tss and sep=lastts_sep]
       thm R
       using last_ts apply(sep_auto heap add: R)
@@ -1596,15 +1596,15 @@ and list=tss and sep=lastts_sep]
        apply (sep_auto)
       apply(cases "abs_split.rebalance_last_tree k ts (abs_split.del k x tt)")
       apply(auto simp add: split_relation_alt dest!: mod_starD list_assn_len)
-      subgoal for x'
-        apply (cases x'; sep_auto)
+      subgoal for tnode 
+        apply (cases tnode; sep_auto)
         done
       done
     done
   next
-    case [simp]: (Cons a list)
-    then obtain sub sep where [simp]: "a = (sub, sep)"
-      by (cases a)
+    case [simp]: (Cons rrs rss)
+    then obtain sub sep where [simp]: "rrs = (sub, sep)"
+      by (cases rrs)
     consider (sep_n_x) "sep \<noteq> x" |
       (sep_x_Leaf) "sep = x \<and> sub = Leaf" | 
       (sep_x_Node) "sep = x \<and> (\<exists>ts t. sub = Node ts t)"
@@ -1632,18 +1632,18 @@ and list=tss and sep=lastts_sep]
       apply(vcg (ss))
       apply(vcg (ss))
       apply(vcg (ss))
-      subgoal for x' tsi ti' tsi' xaa xb xc xd suba sepa
+      subgoal for tp tsi ti' tsi' tnode i tsi'l subsep subi sepi
       (* TODO this causes 4 subgoals *)
         apply(auto simp add: split_relation_alt list_assn_append_Cons_left;
          rule norm_pre_ex_rule; rule norm_pre_ex_rule; rule norm_pre_ex_rule;
          rule hoare_triple_preI;
           auto dest!: mod_starD)[]
       apply (auto simp add: split_relation_alt dest!: list_assn_len)[]
-      subgoal for zs1 ai zs2
-        apply(subgoal_tac "ai = None")
+      subgoal for lsi subi rsi
+        apply(subgoal_tac "subi = None")
          prefer 2
           apply(auto dest!: list_assn_len)[]
-        supply R = "2.IH"(2)[of ls rs a list sub sep]
+        supply R = "2.IH"(2)[of ls rs rrs rss sub sep]
         thm R
         using split_ts apply(sep_auto heap add: R)
         using "2.prems" apply auto[]
@@ -1658,7 +1658,7 @@ and list=tss and sep=lastts_sep]
         apply(vcg (ss))
         apply(vcg (ss); simp)
           apply(cases tsi; simp)
-        subgoal for x' xab a n
+        subgoal for subi' _ tsia' tsin'
         supply R = rebalance_middle_tree_update_rule 
         thm R
 (* TODO create a new heap rule, in the node_i style *)
@@ -1669,8 +1669,8 @@ and list=tss and sep=lastts_sep]
         using "2.prems" apply (auto split!: list.splits)[]
         apply auto[]
         apply sep_auto
-        subgoal for aba bb ad bd af bf aha bha al bl am bm an bn x''''
-          apply (cases "(abs_split.rebalance_middle_tree k ls (abs_split.del k x sub) sepa list tt)"; cases x'''')
+        subgoal for _ _ _ _ _ _ _ _ _ _ _ _ _ _ tnode''
+          apply (cases "(abs_split.rebalance_middle_tree k ls (abs_split.del k x sub) sepi rss tt)"; cases tnode'')
           apply sep_auto
           apply sep_auto
           done
@@ -1678,11 +1678,11 @@ and list=tss and sep=lastts_sep]
       done
       apply (auto simp add: split_relation_alt dest!: mod_starD list_assn_len)[]
 (* copy pasta of "none" branch *)
-      subgoal for y zs1 ai zs2
-        apply(subgoal_tac "ai = Some y")
+      subgoal for subnode lsi subi rsi
+        apply(subgoal_tac "subi = Some subnode")
          prefer 2
           apply(auto dest!: list_assn_len)[]
-        supply R = "2.IH"(2)[of ls rs a list sub sep]
+        supply R = "2.IH"(2)[of ls rs rrs rss sub sep]
         thm R
         using split_ts apply(sep_auto heap add: R)
         using "2.prems" apply auto[]
@@ -1708,8 +1708,8 @@ and list=tss and sep=lastts_sep]
         using "2.prems" apply (auto split!: list.splits)[]
         apply auto[]
         apply sep_auto
-        subgoal for aba bb ad bd af bf aha bha al bl am bm an bn x''''
-          apply (cases "(abs_split.rebalance_middle_tree k ls (abs_split.del k x sub) sepa list tt)"; cases x'''')
+        subgoal for _ _ _ _ _ _ _ _ _ _ _ _ _  _  tnode'
+          apply (cases "(abs_split.rebalance_middle_tree k ls (abs_split.del k x sub) sepi rss tt)"; cases tnode')
           apply sep_auto
           apply sep_auto
           done
@@ -1741,24 +1741,24 @@ and list=tss and sep=lastts_sep]
       apply(vcg (ss))
       apply(vcg (ss))
       apply(vcg (ss))
-      subgoal for x' tsi ti' tsi' xaa xb xc xd suba sepa
+      subgoal for tp tsi ti' tsi' tnode i tsi'l subsep subi sepi
       (* TODO this causes 4 subgoals *)
         apply(auto simp add: split_relation_alt list_assn_append_Cons_left;
          rule norm_pre_ex_rule; rule norm_pre_ex_rule; rule norm_pre_ex_rule;
          rule hoare_triple_preI;
           auto dest!: mod_starD)[]
 (* the correct subbranch *)
-        subgoal for zs1 sub zs2
+        subgoal for lsi subi rsi
           apply(cases tsi)
         apply (sep_auto)
           apply(auto simp add: is_pfa_def dest!: list_assn_len)[]
           apply (metis add_Suc_right le_imp_less_Suc length_append length_take less_add_Suc1 less_trans_Suc list.size(4) min.cobounded2 not_less_eq)
           apply vcg
           apply auto
-          subgoal for n a
-          apply(rule ent_ex_postI[where x="(a, n-1)"])
+          subgoal for tsin tsia
+          apply(rule ent_ex_postI[where x="(tsia, tsin-1)"])
           apply(rule ent_ex_postI[where x="ti'"])
-          apply(rule ent_ex_postI[where x="zs1@zs2"])
+          apply(rule ent_ex_postI[where x="lsi@rsi"])
             apply (sep_auto dest!: list_assn_len)
             done
           done
@@ -1791,7 +1791,7 @@ and list=tss and sep=lastts_sep]
       apply(vcg (ss))
       apply(vcg (ss))
       apply(vcg (ss))
-      subgoal for sub_ts sub_t ti' tsi' xaa xb xc xd suba sepa
+      subgoal for subts subt tp tsi ti tsi' tnode i tsi'l subsep subi sepi
       (* TODO this causes 4 subgoals *)
         apply(auto simp add: split_relation_alt list_assn_append_Cons_left;
          rule norm_pre_ex_rule; rule norm_pre_ex_rule; rule norm_pre_ex_rule;
@@ -1800,39 +1800,39 @@ and list=tss and sep=lastts_sep]
            apply (auto simp add: split_relation_alt dest!: list_assn_len)[]
           apply (auto simp add: split_relation_alt dest!: list_assn_len)[]
 (* the correct sub branch *)
-        subgoal for y zs1 sub' zs2
-          apply(subgoal_tac "sub' = Some y")
+        subgoal for subnode lsi subi rsi
+          apply(subgoal_tac "subi = Some subnode")
           apply (simp del: btree_assn.simps)
-          supply R = split_max_rule[of "Node sub_ts sub_t" k "Some y"]
+          supply R = split_max_rule[of "Node subts subt" k "Some subnode"]
           thm R
           apply(sep_auto heap add: R simp del: btree_assn.simps)
           using "2.prems" apply(auto dest!: list_assn_len mod_starD simp del: bal.simps order.simps)[]
           subgoal
         proof(goal_cases)
           case 1
-          then have "order k (Node sub_ts sub_t)"
+          then have "order k (Node subts subt)"
             by blast
           moreover have "k > 0"
             by (simp add: "2.prems"(4))
-          ultimately obtain sub_ls lsub lsep where sub_ts_split: "sub_ts = sub_ls@[(lsub,lsep)]"
+          ultimately obtain sub_ls lsub lsep where sub_ts_split: "subts = sub_ls@[(lsub,lsep)]"
             by (metis abs_split.isin.cases le_0_eq list.size(3) order.simps(2) rev_exhaust zero_less_iff_neq_zero)
-          from 1 have "bal (Node sub_ts sub_t)"
+          from 1 have "bal (Node subts subt)"
             by auto
-          then have "height lsub = height sub_t"
+          then have "height lsub = height subt"
             by (simp add: sub_ts_split)
           then show ?thesis using sub_ts_split by blast
         qed
-        using "2.prems" abs_split.order_bal_nonempty_lasttreebal[of k sub_t] order_impl_root_order[of k sub_t]
+        using "2.prems" abs_split.order_bal_nonempty_lasttreebal[of k subt] order_impl_root_order[of k subt]
            apply(auto)[]
        apply (auto simp add: split_relation_alt dest!: list_assn_len)[]
         apply vcg
         apply auto[]
-        apply(cases "abs_split.split_max k (Node sub_ts sub_t)"; simp)
+        apply(cases "abs_split.split_max k (Node subts subt)"; simp)
         subgoal for split_res _ split_sub split_sep
           apply(cases split_res; simp)
           subgoal for split_subi split_sepi
             supply R = rebalance_middle_tree_update_rule[
-                of tt split_sub list "length zs1" ls k zs1 split_subi split_sep zs2 tsi' xaa
+                of tt split_sub rss "length lsi" ls k lsi split_subi split_sep rsi tsi ti 
               ]
         thm R
 (* id_assn split_sepi doesnt match yet... *)
@@ -1848,8 +1848,8 @@ and list=tss and sep=lastts_sep]
         apply auto[]
         apply(rule hoare_triple_preI)
         apply(auto dest!: mod_starD)[]
-        subgoal for a n ti tsi'a y
-        apply(cases "(abs_split.rebalance_middle_tree k ls split_sub split_sep list tt)"; cases "y")
+        subgoal for subtsi''a subtsi''n ti subtsi'' tnode'
+        apply(cases "(abs_split.rebalance_middle_tree k ls split_sub split_sep rss tt)"; cases "tnode'")
         apply auto
         apply sep_auto
           done

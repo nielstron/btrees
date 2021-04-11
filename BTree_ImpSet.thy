@@ -1380,12 +1380,12 @@ lemma split_max_rule:
   <((btree_assn k) \<times>\<^sub>a id_assn) (abs_split.split_max k t)>\<^sub>t"
   using assms
 proof(induction k t arbitrary: ti rule: abs_split.split_max.induct)
-  case (2 a)
+  case (2 Leaf)
   then show ?case by auto
 next
-  case (1 k ts t)
+  case (1 k ts tt)
   then show ?case
-  proof(cases t)
+  proof(cases tt)
     case Leaf
     then show ?thesis
   apply(subst split_max.simps)
@@ -1411,13 +1411,13 @@ next
   apply (vcg (ss))
   apply (vcg (ss))
   apply (vcg (ss))
-  subgoal for x tsi tia tsi' xa xb sub sep
+  subgoal for tp tsi tti tsi' tnode subsep sub sep
   apply(cases tsi)
   apply(rule hoare_triple_preI)
   apply (vcg)
     apply(auto simp add: prod_assn_def abs_split.split_max.simps split!: prod.splits)
-    subgoal for a b aa ba bb x2 x1a
-           apply(rule ent_ex_postI[where x="(a, bb)"])
+    subgoal for tsia tsin _ _ tsin' lastsep lastsub
+           apply(rule ent_ex_postI[where x="(tsia, tsin')"])
            apply(rule ent_ex_postI[where x="sub"])
            apply(rule ent_ex_postI[where x="(butlast tsi')"])
       using 1 apply (auto dest!: mod_starD simp add: list_assn_append_Cons_left)
@@ -1427,12 +1427,13 @@ next
   apply(sep_auto)
   done
   next
-    case (Node tts tt)
-    have IH_help: "abs_split.nonempty_lasttreebal t \<Longrightarrow>
-t \<noteq> Leaf \<Longrightarrow>
-<btree_assn k (Node tts tt) (Some xb)> split_max k (Some xb) <(btree_assn k \<times>\<^sub>a id_assn) (abs_split.split_max k t)>\<^sub>t" for xb
+    case (Node tts ttt)
+    have IH_help: "abs_split.nonempty_lasttreebal tt \<Longrightarrow>
+tt \<noteq> Leaf \<Longrightarrow>
+<btree_assn k (Node tts ttt) (Some ttp)> split_max k (Some ttp) <(btree_assn k \<times>\<^sub>a id_assn) (abs_split.split_max k tt)>\<^sub>t"
+      for ttp
       using "1.IH" Node by blast
-    obtain list l_sub l_sep where ts_split:"tts = list@[(l_sub, l_sep)]"
+    obtain butlasttts l_sub l_sep where ts_split:"tts = butlasttts@[(l_sub, l_sep)]"
       using 1 Node by auto
     from Node show ?thesis
   apply(subst split_max.simps)
@@ -1450,17 +1451,17 @@ t \<noteq> Leaf \<Longrightarrow>
   apply (vcg (ss))
   using 1 apply(auto dest!: mod_starD)[]
   apply (vcg (ss))
-  subgoal for x tsi ti tsi' xa xb
+  subgoal for tp tsi tti tsi' tnode ttp
   using "1.prems" apply (vcg heap add: IH_help)
   apply simp
   apply simp
   apply(subst prod_assn_def)
-  apply(cases "abs_split.split_max k t")
+  apply(cases "abs_split.split_max k tt")
   apply (auto simp del: abs_split.split_max.simps abs_split.rebalance_last_tree.simps height_btree.simps)[]
-  subgoal for a b aa ba ls tsub lsa tsuba tsep tsepa
+  subgoal for ttsubi ttmaxi ttsub ttmax butlasttsi' lasttssubi butlastts lasttssub lasttssepi lasttssep
     apply(rule hoare_triple_preI)
-    supply R = rebalance_last_tree_rule[where k=k and tsia=tsi and ti=a and t=aa and tsi=tsi' and ts=" (ls @ [(tsub, tsep)])"
-and list=ls and sub=tsub and sep=tsep]
+    supply R = rebalance_last_tree_rule[where k=k and tsia=tsi and ti=ttsubi and t=ttsub and tsi=tsi' and ts=" (butlasttsi' @ [(lasttssubi, lasttssepi)])"
+and list=butlasttsi' and sub=lasttssubi and sep=lasttssepi]
   thm R
     using ts_split
 (*TODO weird post conditions... *)
@@ -1474,14 +1475,14 @@ dest!: mod_starD)
     apply vcg
     apply(subst abs_split.split_max.simps)
     using "1.prems" apply(auto dest!: mod_starD split!: prod.splits btree.splits) 
-    subgoal for ab bb ae be ah bh ai bi aj bj xc ad bd ag bg ak bk
-    apply(cases "abs_split.rebalance_last_tree k (ls @ [(tsub, tsep)]) aa"; cases xc)
+    subgoal for _ _ _ _ _ _ _ _ _ _ tp'
+    apply(cases "abs_split.rebalance_last_tree k (butlasttsi' @ [(lasttssubi, lasttssepi)]) ttsub"; cases tp')
        apply auto
       apply(rule ent_ex_preI)
-      subgoal for x21 x22 ac bc x2 tsi'a tsi'aa
-           apply(rule ent_ex_postI[where x="(ac, bc)"])
-        apply(rule ent_ex_postI[where x="x2"])
-        apply(rule ent_ex_postI[where x="tsi'aa"])
+      subgoal for _ _ tsia' tsin' tt' _ tsi'
+           apply(rule ent_ex_postI[where x="(tsia', tsin')"])
+        apply(rule ent_ex_postI[where x="tt'"])
+        apply(rule ent_ex_postI[where x="tsi'"])
         apply sep_auto
         done
       done

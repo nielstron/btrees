@@ -416,9 +416,9 @@ declare btree_imp_binary_split.isin.simps[code]
 declare btree_imp_binary_split.del.simps[code] btree_imp_binary_split.split_max.simps[code]
 
 export_code btree_empty btree_isin btree_insert btree_delete checking OCaml SML Scala
-export_code btree_empty btree_isin btree_insert btree_delete in OCaml module_name BTreeInsert
-export_code btree_empty btree_isin btree_insert btree_delete in SML module_name BTreeInsert
-export_code btree_empty btree_isin btree_insert btree_delete in Scala module_name BTreeInsert
+export_code btree_empty btree_isin btree_insert btree_delete in OCaml module_name BTree
+export_code btree_empty btree_isin btree_insert btree_delete in SML module_name BTree
+export_code btree_empty btree_isin btree_insert btree_delete in Scala module_name BTree
 
 end
 

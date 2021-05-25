@@ -243,9 +243,6 @@ definition insert :: "nat \<Rightarrow> ('a::{heap,default,linorder}) \<Rightarr
 
 subsection "Deletion"
 
-text "Note that the below operations have not been verified to
-refine the abstract set operations."
-
 
 (* rebalance middle tree gets a list of trees, an index pointing to
 the position of sub/sep and a last tree *)
